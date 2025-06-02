@@ -1,0 +1,43 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace TripWiseAPI.Models
+{
+    public partial class Tour
+    {
+        public Tour()
+        {
+            GenerateTravelPlans = new HashSet<GenerateTravelPlan>();
+            Reviews = new HashSet<Review>();
+            TourImages = new HashSet<TourImage>();
+            TourItineraries = new HashSet<TourItinerary>();
+            Wishlists = new HashSet<Wishlist>();
+        }
+
+        public int TourId { get; set; }
+        public string TourName { get; set; } = null!;
+        public string? Description { get; set; }
+        public string Duration { get; set; } = null!;
+        public decimal? Price { get; set; }
+        public string? Location { get; set; }
+        public int? MaxGroupSize { get; set; }
+        public string? Category { get; set; }
+        public string? TourNote { get; set; }
+        public string? TourInfo { get; set; }
+        public int? TourTypesId { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public DateTime? RemovedDate { get; set; }
+        public string? CreatedBy { get; set; }
+        public string? ModifiedBy { get; set; }
+        public string? RemovedBy { get; set; }
+        public string? RemovedReason { get; set; }
+
+        public virtual TourType? TourTypes { get; set; }
+        public virtual ICollection<GenerateTravelPlan> GenerateTravelPlans { get; set; }
+        public virtual ICollection<Review> Reviews { get; set; }
+        public virtual ICollection<TourImage> TourImages { get; set; }
+        public virtual ICollection<TourItinerary> TourItineraries { get; set; }
+        public virtual ICollection<Wishlist> Wishlists { get; set; }
+    }
+}
