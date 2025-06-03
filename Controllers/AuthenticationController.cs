@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace TripWiseAPI.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("authentication")]
     [ApiController]
     public class AuthenticationController : ControllerBase
     {
@@ -22,21 +22,24 @@ namespace TripWiseAPI.Controllers
             _configuration = configuration;
             _context = context;
         }
-        // Login 
+        // Handles login with username and password
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginModel loginModel)
         {
-            // Lấy ra thông tin người dùng đã submit lên API
+           
             if (loginModel != null && loginModel.Username != null && loginModel.Password != null)
             {
                 var user = await GetUser(loginModel.Username, loginModel.Password);
                 if (user != null)
                 {
+                    // Remove any existing refresh token for this device
                     await DeleteOldRefreshToken(user, loginModel.DeviceId);
 
+                    // Generate new access and refresh tokens
                     string accessToken = JwtHelper.GenerateJwtToken(_configuration, user);
                     string refreshToken = JwtHelper.GenerateRefreshToken();
 
+                    // Save refresh token to the database
                     var userToken = new UserRefreshToken()
                     {
                         UserId = user.UserId,
@@ -65,19 +68,20 @@ namespace TripWiseAPI.Controllers
                 return BadRequest();
             }
         }
-        // Login with google 
+        // Handles login using Google authentication
         [HttpPost("google-login")]
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginModel model)
         {
             try
             {
+                // Verify Google idToken
                 var payload = await GoogleJsonWebSignature.ValidateAsync(model.IdToken, new GoogleJsonWebSignature.ValidationSettings
                 {
                     Audience = new[] { _configuration["Google:ClientId"] },
                     IssuedAtClockTolerance = TimeSpan.FromMinutes(5)
                 });
 
-                // Kiểm tra user đã tồn tại chưa
+                // Check if the user already exists
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
                 if (user == null)
                 {
@@ -94,9 +98,11 @@ namespace TripWiseAPI.Controllers
                     await _context.SaveChangesAsync();
                 }
 
+                // Generate tokens
                 string accessToken = JwtHelper.GenerateJwtToken(_configuration, user);
                 string refreshToken = JwtHelper.GenerateRefreshToken();
 
+                // Save refresh token
                 var userToken = new UserRefreshToken()
                 {
                     UserId = user.UserId,
@@ -120,7 +126,44 @@ namespace TripWiseAPI.Controllers
                 return Unauthorized("Token không hợp lệ: " + ex.Message);
             }
         }
-        // Logout
+        // Refresh access token using a valid refresh token
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.RefreshToken) || string.IsNullOrWhiteSpace(request.DeviceId))
+                return BadRequest("Refresh token và deviceId là bắt buộc.");
+
+            // Find refresh token in database
+            var userToken = await _context.UserRefreshTokens
+                .FirstOrDefaultAsync(x =>
+                    x.RefreshToken == request.RefreshToken &&
+                    x.DeviceId == request.DeviceId &&
+                    x.ExpiresAt > DateTime.UtcNow);
+
+            if (userToken == null)
+                return Unauthorized("Refresh token không hợp lệ hoặc đã hết hạn.");
+
+            var user = await _context.Users.FindAsync(userToken.UserId);
+            if (user == null)
+                return Unauthorized("Người dùng không tồn tại.");
+
+            // Generate new access and refresh tokens
+            var newAccessToken = JwtHelper.GenerateJwtToken(_configuration, user);
+            var newRefreshToken = JwtHelper.GenerateRefreshToken();
+
+            // Update refresh token in database
+            userToken.RefreshToken = newRefreshToken;
+            userToken.ExpiresAt = DateTime.UtcNow.AddMonths(1);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken
+            });
+        }
+
+        // Logout by deleting refresh token of a specific device
         [HttpPost("logout/{deviceId}")]
         public async Task<ApiResponse<string>> Logout(string deviceId)
         {
@@ -137,6 +180,8 @@ namespace TripWiseAPI.Controllers
             return new ApiResponse<string>(404, "Không tìm thấy refresh token cho api này");
         }
 
+
+        // Delete old refresh token for a user and device
         private async Task DeleteOldRefreshToken(User user, string deviceId)
         {
             var oldTokens =
@@ -150,6 +195,7 @@ namespace TripWiseAPI.Controllers
             }
         }
 
+        // Handles account signup - sends OTP to email
         [HttpPost("signup")]
         public async Task<IActionResult> Signup(SignupRequest signupRequest)
         {
@@ -212,6 +258,7 @@ namespace TripWiseAPI.Controllers
             return BadRequest();
         }
 
+        // Verify OTP and create new user account
         [HttpPost("verifyOtp/{enteredOtp}")]
         public async Task<ApiResponse<string>> VerifyOtp(string enteredOtp, UserSignupData userSignupData)
         {
@@ -276,12 +323,14 @@ namespace TripWiseAPI.Controllers
             return new ApiResponse<string>(401, ErrorMessage.InvalidRequestId);
         }
 
+        // Remove an expired or used OTP from the database
         private async Task RemoveThisSignupOtp(SignupOtp signupOtp)
         {
             _context.SignupOtps.Remove(signupOtp);
             await _context.SaveChangesAsync();
         }
 
+        // Get user from database by username and password
         private async Task<User> GetUser(string username, string password)
         {
             return await _context.Users
@@ -289,6 +338,7 @@ namespace TripWiseAPI.Controllers
                 .FirstOrDefaultAsync();
         }
 
+        // Check if username already exists
         private async Task<bool> IsThisUsernameExisted(string username) 
         {
             var user = await _context.Users
@@ -299,6 +349,7 @@ namespace TripWiseAPI.Controllers
 
         }
 
+        // Check if email already exists
         private async Task<bool> IsThisEmailExisted(string email)
         {
             var user = await _context.Users

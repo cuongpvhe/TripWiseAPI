@@ -28,7 +28,7 @@ namespace TripWiseAPI.Utils
                 _configuration["Jwt:Issuer"],
                 _configuration["Jwt:Audience"],
                 claims,
-                expires: DateTime.UtcNow.AddDays(7),
+                expires: DateTime.UtcNow.AddMinutes(1),
                 signingCredentials: signIn);
             return tokenHandler.WriteToken(token);
         }
