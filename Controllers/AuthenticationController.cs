@@ -27,9 +27,9 @@ namespace TripWiseAPI.Controllers
         public async Task<IActionResult> Login(LoginModel loginModel)
         {
            
-            if (loginModel != null && loginModel.Username != null && loginModel.Password != null)
+            if (loginModel != null && loginModel.Email != null && loginModel.Password != null)
             {
-                var user = await GetUser(loginModel.Username, loginModel.Password);
+                var user = await GetUser(loginModel.Email, loginModel.Password);
                 if (user != null)
                 {
                     // Remove any existing refresh token for this device
@@ -331,10 +331,10 @@ namespace TripWiseAPI.Controllers
         }
 
         // Get user from database by username and password
-        private async Task<User> GetUser(string username, string password)
+        private async Task<User> GetUser(string email, string password)
         {
             return await _context.Users
-                .Where(u => u.UserName.ToLower().Equals(username) && u.PasswordHash.Equals(PasswordHelper.HashPasswordSHA256(password)))
+                .Where(u => u.Email.ToLower().Equals(email) && u.PasswordHash.Equals(PasswordHelper.HashPasswordSHA256(password)))
                 .FirstOrDefaultAsync();
         }
 
