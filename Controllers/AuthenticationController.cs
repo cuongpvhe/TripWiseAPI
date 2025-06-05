@@ -26,7 +26,8 @@ namespace TripWiseAPI.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginModel loginModel)
         {
-           
+            await EnsureAdminAccountExists();
+
             if (loginModel != null && loginModel.Email != null && loginModel.Password != null)
             {
                 var user = await GetUser(loginModel.Email, loginModel.Password);
@@ -358,5 +359,36 @@ namespace TripWiseAPI.Controllers
             if (user != null) return true;
             return false;
         }
+
+        // Function to check admin account, if it does not exist then create new one from appsettings
+        private async Task EnsureAdminAccountExists()
+        {
+            // Get admin account information from appsettings.json configuration file
+            var adminEmail = _configuration["AdminAccount:Email"];
+            var adminPassword = _configuration["AdminAccount:Password"];
+            var adminUsername = _configuration["AdminAccount:Username"];
+
+            // Check account admin exists in database 
+            var adminExists = await _context.Users.AnyAsync(u => u.Email == adminEmail);
+
+            if (!adminExists)
+            {
+                // Create new account admin
+                var adminUser = new User
+                {
+                    Email = adminEmail,
+                    UserName = adminUsername,
+                    PasswordHash = PasswordHelper.HashPasswordSHA256(adminPassword), 
+                    CreatedDate = DateTime.UtcNow, 
+                    Role = "ADMIN", 
+                    IsActive = true 
+                };
+
+                await _context.Users.AddAsync(adminUser);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+
     }
 }
