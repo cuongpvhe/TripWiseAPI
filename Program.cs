@@ -17,6 +17,10 @@ namespace TripWiseAPI
 
             builder.Services.AddDbContext<TripWiseDBContext>();
             builder.Services.AddControllers();
+            builder.Services.AddHttpClient("Gemini", client =>
+            {
+                client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+            });
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll",
