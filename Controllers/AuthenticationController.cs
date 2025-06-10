@@ -21,7 +21,7 @@ namespace TripWiseAPI.Controllers
         {
             _configuration = configuration;
             _context = context;
-        }
+        } 
         // Handles login with username and password
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginModel loginModel)
@@ -360,7 +360,8 @@ namespace TripWiseAPI.Controllers
             return false;
         }
 
-        // Function to check admin account, if it does not exist then create new one from appsettings
+        // Function to check admin account, if it does not exist then create new one from appsettings 
+        // Todo: cải tiến thao tác quản lý tài khoản admin, mã hoá password. VD: đăng nhập lần đầu đổi pass
         private async Task EnsureAdminAccountExists()
         {
             // Get admin account information from appsettings.json configuration file
