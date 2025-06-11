@@ -1,9 +1,12 @@
 ﻿
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using TripWiseAPI.Models;
+using TripWiseAPI.Utils;
 
 namespace TripWiseAPI
 {
@@ -12,11 +15,21 @@ namespace TripWiseAPI
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-
+            // ✅ Thêm cấu hình đọc secrets và env
+            builder.Configuration
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .AddEnvironmentVariables()
+                .AddUserSecrets<Program>();
             // Add services to the container.
 
-            builder.Services.AddDbContext<TripWiseDBContext>();
+            builder.Services.AddDbContext<TripWiseDBContext>(options =>
+            options.UseSqlServer(builder.Configuration.GetConnectionString("DBContext")));
+
             builder.Services.AddControllers();
+            builder.Services.AddHttpClient("Gemini", client =>
+            {
+                client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+            });
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll",
@@ -59,7 +72,49 @@ namespace TripWiseAPI
 
 
             var app = builder.Build();
+            // ✅ Tạo tài khoản admin 
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<TripWiseDBContext>();
+                var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
+                string adminEmail = config["Admin:Email"];
+                string adminPassword = config["Admin:Password"];
+
+                if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
+                {
+                    var admin = db.Users.FirstOrDefault(u => u.Email == adminEmail);
+
+                    if (admin == null)
+                    {
+                        var adminUser = new User
+                        {
+                            UserName = "admin",
+                            Email = adminEmail,
+                            PasswordHash = PasswordHelper.HashPasswordBCrypt(adminPassword),
+                            CreatedDate = DateTime.UtcNow,
+                            Role = "ADMIN",
+                            IsActive = true
+                        };
+
+                        db.Users.Add(adminUser);
+                        db.SaveChanges();
+                        Console.WriteLine("✅ Admin user has been created.");
+                    }
+                    else
+                    {
+                        bool passwordMatches = BCrypt.Net.BCrypt.Verify(adminPassword, admin.PasswordHash);
+                        if (!passwordMatches)
+                        {
+                            admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
+                            db.SaveChanges();
+                            Console.WriteLine("✅ Admin password updated.");
+                        }
+                        
+                    }
+                }
+
+            }
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -76,8 +131,10 @@ namespace TripWiseAPI
             app.UseAuthorization();
 
             app.MapControllers();
+           
 
             app.Run();
+
         }
     }
 }

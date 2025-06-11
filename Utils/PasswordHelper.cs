@@ -1,21 +1,16 @@
-﻿using System.Security.Cryptography;
-using System.Text;
+﻿using BCrypt.Net;
 
-namespace TripWiseAPI.Utils;
-
-public class PasswordHelper
+namespace TripWiseAPI.Utils
 {
-    public static string HashPasswordSHA256(string password)
+    public class PasswordHelper
     {
-        using (SHA256 sha256 = SHA256.Create())
+        public static string HashPasswordBCrypt(string password)
         {
-            byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            StringBuilder builder = new StringBuilder();
-            foreach (byte b in bytes)
-            {
-                builder.Append(b.ToString("x2"));
-            }
-            return builder.ToString();
+            return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+        public static bool VerifyPasswordBCrypt(string password, string hashedPassword)
+        {
+            return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
         }
     }
 }
