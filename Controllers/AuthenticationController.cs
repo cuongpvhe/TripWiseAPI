@@ -96,6 +96,27 @@ namespace TripWiseAPI.Controllers
                     };
                     await _context.Users.AddAsync(user);
                     await _context.SaveChangesAsync();
+
+                    // Send email chào mừng khi tạo tài khoản lần đầu qua Google
+                    var welcomeThread = new Thread(() =>
+                    {
+                        EmailHelper.SendEmailMultiThread(
+                            user.Email,
+                            "Chào mừng đến với TripWise!",
+                            $@"
+                                 <div style='font-family: Arial, sans-serif;'>
+                                      <h2>Xin chào {user.UserName},</h2>
+                                      <p>Chào mừng bạn đến với <strong>TripWise</strong>!</p>
+                                      <img src='https://image.slidesdocs.com/responsive-images/slides/vi/0-mau-powerpoint-lap-ke-hoach-du-lich-cho-doanh-nghiep-mau-xanh-lam_9a04cbcec9__960_540.jpg' alt='Welcome Banner' style='max-width:100%; height:auto;' />
+                                      <p>Chúng tôi rất vui khi có bạn đồng hành trên mỗi hành trình.</p>
+                                      <br/>
+                                      <p>Thân ái,<br/>Đội ngũ TripWise</p>
+                                 </div>"
+                        );
+
+
+                    });
+                    welcomeThread.Start();
                 }
 
                 // Generate tokens
@@ -289,7 +310,7 @@ namespace TripWiseAPI.Controllers
                     {
                         UserName = userSignupData.Username,
                         Email = userSignupData.Email,
-                        PasswordHash = PasswordHelper.HashPasswordSHA256(userSignupData.Password),
+                        PasswordHash = PasswordHelper.HashPasswordBCrypt(userSignupData.Password),
                         CreatedDate = DateTime.UtcNow,
                         Role = "USER",
                         IsActive = true
@@ -331,12 +352,16 @@ namespace TripWiseAPI.Controllers
         }
 
         // Get user from database by username and password
-        private async Task<User> GetUser(string email, string password)
+        private async Task<User?> GetUser(string email, string password)
         {
-            return await _context.Users
-                .Where(u => u.Email.ToLower().Equals(email) && u.PasswordHash.Equals(PasswordHelper.HashPasswordSHA256(password)))
-                .FirstOrDefaultAsync();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
+            if (user != null && PasswordHelper.VerifyPasswordBCrypt(password, user.PasswordHash))
+            {
+                return user;
+            }
+            return null;
         }
+
 
         // Check if username already exists
         private async Task<bool> IsThisUsernameExisted(string username) 
