@@ -1,6 +1,6 @@
 # TripWiseAPI-0.2
 A travel planning application with authentication, tour management, and itinerary generation.
-- Integrate Chatbot
+- 
 - 
 ## Tech Stack
 - **Backend**: ASP.NET Core, Entity Framework Core, SQL Server
