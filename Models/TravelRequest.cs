@@ -18,7 +18,7 @@ namespace TripWiseAPI.Model
         public string Preferences { get; set; }
 
         [Range(1, double.MaxValue, ErrorMessage = "Budget must be a positive number")]
-        public decimal Budget { get; set; }
+        public decimal BudgetVND { get; set; }
 
         public string Transportation { get; set; }
         public string DiningStyle { get; set; }
