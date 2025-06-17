@@ -1,22 +1,30 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using TripWiseAPI.Model;
+using TripWiseAPI.Models;
 
 namespace TripWiseAPI.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class AIGeneratePlanController : ControllerBase
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
+        private readonly TripWiseDBContext _dbContext;
 
-        public AIGeneratePlanController(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public AIGeneratePlanController(IHttpClientFactory httpClientFactory, IConfiguration configuration, TripWiseDBContext _context)
         {
             _httpClient = httpClientFactory.CreateClient("Gemini");
             _apiKey = configuration["Gemini:ApiKey"];
+            _dbContext = _context;
             Console.OutputEncoding = Encoding.UTF8;
         }
 
@@ -141,32 +149,29 @@ namespace TripWiseAPI.Controllers
 
                 string accommodationSearchUrl = $"https://www.google.com/maps/search/?q=khách+sạn+{Uri.EscapeDataString(request.Accommodation ?? "3 sao")}+sao+{Uri.EscapeDataString(request.Destination)}";
 
-                return Ok(new
+                var result = new ItineraryResponse
                 {
-                    success = true,
-                    exchangeRateUsed = exchangeRate,
-                    convertedFromUSD = request.Budget,
-                    data = new ItineraryResponse
-                    {
-                        Destination = request.Destination,
-                        Days = request.Days,
-                        Preferences = request.Preferences,
-                        TravelDate = request.TravelDate,
-                        Transportation = request.Transportation,
-                        DiningStyle = request.DiningStyle,
-                        GroupType = request.GroupType,
-                        Accommodation = request.Accommodation,
-                        TotalEstimatedCost = parsed.TotalCost,
-                        Budget = budgetVND,
-                        Itinerary = itinerary,
-                        SuggestedAccommodation = accommodationSearchUrl
-                    }
-                });
+                    Destination = request.Destination,
+                    Days = request.Days,
+                    Preferences = request.Preferences,
+                    TravelDate = request.TravelDate,
+                    Transportation = request.Transportation,
+                    DiningStyle = request.DiningStyle,
+                    GroupType = request.GroupType,
+                    Accommodation = request.Accommodation,
+                    TotalEstimatedCost = parsed.TotalCost,
+                    Budget = budgetVND,
+                    Itinerary = itinerary,
+                    SuggestedAccommodation = accommodationSearchUrl
+                };
+
+                // Save to DB
+                await SaveToGenerateTravelPlanAsync(request, result, User);
+
+                return Ok(new { success = true, exchangeRateUsed = exchangeRate, convertedFromUSD = request.Budget, data = result });
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[ERROR] Unexpected server exception:");
-                Console.WriteLine(ex.ToString());
                 return StatusCode(500, new { success = false, error = ex.Message });
             }
         }
@@ -251,5 +256,40 @@ namespace TripWiseAPI.Controllers
                 return null;
             }
         }
+        private async Task SaveToGenerateTravelPlanAsync(TravelRequest request, ItineraryResponse response, ClaimsPrincipal user)
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            int? UserId = null;
+
+            if (int.TryParse(userIdClaim, out int parsedId))
+            {
+                UserId = parsedId;
+            }
+
+            var entity = new GenerateTravelPlan
+            {
+                ConversationId = Guid.NewGuid().ToString(),
+                UserId = UserId,
+                TourId = null,
+                MessageRequest = JsonSerializer.Serialize(request, new JsonSerializerOptions
+                {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                    WriteIndented = true
+                }),
+
+                MessageResponse = JsonSerializer.Serialize(response, new JsonSerializerOptions
+                {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                    WriteIndented = true
+                }),
+                ResponseTime = DateTime.UtcNow
+            };
+
+            _dbContext.GenerateTravelPlans.Add(entity);
+            await _dbContext.SaveChangesAsync();
+        }
+
+
+
     }
 }
