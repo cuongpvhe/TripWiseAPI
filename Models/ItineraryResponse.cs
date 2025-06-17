@@ -10,15 +10,15 @@ namespace TripWiseAPI.Model
         public int Days { get; set; }
         public string Preferences { get; set; }
 
-        public string Transportation { get; set; }      
-        public string DiningStyle { get; set; }        
-        public string GroupType { get; set; }           
-        public string Accommodation { get; set; }      
-        public DateTime TravelDate { get; set; }        
+        public string Transportation { get; set; }
+        public string DiningStyle { get; set; }
+        public string GroupType { get; set; }
+        public string Accommodation { get; set; }
+        public DateTime TravelDate { get; set; }
 
         public List<ItineraryDay> Itinerary { get; set; }
-        public int TotalEstimatedCost { get; set; }     
-        public int Budget { get; set; }                 
+        public int TotalEstimatedCost { get; set; }
+        public int Budget { get; set; }
 
         public string SuggestedAccommodation { get; set; }
     }
@@ -33,8 +33,11 @@ namespace TripWiseAPI.Model
 
     public class ItineraryActivity
     {
-        [JsonPropertyName("timeOfDay")]
-        public string TimeOfDay { get; set; }
+        [JsonPropertyName("starttime")]
+        public string StartTime { get; set; }
+
+        [JsonPropertyName("endtime")]
+        public string EndTime { get; set; }
 
         [JsonPropertyName("description")]
         public string Description { get; set; }
@@ -51,7 +54,11 @@ namespace TripWiseAPI.Model
         [JsonPropertyName("placeDetail")]
         public string PlaceDetail { get; set; }
 
-        public string MapUrl { get; set; } 
+        public string MapUrl { get; set; }
+
+        [JsonPropertyName("image")]
+        public string Image { get; set; }
+
     }
 
     public class JsonItineraryFormat
