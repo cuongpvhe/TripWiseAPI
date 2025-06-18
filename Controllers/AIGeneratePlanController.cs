@@ -289,6 +289,108 @@ namespace TripWiseAPI.Controllers
             await _dbContext.SaveChangesAsync();
         }
 
+        [HttpPost("SaveTourFromGenerated/{generatePlanId}")]
+        public async Task<IActionResult> SaveTourFromGenerated(int generatePlanId)
+        {
+            var generatePlan = await _dbContext.GenerateTravelPlans
+                .FirstOrDefaultAsync(p => p.Id == generatePlanId);
+
+            if (generatePlan == null || string.IsNullOrEmpty(generatePlan.MessageResponse))
+                return NotFound("Không tìm thấy MessageResponse.");
+
+            using var doc = JsonDocument.Parse(generatePlan.MessageResponse);
+            var root = doc.RootElement;
+
+            // Lấy các thông tin từ JSON
+            string destination = root.GetProperty("Destination").GetString();
+            int days = root.GetProperty("Days").GetInt32();
+            string preferences = root.GetProperty("Preferences").GetString();
+            string transportation = root.GetProperty("Transportation").GetString();
+            string diningStyle = root.GetProperty("DiningStyle").GetString();
+            string groupType = root.GetProperty("GroupType").GetString();
+            string accommodation = root.GetProperty("Accommodation").GetString();
+            DateTime travelDate = root.GetProperty("TravelDate").GetDateTime();
+            int totalEstimatedCost = root.GetProperty("TotalEstimatedCost").GetInt32();
+            string suggestedAccommodation = root.GetProperty("SuggestedAccommodation").GetString();
+
+            // Tạo tour
+            var tour = new Tour
+            {
+                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {groupType}",
+                Description = $"Chuyến đi {destination} cho {groupType}, ưu tiên {preferences}, di chuyển bằng {transportation}",
+                Duration = days.ToString(), 
+                Price = totalEstimatedCost,
+                Location = destination,
+                MaxGroupSize = 10,
+                Category = preferences,
+                TourNote = $"Lưu trú: {accommodation}, Ăn uống: {diningStyle}",
+                TourInfo = $"Gợi ý KS: {suggestedAccommodation}",
+                //TourTypesId = 1,
+                CreatedDate = DateTime.UtcNow
+                
+            };
+
+            _dbContext.Tours.Add(tour);
+            await _dbContext.SaveChangesAsync(); // cần lấy TourID
+
+            // Duyệt lịch trình
+            var itinerary = root.GetProperty("Itinerary");
+            foreach (var day in itinerary.EnumerateArray())
+            {
+                int dayNumber = day.GetProperty("DayNumber").GetInt32();
+                string title = day.GetProperty("Title").GetString();
+
+                foreach (var activity in day.GetProperty("Activities").EnumerateArray())
+                {
+                    string timeOfDay = activity.GetProperty("timeOfDay").GetString();
+                    string description = activity.GetProperty("description").GetString();
+                    int estimatedCost = activity.GetProperty("estimatedCost").GetInt32();
+                    string address = activity.GetProperty("address").GetString();
+                    string placeDetail = activity.GetProperty("placeDetail").GetString();
+
+                    // Thêm TourAttractions
+                    var attraction = new TourAttraction
+                    {
+                        TourAttractionsName = description,
+                        Price = estimatedCost,
+                        Localtion = address,
+                        Category = title,
+                        CreatedDate = DateTime.UtcNow
+                        
+                    };
+                    _dbContext.TourAttractions.Add(attraction);
+                    await _dbContext.SaveChangesAsync();
+                    int? timeSlotValue = timeOfDay.ToLower() switch
+                    {
+                        "sáng" => 1,
+                        "trưa" => 2,
+                        "chiều" => 3,
+                        "tối" => 4,
+                        _ => null // hoặc 0 nếu bạn muốn gán giá trị mặc định
+                    };
+
+                    // Thêm TourItinerary
+                    var itineraryItem = new TourItinerary
+                    {
+                        ItineraryName = title,
+                        TourId = tour.TourId,
+                        DayNumber = dayNumber,
+                        TourAttractionsId = attraction.TourAttractionsId,
+                        //ActivityTypeId = 1,
+                        Category = timeOfDay,
+                        Description = placeDetail,
+
+                        TimeSlot = timeSlotValue,
+                        CreatedDate = DateTime.UtcNow
+                        
+                    };
+                    _dbContext.TourItineraries.Add(itineraryItem);
+                }
+            }
+
+            await _dbContext.SaveChangesAsync();
+            return Ok("Đã lưu thành công tour từ MessageResponse.");
+        }
 
 
     }
