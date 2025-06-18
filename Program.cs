@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using TripWiseAPI.Models;
+using TripWiseAPI.Services;
 using TripWiseAPI.Utils;
 
 namespace TripWiseAPI
@@ -69,6 +70,10 @@ namespace TripWiseAPI
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+            builder.Services.AddScoped<IAiItineraryService, AiItineraryService>();
+            builder.Services.AddScoped<IPromptBuilder, PromptBuilder>();
+            builder.Services.AddScoped<IJsonRepairService, JsonRepairService>();
+            builder.Services.AddScoped<VectorSearchService>();
 
 
             var app = builder.Build();
