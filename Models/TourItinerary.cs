@@ -10,18 +10,17 @@ namespace TripWiseAPI.Models
         public int TourId { get; set; }
         public int? DayNumber { get; set; }
         public int? TourAttractionsId { get; set; }
-        public string? StartTime { get; set; }
-        public string? EndTime { get; set; }
+        public TimeSpan? StartTime { get; set; }
+        public TimeSpan? EndTime { get; set; }
         public int? ActivityTypeId { get; set; }
         public string? Category { get; set; }
         public string? Description { get; set; }
-        public int? TimeSlot { get; set; }
         public DateTime? CreatedDate { get; set; }
         public DateTime? ModifiedDate { get; set; }
         public DateTime? RemovedDate { get; set; }
-        public string? CreatedBy { get; set; }
-        public string? ModifiedBy { get; set; }
-        public string? RemovedBy { get; set; }
+        public int? CreatedBy { get; set; }
+        public int? ModifiedBy { get; set; }
+        public int? RemovedBy { get; set; }
         public string? RemovedReason { get; set; }
 
         public virtual ActivityType? ActivityType { get; set; }
