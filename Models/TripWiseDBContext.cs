@@ -40,8 +40,8 @@ namespace TripWiseAPI.Models
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             var builder = new ConfigurationBuilder()
-                              .SetBasePath(Directory.GetCurrentDirectory())
-                              .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
             IConfigurationRoot configuration = builder.Build();
             optionsBuilder.UseSqlServer(configuration.GetConnectionString("DBContext"));
         }
@@ -65,17 +65,11 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.BlogId).HasColumnName("BlogID");
 
-                entity.Property(e => e.BlogName).HasMaxLength(100);
-
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
+                entity.Property(e => e.BlogName).HasMaxLength(255);
 
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
-
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -88,17 +82,11 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.BlogId).HasColumnName("BlogID");
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.ImageId).HasColumnName("ImageID");
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
-
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -163,8 +151,6 @@ namespace TripWiseAPI.Models
             {
                 entity.Property(e => e.ImageId).HasColumnName("ImageID");
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.ImageAlt).HasMaxLength(255);
@@ -173,11 +159,7 @@ namespace TripWiseAPI.Models
                     .HasMaxLength(255)
                     .HasColumnName("ImageURL");
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
-
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -188,17 +170,13 @@ namespace TripWiseAPI.Models
             {
                 entity.Property(e => e.PlanId).HasColumnName("PlanID");
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
+                entity.Property(e => e.Description).HasMaxLength(255);
 
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.PlanName).HasMaxLength(50);
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -211,17 +189,11 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.Comment).HasColumnType("ntext");
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate)
                     .HasColumnType("datetime")
                     .HasDefaultValueSql("(getdate())");
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
-
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -267,21 +239,15 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.Category).HasMaxLength(150);
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.Duration).HasMaxLength(10);
 
                 entity.Property(e => e.Location).HasMaxLength(150);
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
-
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -306,21 +272,19 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.Category).HasMaxLength(100);
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.EndTime).HasColumnType("time(0)");
 
+                entity.Property(e => e.ImageUrl).HasColumnName("imageUrl");
+
                 entity.Property(e => e.Localtion).HasMaxLength(255);
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
+                entity.Property(e => e.MapUrl).HasColumnName("mapUrl");
 
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -333,17 +297,11 @@ namespace TripWiseAPI.Models
             {
                 entity.Property(e => e.TourAttractionImageId).HasColumnName("TourAttractionImageID");
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.ImageId).HasColumnName("ImageID");
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
-
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -366,17 +324,11 @@ namespace TripWiseAPI.Models
             {
                 entity.Property(e => e.TourImageId).HasColumnName("TourImageID");
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.ImageId).HasColumnName("ImageID");
 
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
-
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
@@ -408,25 +360,17 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.Category).HasMaxLength(100);
 
-                entity.Property(e => e.CreatedBy).HasMaxLength(50);
-
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
 
-                entity.Property(e => e.EndTime).HasMaxLength(20);
-
-                entity.Property(e => e.ItineraryName).HasMaxLength(50);
-
-                entity.Property(e => e.ModifiedBy).HasMaxLength(50);
+                entity.Property(e => e.EndTime).HasColumnType("time(0)");
 
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
-
-                entity.Property(e => e.RemovedBy).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.RemovedReason).HasMaxLength(255);
 
-                entity.Property(e => e.StartTime).HasMaxLength(20);
+                entity.Property(e => e.StartTime).HasColumnType("time(0)");
 
                 entity.Property(e => e.TourAttractionsId).HasColumnName("TourAttractionsID");
 

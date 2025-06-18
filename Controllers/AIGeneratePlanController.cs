@@ -8,9 +8,12 @@ using System.Text.RegularExpressions;
 using TripWiseAPI.Services;
 using TripWiseAPI.Model;
 using TripWiseAPI.Models;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
 namespace SimpleChatboxAI.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class AIGeneratePlanController : ControllerBase
@@ -19,6 +22,7 @@ namespace SimpleChatboxAI.Controllers
         private readonly string _apiKey;
         private readonly VectorSearchService _vectorSearchService;
         private const decimal DefaultExchangeRate = 25000;
+        private readonly TripWiseDBContext _dbContext;
 
         public AIGeneratePlanController(IHttpClientFactory httpClientFactory, IConfiguration configuration, TripWiseDBContext _context)
         {
@@ -167,7 +171,8 @@ namespace SimpleChatboxAI.Controllers
                         Image = a.Image,
                         MapUrl = string.IsNullOrWhiteSpace(a.Address)
                             ? null
-                            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(a.Address)}"
+                            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(a.Address)}",
+                        
                     }).ToList()
                 }).ToList();
 
@@ -175,10 +180,7 @@ namespace SimpleChatboxAI.Controllers
 
                 var result = new ItineraryResponse
                 {
-                    success = true,
-                    budgetVND = request.BudgetVND,
-                    data = new ItineraryResponse
-                    {
+                   
                         Destination = request.Destination,
                         Days = request.Days,
                         Preferences = request.Preferences,
@@ -191,8 +193,12 @@ namespace SimpleChatboxAI.Controllers
                         Budget = budgetVND,
                         Itinerary = itinerary,
                         SuggestedAccommodation = accommodationSearchUrl
-                    }
-                });
+                    
+                };
+                // Save to DB
+                await SaveToGenerateTravelPlanAsync(request, result, User);
+
+                return Ok(new { success = true, convertedFromUSD = request.BudgetVND, data = result });
             }
             catch (Exception ex)
             {
@@ -378,6 +384,14 @@ namespace SimpleChatboxAI.Controllers
         [HttpPost("SaveTourFromGenerated/{generatePlanId}")]
         public async Task<IActionResult> SaveTourFromGenerated(int generatePlanId)
         {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            int? UserId = null;
+
+            if (int.TryParse(userIdClaim, out int parsedId))
+            {
+                UserId = parsedId;
+            }
+
             var generatePlan = await _dbContext.GenerateTravelPlans
                 .FirstOrDefaultAsync(p => p.Id == generatePlanId);
 
@@ -387,7 +401,7 @@ namespace SimpleChatboxAI.Controllers
             using var doc = JsonDocument.Parse(generatePlan.MessageResponse);
             var root = doc.RootElement;
 
-            // Lấy các thông tin từ JSON
+            // Lấy dữ liệu từ JSON
             string destination = root.GetProperty("Destination").GetString();
             int days = root.GetProperty("Days").GetInt32();
             string preferences = root.GetProperty("Preferences").GetString();
@@ -404,22 +418,24 @@ namespace SimpleChatboxAI.Controllers
             {
                 TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {groupType}",
                 Description = $"Chuyến đi {destination} cho {groupType}, ưu tiên {preferences}, di chuyển bằng {transportation}",
-                Duration = days.ToString(), 
+                Duration = days.ToString(),
                 Price = totalEstimatedCost,
                 Location = destination,
                 MaxGroupSize = 10,
                 Category = preferences,
                 TourNote = $"Lưu trú: {accommodation}, Ăn uống: {diningStyle}",
                 TourInfo = $"Gợi ý KS: {suggestedAccommodation}",
-                //TourTypesId = 1,
-                CreatedDate = DateTime.UtcNow
-                
+                TourTypesId = 1,
+                CreatedDate = DateTime.UtcNow,
+                CreatedBy = UserId
             };
 
             _dbContext.Tours.Add(tour);
-            await _dbContext.SaveChangesAsync(); // cần lấy TourID
+            await _dbContext.SaveChangesAsync();
 
-            // Duyệt lịch trình
+            var tourAttractions = new List<TourAttraction>();
+            var tourItineraries = new List<TourItinerary>();
+
             var itinerary = root.GetProperty("Itinerary");
             foreach (var day in itinerary.EnumerateArray())
             {
@@ -428,54 +444,109 @@ namespace SimpleChatboxAI.Controllers
 
                 foreach (var activity in day.GetProperty("Activities").EnumerateArray())
                 {
-                    string timeOfDay = activity.GetProperty("timeOfDay").GetString();
+                    string starttimeStr = activity.GetProperty("starttime").GetString();
+                    string endtimeStr = activity.GetProperty("endtime").GetString();
+                    TimeSpan starttime = TimeSpan.Parse(starttimeStr);
+                    TimeSpan endtime = TimeSpan.Parse(endtimeStr);
+
                     string description = activity.GetProperty("description").GetString();
                     int estimatedCost = activity.GetProperty("estimatedCost").GetInt32();
                     string address = activity.GetProperty("address").GetString();
                     string placeDetail = activity.GetProperty("placeDetail").GetString();
-
-                    // Thêm TourAttractions
+                    string mapUrl = activity.GetProperty("MapUrl").GetString();
+                    string imageUrl = activity.GetProperty("image").GetString();
                     var attraction = new TourAttraction
                     {
                         TourAttractionsName = description,
                         Price = estimatedCost,
                         Localtion = address,
-                        Category = title,
-                        CreatedDate = DateTime.UtcNow
-                        
-                    };
-                    _dbContext.TourAttractions.Add(attraction);
-                    await _dbContext.SaveChangesAsync();
-                    int? timeSlotValue = timeOfDay.ToLower() switch
-                    {
-                        "sáng" => 1,
-                        "trưa" => 2,
-                        "chiều" => 3,
-                        "tối" => 4,
-                        _ => null // hoặc 0 nếu bạn muốn gán giá trị mặc định
+                        Category = preferences,
+                        StartTime = starttime,
+                        EndTime = endtime,
+                        MapUrl = mapUrl,
+                        ImageUrl = imageUrl,
+                        CreatedDate = DateTime.UtcNow,
+                        CreatedBy = UserId
+
                     };
 
-                    // Thêm TourItinerary
+                    tourAttractions.Add(attraction);
+
                     var itineraryItem = new TourItinerary
                     {
                         ItineraryName = title,
                         TourId = tour.TourId,
                         DayNumber = dayNumber,
-                        TourAttractionsId = attraction.TourAttractionsId,
-                        //ActivityTypeId = 1,
-                        Category = timeOfDay,
+                        Category = preferences,
                         Description = placeDetail,
-
-                        TimeSlot = timeSlotValue,
-                        CreatedDate = DateTime.UtcNow
-                        
+                        StartTime = starttime,
+                        EndTime = endtime,
+                        CreatedDate = DateTime.UtcNow,
+                        TourAttractions = attraction,// sẽ gán lại ID sau khi attraction đã lưu
+                        CreatedBy = UserId
                     };
-                    _dbContext.TourItineraries.Add(itineraryItem);
+
+                    tourItineraries.Add(itineraryItem);
                 }
             }
 
+            _dbContext.TourAttractions.AddRange(tourAttractions);
             await _dbContext.SaveChangesAsync();
-            return Ok("Đã lưu thành công tour từ MessageResponse.");
+
+            // Gán lại ID từ các attraction vừa thêm
+            foreach (var itineraryItem in tourItineraries)
+            {
+                var matchedAttraction = tourAttractions.FirstOrDefault(a =>
+                    a.TourAttractionsName == itineraryItem.TourAttractions.TourAttractionsName &&
+                    a.Price == itineraryItem.TourAttractions.Price &&
+                    a.Localtion == itineraryItem.TourAttractions.Localtion &&
+                    a.StartTime == itineraryItem.TourAttractions.StartTime);
+
+                if (matchedAttraction != null)
+                {
+                    itineraryItem.TourAttractionsId = matchedAttraction.TourAttractionsId;
+                    itineraryItem.TourAttractions = null; // ngăn vòng lặp JSON
+                }
+            }
+
+            _dbContext.TourItineraries.AddRange(tourItineraries);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "✅ Đã lưu thành công tour từ MessageResponse.",
+                data = new
+                {
+                    tour.TourId,
+                    tour.TourName,
+                    tour.Price,
+                    tour.Location
+                }
+            });
+        }
+
+        [HttpGet("GetToursByUserId")]
+        public async Task<IActionResult> GetToursByUserId([FromQuery] int userId)
+        {
+            var tours = await _dbContext.Tours
+                .Where(t => t.CreatedBy == userId)
+                .Select(t => new
+                {
+                    t.TourId,
+                    t.TourName,
+                    t.Location,
+                    t.Category,
+                    t.Price,
+                    t.TourNote,
+                    t.CreatedDate
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                message = "✅ Lấy danh sách tour theo user thành công.",
+                data = tours
+            });
         }
 
 
