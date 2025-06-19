@@ -195,10 +195,15 @@ namespace SimpleChatboxAI.Controllers
                         SuggestedAccommodation = accommodationSearchUrl
                     
                 };
-                // Save to DB
-                await SaveToGenerateTravelPlanAsync(request, result, User);
+                int generatedId = await SaveToGenerateTravelPlanAsync(request, result, User);
 
-                return Ok(new { success = true, convertedFromUSD = request.BudgetVND, data = result });
+                return Ok(new
+                {
+                    success = true,
+                    convertedFromUSD = request.BudgetVND,
+                    id = generatedId,
+                    data = result
+                });
             }
             catch (Exception ex)
             {
@@ -348,9 +353,9 @@ namespace SimpleChatboxAI.Controllers
                 return null;
             }
         }
-        private async Task SaveToGenerateTravelPlanAsync(TravelRequest request, ItineraryResponse response, ClaimsPrincipal user)
+        private async Task<int> SaveToGenerateTravelPlanAsync(TravelRequest request, ItineraryResponse response, ClaimsPrincipal user)
         {
-            var userIdClaim = User.FindFirst("UserId")?.Value;
+            var userIdClaim = user.FindFirst("UserId")?.Value;
             int? UserId = null;
 
             if (int.TryParse(userIdClaim, out int parsedId))
@@ -368,7 +373,6 @@ namespace SimpleChatboxAI.Controllers
                     Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                     WriteIndented = true
                 }),
-
                 MessageResponse = JsonSerializer.Serialize(response, new JsonSerializerOptions
                 {
                     Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
@@ -379,7 +383,10 @@ namespace SimpleChatboxAI.Controllers
 
             _dbContext.GenerateTravelPlans.Add(entity);
             await _dbContext.SaveChangesAsync();
+
+            return entity.Id; 
         }
+
 
         [HttpPost("SaveTourFromGenerated/{generatePlanId}")]
         public async Task<IActionResult> SaveTourFromGenerated(int generatePlanId)
