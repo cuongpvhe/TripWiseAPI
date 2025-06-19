@@ -14,22 +14,26 @@ namespace TripWiseAPI.Controllers
 	{
 		private IConfiguration _configuration;
 		private readonly TripWiseDBContext _context;
+
 		public BlogController(TripWiseDBContext context, IConfiguration configuration)
 		{
 			_context = context ?? throw new ArgumentNullException(nameof(context));
 			_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 		}
-		[HttpGet]
+
+		[HttpGet("GetBlogs")]
 		public async Task<ActionResult<IEnumerable<BlogDto>>> GetBlogs()
 		{
 			var blogs = await _context.Blogs
 				.Include(b => b.BlogImages)
 				.ThenInclude(bi => bi.Image)
+				.Where(ba => ba.RemovedDate == null)
 				.Select(b => new BlogDto
 				{
 					BlogID = b.BlogId,
 					BlogName = b.BlogName,
 					BlogContent = b.BlogContent,
+					CreatedDate = b.CreatedDate,
 					BlogImages = b.BlogImages.Select(img => new BlogImageDto
 					{
 						BlogImageID = img.BlogImageId,
@@ -41,25 +45,52 @@ namespace TripWiseAPI.Controllers
 
 			return Ok(new
 			{
-				success = true,
-				message = "Lấy danh sách blog thành công.",
+				message = blogs.Any() ? "Lấy danh sách blog thành công." : "Không tìm thấy bài blog nào.",
 				data = blogs
 			});
 		}
 
+		[HttpGet("GetBlogsDeleted")]
+		public async Task<ActionResult<IEnumerable<BlogDto>>> GetBlogsDelete()
+		{
+			var blogs = await _context.Blogs
+				.Include(b => b.BlogImages)
+				.ThenInclude(bi => bi.Image)
+				.Where(ba => ba.RemovedDate != null)
+				.Select(b => new BlogDto
+				{
+					BlogID = b.BlogId,
+					BlogName = b.BlogName,
+					BlogContent = b.BlogContent,
+					CreatedDate = b.CreatedDate,
+					BlogImages = b.BlogImages.Select(img => new BlogImageDto
+					{
+						BlogImageID = img.BlogImageId,
+						ImageID = img.ImageId,
+						ImageURL = img.Image.ImageUrl
+					}).ToList()
+				})
+				.ToListAsync();
 
-		[HttpGet("{id}")]
+			return Ok(new
+			{
+				message = blogs.Any() ? "Lấy danh sách blog đã xóa thành công." : "Không tìm thấy bài blog nào đã xóa.",
+				data = blogs
+			});
+		}
+
+		[HttpGet("GetBlogById/{id}")]
 		public async Task<ActionResult<BlogDto>> GetBlog(int id)
 		{
 			var blog = await _context.Blogs
 				.Include(b => b.BlogImages).ThenInclude(url => url.Image)
-				.Where(b => b.BlogId == id)
+				.Where(b => b.BlogId == id && b.RemovedDate == null)
 				.Select(b => new BlogDto
 				{
-
 					BlogID = b.BlogId,
 					BlogName = b.BlogName,
 					BlogContent = b.BlogContent,
+					CreatedDate = b.CreatedDate,
 					BlogImages = b.BlogImages.Select(img => new BlogImageDto
 					{
 						BlogImageID = img.BlogImageId,
@@ -67,60 +98,72 @@ namespace TripWiseAPI.Controllers
 						ImageURL = img.Image.ImageUrl
 					}).ToList()
 				}).FirstOrDefaultAsync();
-
-			if (blog == null) return NotFound();
-
+			if(blog == null)
+			{
+				return Ok(new
+				{
+					message="Khoog tim thấy bài blog nào."
+				});
+			}
 			return Ok(new
 			{
-				success = true,
-				message = "Lấy danh sách blog thành công.",
+				message ="Lấy blog thành công.",
 				data = blog
 			});
 		}
-		[HttpPost]
+		[Authorize]
+		[HttpPost("CreateBlog")]
 		public async Task<IActionResult> CreateBlog([FromForm] CreateBlogDto dto)
 		{
 			var userIdClaim = User.FindFirst("UserId")?.Value;
 			int? userId = int.TryParse(userIdClaim, out int parsedId) ? parsedId : null;
+
+			// Kiểm tra nếu không có ảnh upload và không có URL
+			bool noUploadedImages = dto.Images == null || !dto.Images.Any(i => i?.Length > 0);
+			bool noImageUrls = dto.ImageUrls == null || !dto.ImageUrls.Any(u => !string.IsNullOrWhiteSpace(u));
+
+			if (noUploadedImages && noImageUrls)
+			{
+				return BadRequest(new
+				{
+					message = "Vui lòng tải lên ít nhất một ảnh hoặc cung cấp URL ảnh."
+				});
+			}
 
 			var blog = new Blog
 			{
 				BlogName = dto.BlogName,
 				BlogContent = dto.BlogContent,
 				CreatedDate = DateTime.Now,
-				CreatedBy = null,
+				CreatedBy = userId,
 				BlogImages = new List<BlogImage>()
 			};
 
-			// Tạo thư mục nếu chưa có
 			var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-			if (!Directory.Exists(uploadsFolder))
-			{
-				Directory.CreateDirectory(uploadsFolder);
-			}
+			if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
 
-			// ✅ 1. Xử lý ảnh upload từ máy
-			if (dto.Images != null && dto.Images.Count > 0)
+			List<Image> addedImages = new();
+
+			// 1. Xử lý ảnh upload từ máy
+			if (dto.Images != null)
 			{
 				foreach (var imageFile in dto.Images)
 				{
-					if (imageFile.Length > 0)
+					if (imageFile != null && imageFile.Length > 0)
 					{
-						var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
+						var uniqueFileName = Guid.NewGuid() + Path.GetExtension(imageFile.FileName);
 						var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-						using (var fileStream = new FileStream(filePath, FileMode.Create))
-						{
-							await imageFile.CopyToAsync(fileStream);
-						}
+						using var fileStream = new FileStream(filePath, FileMode.Create);
+						await imageFile.CopyToAsync(fileStream);
 
 						string relativeUrl = $"/uploads/{uniqueFileName}";
 
 						var image = new Image
 						{
-							ImageUrl = relativeUrl,
+							ImageUrl = relativeUrl, // Đảm bảo không bị null
 							CreatedDate = DateTime.Now,
-							CreatedBy = null
+							CreatedBy = userId
 						};
 
 						_context.Images.Add(image);
@@ -130,65 +173,79 @@ namespace TripWiseAPI.Controllers
 						{
 							ImageId = image.ImageId,
 							CreatedDate = DateTime.Now,
-							CreatedBy = null
+							CreatedBy = userId
 						});
+
+						addedImages.Add(image);
 					}
 				}
 			}
 
-			// ✅ 2. Xử lý ảnh từ URL
-			if (dto.ImageUrls != null && dto.ImageUrls.Count > 0)
+			// 2. Xử lý các URL ảnh từ client
+			if (dto.ImageUrls != null)
 			{
 				foreach (var url in dto.ImageUrls)
 				{
-					var image = new Image
+					if (!string.IsNullOrWhiteSpace(url))
 					{
-						ImageUrl = url,
-						CreatedDate = DateTime.Now,
-						CreatedBy = null
-					};
+						var image = new Image
+						{
+							ImageUrl = url.Trim(), // Đảm bảo không null
+							CreatedDate = DateTime.Now,
+							CreatedBy = userId
+						};
 
-					_context.Images.Add(image);
-					await _context.SaveChangesAsync();
+						_context.Images.Add(image);
+						await _context.SaveChangesAsync();
 
-					blog.BlogImages.Add(new BlogImage
-					{
-						ImageId = image.ImageId,
-						CreatedDate = DateTime.Now,
-						CreatedBy = null
-					});
+						blog.BlogImages.Add(new BlogImage
+						{
+							ImageId = image.ImageId,
+							CreatedDate = DateTime.Now,
+							CreatedBy = userId
+						});
+
+						addedImages.Add(image);
+					}
 				}
 			}
 
 			_context.Blogs.Add(blog);
 			await _context.SaveChangesAsync();
 
-			// Trả về thông tin blog sau khi tạo
 			var result = new BlogDto
 			{
 				BlogID = blog.BlogId,
 				BlogName = blog.BlogName,
 				BlogContent = blog.BlogContent,
-				BlogImages = blog.BlogImages.Select(bi => new BlogImageDto
+				BlogImages = blog.BlogImages.Select(bi =>
 				{
-					BlogImageID = bi.BlogImageId,
-					ImageID = bi.ImageId,
-					ImageURL = _context.Images.FirstOrDefault(i => i.ImageId == bi.ImageId)?.ImageUrl
+					var img = addedImages.FirstOrDefault(i => i.ImageId == bi.ImageId);
+					return new BlogImageDto
+					{
+						BlogImageID = bi.BlogImageId,
+						ImageID = bi.ImageId,
+						ImageURL = img?.ImageUrl
+					};
 				}).ToList()
 			};
 
 			return Ok(new
 			{
-				success = true,
 				message = "Tạo blog thành công.",
 				data = result
 			});
 		}
 
 
-		[HttpPut("{id}")]
+
+		[Authorize]
+		[HttpPut("UpdateBlog/{id}")]
 		public async Task<IActionResult> UpdateBlog(int id, [FromForm] CreateBlogDto dto)
 		{
+			var userIdClaim = User.FindFirst("UserId")?.Value;
+			int? userId = int.TryParse(userIdClaim, out int parsedId) ? parsedId : null;
+
 			var blog = await _context.Blogs
 				.Include(b => b.BlogImages)
 				.ThenInclude(bi => bi.Image)
@@ -196,31 +253,30 @@ namespace TripWiseAPI.Controllers
 
 			if (blog == null)
 			{
-				return NotFound(new
-				{
-					success = false,
-					message = "Không tìm thấy blog cần cập nhật."
-				});
+				return NotFound(new { message = "Không tìm thấy blog cần cập nhật." });
 			}
 
+			// Cập nhật thông tin blog
 			blog.BlogName = dto.BlogName;
 			blog.BlogContent = dto.BlogContent;
 			blog.ModifiedDate = DateTime.Now;
-			blog.ModifiedBy = null;
+			blog.ModifiedBy = userId;
 
-			// Xoá các liên kết ảnh cũ
+			// Xóa các liên kết ảnh cũ
 			_context.BlogImages.RemoveRange(blog.BlogImages);
 			blog.BlogImages = new List<BlogImage>();
 
-			// ✅ 1. Xử lý ảnh tải từ máy
 			var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 			if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
 
-			if (dto.Images != null && dto.Images.Count > 0)
+			List<Image> addedImages = new();
+
+			// Xử lý ảnh upload
+			if (dto.Images != null)
 			{
 				foreach (var imageFile in dto.Images)
 				{
-					if (imageFile.Length > 0)
+					if (imageFile != null && imageFile.Length > 0)
 					{
 						var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
 						var filePath = Path.Combine(uploadsFolder, uniqueFileName);
@@ -234,74 +290,89 @@ namespace TripWiseAPI.Controllers
 						{
 							ImageUrl = relativeUrl,
 							CreatedDate = DateTime.Now,
-							CreatedBy = null
+							CreatedBy = userId
 						};
 
 						_context.Images.Add(image);
 						await _context.SaveChangesAsync();
 
-						blog.BlogImages.Add(new BlogImage
+						var blogImage = new BlogImage
 						{
 							ImageId = image.ImageId,
 							CreatedDate = DateTime.Now,
-							CreatedBy = null
-						});
+							CreatedBy = userId
+						};
+
+						blog.BlogImages.Add(blogImage);
+						addedImages.Add(image);
 					}
 				}
 			}
 
-			// ✅ 2. Xử lý ảnh từ URL
-			if (dto.ImageUrls != null && dto.ImageUrls.Count > 0)
+			// Xử lý các URL ảnh từ client
+			if (dto.ImageUrls != null)
 			{
 				foreach (var url in dto.ImageUrls)
 				{
-					var image = new Image
+					if (!string.IsNullOrWhiteSpace(url))
 					{
-						ImageUrl = url,
-						CreatedDate = DateTime.Now,
-						CreatedBy = null
-					};
+						var image = new Image
+						{
+							ImageUrl = url.Trim(),
+							CreatedDate = DateTime.Now,
+							CreatedBy = userId
+						};
 
-					_context.Images.Add(image);
-					await _context.SaveChangesAsync();
+						_context.Images.Add(image);
+						await _context.SaveChangesAsync();
 
-					blog.BlogImages.Add(new BlogImage
-					{
-						ImageId = image.ImageId,
-						CreatedDate = DateTime.Now,
-						CreatedBy = null
-					});
+						var blogImage = new BlogImage
+						{
+							ImageId = image.ImageId,
+							CreatedDate = DateTime.Now,
+							CreatedBy = userId
+						};
+
+						blog.BlogImages.Add(blogImage);
+						addedImages.Add(image);
+					}
 				}
 			}
 
 			await _context.SaveChangesAsync();
 
-			// ✅ Trả về dữ liệu blog sau khi cập nhật
+			// Tạo DTO kết quả trả về
 			var result = new BlogDto
 			{
 				BlogID = blog.BlogId,
 				BlogName = blog.BlogName,
 				BlogContent = blog.BlogContent,
-				BlogImages = blog.BlogImages.Select(bi => new BlogImageDto
+				BlogImages = blog.BlogImages.Select(bi =>
 				{
-					BlogImageID = bi.BlogImageId,
-					ImageID = bi.ImageId,
-					ImageURL = bi.Image?.ImageUrl
+					var img = addedImages.FirstOrDefault(i => i.ImageId == bi.ImageId) ?? bi.Image;
+					return new BlogImageDto
+					{
+						BlogImageID = bi.BlogImageId,
+						ImageID = bi.ImageId,
+						ImageURL = img?.ImageUrl
+					};
 				}).ToList()
 			};
 
 			return Ok(new
 			{
-				success = true,
 				message = "Cập nhật blog thành công.",
 				data = result
 			});
 		}
 
-		// DELETE: api/blog/5
-		[HttpDelete("{id}")]
+		[Authorize]
+		[HttpDelete("DeleteBlog/{id}")]
 		public async Task<IActionResult> DeleteBlog(int id)
 		{
+			var userIdClaim = User.FindFirst("UserId")?.Value;
+			int? userId = int.TryParse(userIdClaim, out int parsedId) ? parsedId : null;
+
 			var blog = await _context.Blogs
 				.Include(b => b.BlogImages)
 				.ThenInclude(bi => bi.Image)
@@ -309,56 +380,23 @@ namespace TripWiseAPI.Controllers
 
 			if (blog == null)
 			{
-				return NotFound(new
-				{
-					success = false,
-					message = "Không tìm thấy blog để xoá."
-				});
+				return NotFound(new { message = "Không tìm thấy blog để xoá." });
 			}
 
-			// Lưu lại danh sách ảnh cũ
-			var oldImages = blog.BlogImages.Select(bi => bi.Image).ToList();
+			blog.RemovedDate = DateTime.Now;
+			blog.RemovedBy = userId;
+			blog.RemovedReason = "Xóa bài blog " + blog.BlogName;
 
-			// Xoá các liên kết ảnh cũ
-			_context.BlogImages.RemoveRange(blog.BlogImages);
-			blog.BlogImages = new List<BlogImage>();
-
-			// ⚠️ Gọi SaveChanges trước khi xóa Image để tránh lỗi FK
-			await _context.SaveChangesAsync();
-
-			// Xoá ảnh vật lý và bản ghi ảnh nếu không còn dùng
-			foreach (var image in oldImages)
-			{
-				var isUsedElsewhere = await _context.BlogImages.AnyAsync(bi => bi.ImageId == image.ImageId);
-				if (!isUsedElsewhere)
-				{
-					_context.Images.Remove(image);
-
-					// Xoá ảnh vật lý nếu là ảnh upload
-					if (!string.IsNullOrEmpty(image.ImageUrl) && image.ImageUrl.StartsWith("/uploads/"))
-					{
-						var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", image.ImageUrl.TrimStart('/'));
-						if (System.IO.File.Exists(filePath))
-						{
-							System.IO.File.Delete(filePath);
-						}
-					}
-				}
-			}
-
-			// Xoá chính blog
-			_context.Blogs.Remove(blog);
 			await _context.SaveChangesAsync();
 
 			return Ok(new
 			{
-				success = true,
-				message = "Xoá blog thành công.",
+				message = "Xoá mềm blog thành công.",
 				data = new { blogId = id }
 			});
 		}
 	}
-	}
+}
 
 
 
