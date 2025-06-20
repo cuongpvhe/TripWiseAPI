@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using TripWiseAPI.Services;
 using TripWiseAPI.Model;
 using System.Globalization;
+using TripWiseAPI.Models;
+using System.Security.Claims;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace SimpleChatboxAI.Controllers
 {
@@ -13,13 +17,14 @@ namespace SimpleChatboxAI.Controllers
     {
         private readonly VectorSearchService _vectorSearchService;
         private readonly IAiItineraryService _aiService;
-
+        private readonly TripWiseDBContext _dbContext;
         public AIGeneratePlanController(
             VectorSearchService vectorSearchService,
-            IAiItineraryService aiService)
+            IAiItineraryService aiService, TripWiseDBContext _context)
         {
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
+            _dbContext = _context;
         }
 
         [HttpPost("CreateItinerary")]
@@ -57,11 +62,31 @@ namespace SimpleChatboxAI.Controllers
             {
                 var itinerary = await _aiService.GenerateItineraryAsync(request, relatedKnowledge);
 
+                var response = new ItineraryResponse
+                {
+                    Destination = request.Destination,
+                    Days = request.Days,
+                    Preferences = request.Preferences,
+                    TravelDate = request.TravelDate,
+                    Transportation = request.Transportation,
+                    DiningStyle = request.DiningStyle,
+                    GroupType = request.GroupType,
+                    Accommodation = request.Accommodation,
+                    TotalEstimatedCost = itinerary.TotalEstimatedCost,
+                    Budget = request.BudgetVND,
+                    Itinerary = itinerary.Itinerary,
+                    SuggestedAccommodation = itinerary.SuggestedAccommodation
+                };
+
+                // Save to DB và nhận lại ID
+                int generatedId = await SaveToGenerateTravelPlanAsync(request, response, User);
+
                 return Ok(new
                 {
                     success = true,
-                    budgetVND = request.BudgetVND,
-                    data = itinerary
+                    convertedFromUSD = request.BudgetVND,
+                    id = generatedId,
+                    data = response
                 });
             }
             catch (Exception ex)
@@ -233,7 +258,7 @@ namespace SimpleChatboxAI.Controllers
                 if (matchedAttraction != null)
                 {
                     itineraryItem.TourAttractionsId = matchedAttraction.TourAttractionsId;
-                    itineraryItem.TourAttractions = null; // ngăn vòng lặp JSON
+                    itineraryItem.TourAttractions = null; 
                 }
             }
 
@@ -275,6 +300,92 @@ namespace SimpleChatboxAI.Controllers
                 message = "✅ Lấy danh sách tour theo user thành công.",
                 data = tours
             });
+        }
+
+        [HttpGet("history")]
+        public async Task<IActionResult> GetHistory()
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            int? UserId = null;
+
+            if (int.TryParse(userIdClaim, out int parsedId))
+            {
+                UserId = parsedId;
+            }
+
+            var history = await _dbContext.GenerateTravelPlans
+                .Where(x => x.UserId == UserId)
+                .OrderByDescending(x => x.ResponseTime)
+                .ToListAsync();
+
+            var result = history.Select(x =>
+            {
+                var req = JsonSerializer.Deserialize<TravelRequest>(x.MessageRequest);
+                return new
+                {
+                    Id = x.Id,
+                    Destination = req.Destination,
+                    TravelDate = req.TravelDate,
+                    Days = req.Days,
+                    Preferences = req.Preferences,
+                    BudgetVND = req.BudgetVND,
+                    CreatedAt = x.ResponseTime
+                };
+            });
+
+            return Ok(result);
+        }
+
+
+        [HttpGet("history/{id}")]
+        public async Task<IActionResult> GetHistoryDetail(int id)
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            int? UserId = null;
+
+            if (int.TryParse(userIdClaim, out int parsedId))
+            {
+                UserId = parsedId;
+            }
+
+            var entity = await _dbContext.GenerateTravelPlans.FirstOrDefaultAsync(x => x.Id == id && x.UserId == UserId);
+            if (entity == null)
+                return NotFound();
+
+            var response = JsonSerializer.Deserialize<ItineraryResponse>(entity.MessageResponse);
+            return Ok(new
+            {
+                response.Destination,
+                response.TravelDate,
+                response.Days,
+                response.Preferences,
+                response.GroupType,
+                response.Budget,
+                response.TotalEstimatedCost,
+                response.Transportation,
+                response.DiningStyle,
+                response.Accommodation,
+                response.SuggestedAccommodation,
+                Itinerary = response.Itinerary.Select(day => new
+                {
+                    Day = day.DayNumber,
+                    day.Title,
+                    day.DailyCost,
+                    Activities = day.Activities.Select(act => new
+                    {
+                        act.StartTime,
+                        act.EndTime,
+                        act.Description,
+                        act.Address,
+                        act.Transportation,
+                        act.EstimatedCost,
+                        act.PlaceDetail,
+                        act.MapUrl,
+                        act.Image
+                    })
+                })
+            });
+
         }
 
 
