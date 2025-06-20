@@ -18,9 +18,13 @@ namespace TripWiseAPI.Model
 
         public List<ItineraryDay> Itinerary { get; set; }
         public int TotalEstimatedCost { get; set; }
-        public int Budget { get; set; }
+        public Decimal Budget { get; set; }
 
         public string SuggestedAccommodation { get; set; }
+
+        public bool HasMore { get; set; }
+        public DateTime? NextStartDate { get; set; }
+
     }
 
     public class ItineraryDay
