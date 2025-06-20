@@ -21,6 +21,10 @@ namespace TripWiseAPI.Model
         public int Budget { get; set; }
 
         public string SuggestedAccommodation { get; set; }
+
+        public bool HasMore { get; set; }
+        public DateTime? NextStartDate { get; set; }
+
     }
 
     public class ItineraryDay

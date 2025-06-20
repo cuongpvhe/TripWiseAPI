@@ -24,5 +24,7 @@ namespace TripWiseAPI.Model
         public string DiningStyle { get; set; }
         public string GroupType { get; set; }
         public string Accommodation { get; set; }
+        public int StartDayOffset { get; set; } = 0;
+
     }
 }
