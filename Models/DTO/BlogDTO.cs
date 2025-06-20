@@ -1,4 +1,4 @@
-﻿namespace TripWiseAPI.Models.DTO
+namespace TripWiseAPI.Models.DTO
 {
 	public class BlogImageDto
 	{
