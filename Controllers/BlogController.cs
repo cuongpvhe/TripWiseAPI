@@ -1,11 +1,13 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Drawing.Text;
+using System.Reflection.Metadata;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Utils;
+using static System.Reflection.Metadata.BlobBuilder;
 namespace TripWiseAPI.Controllers
 {
 	[Route("api/[controller]")]
@@ -26,29 +28,41 @@ namespace TripWiseAPI.Controllers
 		{
 			var blogs = await _context.Blogs
 				.Include(b => b.BlogImages)
-				.ThenInclude(bi => bi.Image)
-				.Where(ba => ba.RemovedDate == null)
+					.ThenInclude(bi => bi.Image)
+				.Where(b => b.RemovedDate == null)
 				.Select(b => new BlogDto
 				{
 					BlogID = b.BlogId,
 					BlogName = b.BlogName,
 					BlogContent = b.BlogContent,
 					CreatedDate = b.CreatedDate,
+					CreatedBy = b.CreatedBy,
+					UserName = _context.Users
+						.Where(u => u.UserId == b.CreatedBy)
+						.Select(u => u.UserName)
+						.FirstOrDefault(),
+					ModifiedDate = b.ModifiedDate,
+					ModifiedBy = b.ModifiedBy,
 					BlogImages = b.BlogImages.Select(img => new BlogImageDto
 					{
 						BlogImageID = img.BlogImageId,
 						ImageID = img.ImageId,
-						ImageURL = img.Image.ImageUrl
+						ImageURL = img.Image.ImageUrl,
+						ImageAlt = img.Image.ImageAlt
 					}).ToList()
 				})
 				.ToListAsync();
-
+			if (blogs == null)
+			{
+				return NotFound(new { message = "Không có bài blog nào" });
+			}
 			return Ok(new
 			{
-				message = blogs.Any() ? "Lấy danh sách blog thành công." : "Không tìm thấy bài blog nào.",
+				message = "Lấy danh sách blog thành công.",
 				data = blogs
 			});
 		}
+
 
 		[HttpGet("GetBlogsDeleted")]
 		public async Task<ActionResult<IEnumerable<BlogDto>>> GetBlogsDelete()
@@ -63,18 +77,30 @@ namespace TripWiseAPI.Controllers
 					BlogName = b.BlogName,
 					BlogContent = b.BlogContent,
 					CreatedDate = b.CreatedDate,
+					CreatedBy = b.CreatedBy,
+					UserName = _context.Users
+						.Where(u => u.UserId == b.RemovedBy)
+						.Select(u => u.UserName)
+						.FirstOrDefault(),
+					RemovedDate = b.ModifiedDate,
+					RemovedBy = b.RemovedBy,
 					BlogImages = b.BlogImages.Select(img => new BlogImageDto
 					{
 						BlogImageID = img.BlogImageId,
 						ImageID = img.ImageId,
-						ImageURL = img.Image.ImageUrl
+						ImageURL = img.Image.ImageUrl,
+						ImageAlt = img.Image.ImageAlt
 					}).ToList()
 				})
 				.ToListAsync();
 
+			if (blogs == null)
+			{
+				return NotFound(new { message = "Không có bài blog nào" });
+			}
 			return Ok(new
 			{
-				message = blogs.Any() ? "Lấy danh sách blog đã xóa thành công." : "Không tìm thấy bài blog nào đã xóa.",
+				message = "Lấy danh sách blog thành công.",
 				data = blogs
 			});
 		}
@@ -82,7 +108,7 @@ namespace TripWiseAPI.Controllers
 		[HttpGet("GetBlogById/{id}")]
 		public async Task<ActionResult<BlogDto>> GetBlog(int id)
 		{
-			var blog = await _context.Blogs
+			var blogs = await _context.Blogs
 				.Include(b => b.BlogImages).ThenInclude(url => url.Image)
 				.Where(b => b.BlogId == id && b.RemovedDate == null)
 				.Select(b => new BlogDto
@@ -91,24 +117,25 @@ namespace TripWiseAPI.Controllers
 					BlogName = b.BlogName,
 					BlogContent = b.BlogContent,
 					CreatedDate = b.CreatedDate,
+					CreatedBy = b.CreatedBy,
+					ModifiedDate = b.ModifiedDate,
+					ModifiedBy = b.ModifiedBy,
 					BlogImages = b.BlogImages.Select(img => new BlogImageDto
 					{
 						BlogImageID = img.BlogImageId,
 						ImageID = img.ImageId,
-						ImageURL = img.Image.ImageUrl
+						ImageURL = img.Image.ImageUrl,
+						ImageAlt = img.Image.ImageAlt
 					}).ToList()
 				}).FirstOrDefaultAsync();
-			if(blog == null)
+			if (blogs == null)
 			{
-				return Ok(new
-				{
-					message="Khoog tim thấy bài blog nào."
-				});
+				return NotFound(new { message = "Không tìm thấy blog ." });
 			}
 			return Ok(new
 			{
-				message ="Lấy blog thành công.",
-				data = blog
+				message = "Lấy danh sách blog thành công.",
+				data = blogs
 			});
 		}
 		[Authorize]
@@ -218,6 +245,10 @@ namespace TripWiseAPI.Controllers
 				BlogID = blog.BlogId,
 				BlogName = blog.BlogName,
 				BlogContent = blog.BlogContent,
+				UserName = _context.Users
+						.Where(u => u.UserId == blog.CreatedBy)
+						.Select(u => u.UserName)
+						.FirstOrDefault(),
 				BlogImages = blog.BlogImages.Select(bi =>
 				{
 					var img = addedImages.FirstOrDefault(i => i.ImageId == bi.ImageId);
@@ -347,6 +378,10 @@ namespace TripWiseAPI.Controllers
 				BlogID = blog.BlogId,
 				BlogName = blog.BlogName,
 				BlogContent = blog.BlogContent,
+				UserName = _context.Users
+						.Where(u => u.UserId == blog.ModifiedBy)
+						.Select(u => u.UserName)
+						.FirstOrDefault(),
 				BlogImages = blog.BlogImages.Select(bi =>
 				{
 					var img = addedImages.FirstOrDefault(i => i.ImageId == bi.ImageId) ?? bi.Image;
@@ -391,12 +426,10 @@ namespace TripWiseAPI.Controllers
 
 			return Ok(new
 			{
-				message = "Xoá mềm blog thành công.",
+				message = "Xoá blog thành công.",
 				data = new { blogId = id }
 			});
 		}
+
 	}
 }
-
-
-
