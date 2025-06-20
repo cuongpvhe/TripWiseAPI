@@ -42,7 +42,7 @@ namespace TripWiseAPI.Services
                 - Nếu các địa điểm trong dữ liệu không đủ để tạo thành một lịch trình hoàn chỉnh thì hãy tạo thêm địa điểm mới phù hợp.
                 - Mỗi activity **bắt buộc** phải có trường "image". 
                   - Nếu địa điểm có sẵn trường "thumbnail" trong dữ liệu đầu vào thì dùng chính nó làm "image"
-                  - Nếu không có thumbnail sẵn, hãy dùng ảnh minh họa thực tế từ Unsplash, Pexels, hoặc Wikipedia – miễn là liên quan đến địa điểm.
+                  - Nếu không có thumbnail sẵn, để trường "image" là chuỗi rỗng (""). Hệ thống backend sẽ tự động tìm ảnh minh họa phù hợp dựa trên mô tả địa điểm.
                 
                 Ví dụ:
                 {

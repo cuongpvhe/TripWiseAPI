@@ -12,18 +12,21 @@ namespace TripWiseAPI.Services
         private readonly string _apiKey;
         private readonly IPromptBuilder _promptBuilder;
         private readonly IJsonRepairService _repairService;
+        private readonly IPexelsImageService _imageService;
         private const int MaxDaysPerChunk = 3;
 
         public AiItineraryService(
             IHttpClientFactory httpClientFactory,
             IConfiguration config,
             IPromptBuilder promptBuilder,
-            IJsonRepairService repairService)
+            IJsonRepairService repairService,
+            IPexelsImageService imageService)
         {
             _httpClient = httpClientFactory.CreateClient("Gemini");
             _apiKey = config["Gemini:ApiKey"];
             _promptBuilder = promptBuilder;
             _repairService = repairService;
+            _imageService = imageService;
             Console.OutputEncoding = Encoding.UTF8;
         }
 
@@ -31,7 +34,6 @@ namespace TripWiseAPI.Services
         {
             int budgetVND = (int)request.BudgetVND;
             string budgetFormatted = budgetVND.ToString("N0", CultureInfo.InvariantCulture);
-
             int daysToGenerate = Math.Min(request.Days, MaxDaysPerChunk);
 
             var subRequest = new TravelRequest
@@ -52,12 +54,12 @@ namespace TripWiseAPI.Services
             var payload = new
             {
                 contents = new[] {
-            new {
-                parts = new[] {
-                    new { text = prompt }
-                }
-            }
-        },
+                    new {
+                        parts = new[] {
+                            new { text = prompt }
+                        }
+                    }
+                },
                 generationConfig = new
                 {
                     maxOutputTokens = 4096,
@@ -94,25 +96,66 @@ namespace TripWiseAPI.Services
             var parsed = JsonSerializer.Deserialize<JsonItineraryFormat>(doc.RootElement.GetRawText());
             if (parsed?.Days == null) throw new Exception("Invalid or empty itinerary");
 
-            var allDays = parsed.Days.Select(d => new ItineraryDay
+            var imageUrlsUsed = new HashSet<string>();
+            var allDays = new List<ItineraryDay>();
+
+            string fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg"; // Thay bằng link ảnh mặc định của bạn
+
+            foreach (var d in parsed.Days)
             {
-                DayNumber = d.DayNumber,
-                Title = d.Title,
-                DailyCost = d.DailyCost,
-                Activities = d.Activities.Select(a => new ItineraryActivity
+                var activities = await Task.WhenAll(d.Activities.Select(async a =>
                 {
-                    StartTime = a.StartTime,
-                    EndTime = a.EndTime,
-                    Description = a.Description,
-                    EstimatedCost = a.EstimatedCost,
-                    Transportation = a.Transportation,
-                    Address = a.Address,
-                    PlaceDetail = a.PlaceDetail,
-                    Image = a.Image,
-                    MapUrl = string.IsNullOrWhiteSpace(a.Address) ? null
-                        : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(a.Address)}"
-                }).ToList()
-            }).ToList();
+                    string imageUrl = a.Image;
+
+                    bool isFallbackImage = string.IsNullOrWhiteSpace(imageUrl)
+                        || imageUrl.Contains("unsplash")
+                        || imageUrl.Contains("wikipedia")
+                        || imageUrl.Contains("example.com")
+                        || imageUrl.Contains("vietflag.vn");
+
+                    if (isFallbackImage)
+                    {
+                        Console.WriteLine($"[Image] Fallback detected: {imageUrl}");
+
+                        var imageCandidates = await _imageService.SearchImageUrlsAsync(request.Destination);
+                        Console.WriteLine($"[Image] Pexels search returned {imageCandidates.Count} result(s)");
+
+                        imageUrl = imageCandidates.FirstOrDefault(url => !imageUrlsUsed.Contains(url)) ?? fallbackImage;
+
+                        if (!imageUrlsUsed.Contains(imageUrl))
+                        {
+                            imageUrlsUsed.Add(imageUrl);
+                            Console.WriteLine($"[Image] Selected new image from Pexels or fallback: {imageUrl}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[Image] Reused fallback or duplicate image: {imageUrl}");
+                        }
+                    }
+
+                    return new ItineraryActivity
+                    {
+                        StartTime = a.StartTime,
+                        EndTime = a.EndTime,
+                        Description = a.Description,
+                        EstimatedCost = a.EstimatedCost,
+                        Transportation = a.Transportation,
+                        Address = a.Address,
+                        PlaceDetail = a.PlaceDetail,
+                        Image = imageUrl,
+                        MapUrl = string.IsNullOrWhiteSpace(a.Address) ? null
+                            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(a.Address)}"
+                    };
+                }));
+
+                allDays.Add(new ItineraryDay
+                {
+                    DayNumber = d.DayNumber,
+                    Title = d.Title,
+                    DailyCost = d.DailyCost,
+                    Activities = activities.ToList()
+                });
+            }
 
             return new ItineraryResponse
             {
@@ -135,11 +178,10 @@ namespace TripWiseAPI.Services
             };
         }
 
-
         private string ExtractJson(string raw)
         {
             raw = raw.Replace("```json", "").Replace("```", "").Trim();
-            raw = Regex.Replace(raw, @"[“”]", "\"")
+            raw = Regex.Replace(raw, "[“”]", "\"")
                       .Replace("\u200b", "")
                       .Replace("\u00a0", " ");
             var match = Regex.Match(raw, @"\{[\s\S]*\}");
