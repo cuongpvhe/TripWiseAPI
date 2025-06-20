@@ -68,6 +68,7 @@ namespace TripWiseAPI
                     options.ClientSecret = builder.Configuration["Google:ClientSecret"];
                 });
 
+
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -75,6 +76,15 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IPromptBuilder, PromptBuilder>();
             builder.Services.AddScoped<IJsonRepairService, JsonRepairService>();
             builder.Services.AddScoped<VectorSearchService>();
+            builder.Services.AddHttpClient<IPexelsImageService, PexelsImageService>((provider, client) =>
+            {
+                var config = provider.GetRequiredService<IConfiguration>();
+                var apiKey = config["Pexels:ApiKey"];
+
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+            });
+
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
