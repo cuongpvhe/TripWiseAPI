@@ -32,6 +32,16 @@ namespace TripWiseAPI.Services
                 - Giải thích vì sao nên đến vào thời điểm đó trong ngày (sáng/chiều/tối)
                 - Viết giống như bạn đang giới thiệu địa điểm này cho du khách
 
+                ĐỊA ĐIỂM & ĐỊA CHỈ:
+                - Phải gợi ý tên địa điểm nổi bật cụ thể, có thật và phổ biến trên Google Maps
+                - Không được ghi mơ hồ như: "quán ăn địa phương", "chợ trung tâm", "ven hồ", "gần khu du lịch", "tùy chọn"
+                - Gợi ý tên địa điểm cụ thể như sau:
+                  - Ví dụ: "Bánh mì xíu mại Cô Ba, 16 Nguyễn Văn Trỗi, Phường 1, Thành phố Đà Lạt"
+                  - Ví dụ: "Cafe Tùng, 6 Khu Hòa Bình, Phường 1, Thành phố Đà Lạt"
+                - Địa chỉ phải đầy đủ: tên địa điểm + số nhà (nếu có) + đường + phường/xã + quận/huyện + tỉnh/thành
+                - Ưu tiên những địa điểm có đánh giá tốt, nhiều người biết, được khách du lịch yêu thích
+                - Trường "image" nếu có thể thì phải lấy link ảnh của địa điểm đó ở trên Google Maps
+
                 Yêu cầu khi tạo lịch trình:
                 - {{dayNote}}
                 - Ưu tiên các địa điểm xuất hiện trong danh sách bên dưới
@@ -43,6 +53,8 @@ namespace TripWiseAPI.Services
                 - Mỗi activity **bắt buộc** phải có trường "image". 
                   - Nếu địa điểm có sẵn trường "thumbnail" trong dữ liệu đầu vào thì dùng chính nó làm "image"
                   - Nếu không có thumbnail sẵn, để trường "image" là chuỗi rỗng (""). Hệ thống backend sẽ tự động tìm ảnh minh họa phù hợp dựa trên mô tả địa điểm.
+                - Với mỗi ngày, thêm trường "weatherNote": Viết một ghi chú ngắn dựa vào "weatherDescription" (mô tả thời tiết) và "temperatureCelsius" (nhiệt độ C) để đưa lời khuyên cho du khách (VD: "Trời mưa nhẹ, nhớ mang theo ô.", "Nắng gắt buổi trưa, nên dùng kem chống nắng.")
+                
                 
                 Ví dụ:
                 {
@@ -66,6 +78,7 @@ namespace TripWiseAPI.Services
                       "dayNumber": 1,
                       "title": "string",
                       "dailyCost": 123456,
+                      "weatherNote": "string",
                       "activities": [
                         {
                           "starttime": "08:00",

@@ -18,13 +18,15 @@ namespace SimpleChatboxAI.Controllers
         private readonly VectorSearchService _vectorSearchService;
         private readonly IAiItineraryService _aiService;
         private readonly TripWiseDBContext _dbContext;
+        private readonly WeatherService _weatherService;
         public AIGeneratePlanController(
             VectorSearchService vectorSearchService,
-            IAiItineraryService aiService, TripWiseDBContext _context)
+            IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService)
         {
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
             _dbContext = _context;
+            _weatherService = weatherService;
         }
 
         [HttpPost("CreateItinerary")]
@@ -61,6 +63,26 @@ namespace SimpleChatboxAI.Controllers
             try
             {
                 var itinerary = await _aiService.GenerateItineraryAsync(request, relatedKnowledge);
+
+                DateTime startDate = request.TravelDate;
+
+                for (int i = 0; i < itinerary.Itinerary.Count; i++)
+                {
+                    var day = itinerary.Itinerary[i];
+                    var weather = await _weatherService.GetDailyWeatherAsync(request.Destination, startDate.AddDays(i));
+
+                    if (weather != null)
+                    {
+                        day.WeatherDescription = weather.Value.description;
+                        day.TemperatureCelsius = weather.Value.temperature;
+                    }
+                    else
+                    {
+                        day.WeatherDescription = "Không có dữ liệu";
+                        day.TemperatureCelsius = 0;
+                    }
+                }
+
 
                 var response = new ItineraryResponse
                 {

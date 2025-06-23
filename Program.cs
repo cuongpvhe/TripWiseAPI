@@ -77,6 +77,8 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IJsonRepairService, JsonRepairService>();
             builder.Services.AddScoped<VectorSearchService>();
             builder.Services.AddHttpClient<IWikimediaImageService, WikimediaImageService>();
+            builder.Services.AddHttpClient<WeatherService>();
+
 
 
             builder.Services.AddSwaggerGen(c =>

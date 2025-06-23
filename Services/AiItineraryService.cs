@@ -162,6 +162,7 @@ namespace TripWiseAPI.Services
                     DayNumber = d.DayNumber,
                     Title = d.Title,
                     DailyCost = d.DailyCost,
+                    WeatherNote = d.WeatherNote,
                     Activities = activities.ToList()
                 });
             }

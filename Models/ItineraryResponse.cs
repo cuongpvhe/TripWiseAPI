@@ -33,6 +33,10 @@ namespace TripWiseAPI.Model
         public string Title { get; set; }
         public List<ItineraryActivity> Activities { get; set; }
         public int DailyCost { get; set; }
+        public string WeatherDescription { get; set; }
+        public double TemperatureCelsius { get; set; }
+        public string? WeatherNote { get; set; }
+
     }
 
     public class ItineraryActivity
@@ -87,5 +91,9 @@ namespace TripWiseAPI.Model
 
         [JsonPropertyName("activities")]
         public List<ItineraryActivity> Activities { get; set; }
+
+        [JsonPropertyName("weatherNote")]
+        public string? WeatherNote { get; set; }
+
     }
 }
