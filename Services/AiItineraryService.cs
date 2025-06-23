@@ -12,7 +12,7 @@ namespace TripWiseAPI.Services
         private readonly string _apiKey;
         private readonly IPromptBuilder _promptBuilder;
         private readonly IJsonRepairService _repairService;
-        private readonly IPexelsImageService _imageService;
+        private readonly IWikimediaImageService _imageService;
         private const int MaxDaysPerChunk = 3;
 
         public AiItineraryService(
@@ -20,7 +20,7 @@ namespace TripWiseAPI.Services
             IConfiguration config,
             IPromptBuilder promptBuilder,
             IJsonRepairService repairService,
-            IPexelsImageService imageService)
+            IWikimediaImageService imageService)
         {
             _httpClient = httpClientFactory.CreateClient("Gemini");
             _apiKey = config["Gemini:ApiKey"];
@@ -99,7 +99,7 @@ namespace TripWiseAPI.Services
             var imageUrlsUsed = new HashSet<string>();
             var allDays = new List<ItineraryDay>();
 
-            string fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg"; // Thay bằng link ảnh mặc định của bạn
+            string fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
 
             foreach (var d in parsed.Days)
             {
@@ -117,15 +117,24 @@ namespace TripWiseAPI.Services
                     {
                         Console.WriteLine($"[Image] Fallback detected: {imageUrl}");
 
-                        var imageCandidates = await _imageService.SearchImageUrlsAsync(request.Destination);
-                        Console.WriteLine($"[Image] Pexels search returned {imageCandidates.Count} result(s)");
+                        // 🔁 Ưu tiên tìm ảnh theo địa điểm cụ thể
+                        string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
+                            ? a.Address
+                            : !string.IsNullOrWhiteSpace(a.PlaceDetail)
+                                ? a.PlaceDetail
+                                : request.Destination;
+
+                        Console.WriteLine($"[Image] Searching image for: {searchKeyword}");
+
+                        var imageCandidates = await _imageService.SearchImageUrlsAsync(searchKeyword);
+                        Console.WriteLine($"[Image] Wikimedia search returned {imageCandidates.Count} result(s)");
 
                         imageUrl = imageCandidates.FirstOrDefault(url => !imageUrlsUsed.Contains(url)) ?? fallbackImage;
 
                         if (!imageUrlsUsed.Contains(imageUrl))
                         {
                             imageUrlsUsed.Add(imageUrl);
-                            Console.WriteLine($"[Image] Selected new image from Pexels or fallback: {imageUrl}");
+                            Console.WriteLine($"[Image] Selected new image from Wikimedia or fallback: {imageUrl}");
                         }
                         else
                         {
