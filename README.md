@@ -1,6 +1,6 @@
-# TripWiseAPI-0.3
-- API Plans
-- API User Plans
+# TripWiseAPI-0.1
+A travel planning application with authentication, tour management, and itinerary generation.
+Authentication, login, register
 ## Tech Stack
 - **Backend**: ASP.NET Core, Entity Framework Core, SQL Server
 - **Frontend**: React, Axios, React Router
