@@ -283,66 +283,70 @@ namespace TripWiseAPI.Controllers
         [HttpPost("verifyOtp/{enteredOtp}")]
         public async Task<ApiResponse<string>> VerifyOtp(string enteredOtp, UserSignupData userSignupData)
         {
-            Console.WriteLine("Entered OTP: " + enteredOtp);
-            Console.WriteLine("Data: " + userSignupData.ToString());
-
-            // Get this signup request
             var signupRequestOtp = await _context.SignupOtps.FindAsync(userSignupData.SignupRequestId);
-            if (signupRequestOtp != null)
+            if (signupRequestOtp == null)
+                return new ApiResponse<string>(401, ErrorMessage.InvalidRequestId);
+
+            // Check OTP khớp
+            if (!signupRequestOtp.Otpstring.Equals(enteredOtp))
             {
-                Console.WriteLine("SignupOTP: " + signupRequestOtp.ToString());
-                if (signupRequestOtp.Otpstring.Equals(enteredOtp))
-                {
-                    // Check is this otp expired
-                    if (signupRequestOtp.ExpiresAt < DateTime.Now)
-                    {
-                        return new ApiResponse<string>(401, ErrorMessage.ExpiredOTP);
-                    }
-
-                    if (signupRequestOtp.RequestAttemptsRemains <= 0)
-                    {
-                        await RemoveThisSignupOtp(signupRequestOtp);
-                        return new ApiResponse<string>(401, ErrorMessage.OTPValidationFailed);
-                    }
-
-                    // Save new user to database
-                    var newUser = new User()
-                    {
-                        UserName = userSignupData.Username,
-                        Email = userSignupData.Email,
-                        PasswordHash = PasswordHelper.HashPasswordBCrypt(userSignupData.Password),
-                        CreatedDate = DateTime.UtcNow,
-                        Role = "USER",
-                        IsActive = true
-                    };
-                    await _context.Users.AddAsync(newUser);
-                    var result = await _context.SaveChangesAsync();
-                    if (result > 0)
-                    {
-                        await RemoveThisSignupOtp(signupRequestOtp);
-                        return new ApiResponse<string>(201, SuccessMessage.SignupSuccess);
-                    }
-                }
-
-                // Get remain attempts
-                var remainAttempts = --signupRequestOtp.RequestAttemptsRemains;
-                signupRequestOtp.RequestAttemptsRemains = remainAttempts;
-                // Update remain attempts
+                signupRequestOtp.RequestAttemptsRemains--;
                 _context.SignupOtps.Update(signupRequestOtp);
                 await _context.SaveChangesAsync();
 
-                if (remainAttempts == 0)
+                if (signupRequestOtp.RequestAttemptsRemains <= 0)
                 {
                     await RemoveThisSignupOtp(signupRequestOtp);
                     return new ApiResponse<string>(401, ErrorMessage.OTPValidationFailed);
                 }
 
-                return new ApiResponse<string>(400, "Mã OTP không chính xác, bạn còn lại " + remainAttempts + " lần thử.");
-
+                return new ApiResponse<string>(400, $"Mã OTP không chính xác, bạn còn lại {signupRequestOtp.RequestAttemptsRemains} lần thử.");
             }
 
-            return new ApiResponse<string>(401, ErrorMessage.InvalidRequestId);
+            // Check OTP hết hạn
+            if (signupRequestOtp.ExpiresAt < DateTime.Now)
+            {
+                return new ApiResponse<string>(401, ErrorMessage.ExpiredOTP);
+            }
+
+            // Tạo user
+            var newUser = new User()
+            {
+                UserName = userSignupData.Username,
+                Email = userSignupData.Email,
+                PasswordHash = PasswordHelper.HashPasswordBCrypt(userSignupData.Password),
+                CreatedDate = DateTime.UtcNow,
+                Role = "USER",
+                IsActive = true
+            };
+
+            await _context.Users.AddAsync(newUser);
+            await _context.SaveChangesAsync();
+
+            // Gán gói Free
+            var freePlan = await _context.Plans.FirstOrDefaultAsync(p => p.PlanName == "Free" && p.RemovedDate == null);
+            if (freePlan != null)
+            {
+                var userPlan = new UserPlan
+                {
+                    UserId = newUser.UserId,
+                    PlanId = freePlan.PlanId,
+                    StartDate = DateTime.UtcNow,
+                    IsActive = true,
+                    CreatedDate = DateTime.UtcNow,
+                    RequestInDays = null
+                };
+
+                await _context.UserPlans.AddAsync(userPlan);
+                await _context.SaveChangesAsync();
+            }
+
+            // Xóa OTP sau khi đăng ký thành công
+            await RemoveThisSignupOtp(signupRequestOtp);
+
+            return new ApiResponse<string>(201, SuccessMessage.SignupSuccess);
         }
+
 
         // Remove an expired or used OTP from the database
         private async Task RemoveThisSignupOtp(SignupOtp signupOtp)

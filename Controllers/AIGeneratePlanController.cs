@@ -33,6 +33,13 @@ namespace SimpleChatboxAI.Controllers
         [ProducesResponseType(500)]
         public async Task<IActionResult> CreateItinerary([FromBody] TravelRequest request)
         {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            int? UserId = null;
+
+            if (int.TryParse(userIdClaim, out int parsedId))
+                UserId = parsedId;
+
+            
             // Validate input
             if (string.IsNullOrWhiteSpace(request.Destination))
                 return BadRequest(new { success = false, error = "Destination is required" });
@@ -56,6 +63,79 @@ namespace SimpleChatboxAI.Controllers
             string relatedKnowledge = await _vectorSearchService.RetrieveRelevantJsonEntries(
                 request.Destination, 12,
                 request.GroupType ?? "", request.DiningStyle ?? "", request.Preferences ?? "");
+            // Lấy gói đang dùng
+            var userPlan = await _dbContext.UserPlans
+                .Include(up => up.Plan)
+                .FirstOrDefaultAsync(up => up.UserId == UserId && up.IsActive == true);
+
+            if (userPlan == null || userPlan.Plan == null)
+                throw new Exception("Không tìm thấy gói sử dụng.");
+
+            var planName = userPlan.Plan.PlanName;
+            var today = DateTime.UtcNow.Date;
+
+            if (planName == "Free")
+            {
+                var nowVN = DateTime.UtcNow.AddHours(7);
+                var startOfDayUtc = nowVN.Date.AddHours(-7);
+                var endOfDayUtc = nowVN.Date.AddDays(1).AddHours(-7);
+
+                int usageToday = await _dbContext.GenerateTravelPlans
+                    .CountAsync(x => x.UserId == UserId &&
+                                     x.ResponseTime >= startOfDayUtc &&
+                                     x.ResponseTime < endOfDayUtc);
+
+                if (usageToday >= 3)
+                {
+                    var availablePlans = await _dbContext.Plans
+                        .Where(p => p.PlanName != "Free" && p.RemovedDate == null)
+                        .Select(p => new
+                        {
+                            p.PlanId,
+                            p.PlanName,
+                            p.Price,
+                            p.Description
+                        })
+                        .ToListAsync();
+
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Bạn đã hết 3 lượt miễn phí trong ngày hôm nay.",
+                        suggestUpgrade = true,
+                        suggestedPlans = availablePlans
+                    });
+                }
+            }
+            else
+            {
+                if (userPlan.RequestInDays <= 0)
+                {
+                    var availablePlans = await _dbContext.Plans
+                        .Where(p => p.PlanName != "Free" && p.RemovedDate == null)
+                        .Select(p => new
+                        {
+                            p.PlanId,
+                            p.PlanName,
+                            p.Price,
+                            p.Description
+                        })
+                        .ToListAsync();
+
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Bạn đã sử dụng hết lượt của gói hiện tại.",
+                        suggestUpgrade = true,
+                        suggestedPlans = availablePlans
+                    });
+                }
+
+                // Trừ lượt sử dụng
+                userPlan.RequestInDays--;
+                userPlan.ModifiedDate = DateTime.UtcNow;
+                _dbContext.UserPlans.Update(userPlan);
+            }
 
             // Generate itinerary using Gemini Service
             try
@@ -78,8 +158,8 @@ namespace SimpleChatboxAI.Controllers
                     SuggestedAccommodation = itinerary.SuggestedAccommodation
                 };
 
-                // Save to DB và nhận lại ID
-                int generatedId = await SaveToGenerateTravelPlanAsync(request, response, User);
+                int generatedId = await SaveToGenerateTravelPlanAsync(UserId, request, response);
+
 
                 return Ok(new
                 {
@@ -99,15 +179,9 @@ namespace SimpleChatboxAI.Controllers
                 });
             }
         }
-        private async Task<int> SaveToGenerateTravelPlanAsync(TravelRequest request, ItineraryResponse response, ClaimsPrincipal user)
-        {
-            var userIdClaim = user.FindFirst("UserId")?.Value;
-            int? UserId = null;
+        private async Task<int> SaveToGenerateTravelPlanAsync(int? UserId, TravelRequest request, ItineraryResponse response)
 
-            if (int.TryParse(userIdClaim, out int parsedId))
-            {
-                UserId = parsedId;
-            }
+        {
 
             var entity = new GenerateTravelPlan
             {
@@ -301,9 +375,116 @@ namespace SimpleChatboxAI.Controllers
                 data = tours
             });
         }
+        [HttpGet("GetTourDetailById")]
+        public async Task<IActionResult> GetTourDetailById([FromQuery] int tourId)
+        {
+            var tour = await _dbContext.Tours
+                .Where(t => t.TourId == tourId)
+                .Select(t => new
+                {
+                    t.TourId,
+                    t.TourName,
+                    t.Description,
+                    t.Duration,
+                    t.Location,
+                    t.Price,
+                    t.Category,
+                    t.TourNote,
+                    t.TourInfo,
+                    t.CreatedDate,
+                    Itineraries = _dbContext.TourItineraries
+                        .Where(i => i.TourId == t.TourId)
+                        .OrderBy(i => i.DayNumber)
+                        .Select(i => new
+                        {
+                            i.ItineraryId,
+                            i.ItineraryName,
+                            i.DayNumber,
+                            i.StartTime,
+                            i.EndTime,
+                            i.Description,
+                            i.Category,
+                            Activities = _dbContext.TourAttractions
+                                .Where(a => a.TourAttractionsId == i.TourAttractionsId)
+                                .Select(a => new
+                                {
+                                    a.TourAttractionsId,
+                                    a.TourAttractionsName,
+                                    a.Price,
+                                    a.Localtion,
+                                    a.Category,
+                                    a.MapUrl,
+                                    a.ImageUrl
+                                }).FirstOrDefault()
+                        }).ToList()
+                })
+                .FirstOrDefaultAsync();
 
-        [HttpGet("history")]
-        public async Task<IActionResult> GetHistory()
+            if (tour == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "❌ Không tìm thấy tour với ID đã cho."
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "✅ Lấy chi tiết tour thành công.",
+                data = tour
+            });
+        }
+
+
+        [HttpDelete("DeleteTour/{id}")]
+        public async Task<IActionResult> DeleteTour(int id)
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            int? UserId = null;
+
+            if (int.TryParse(userIdClaim, out int parsedId))
+            {
+                UserId = parsedId;
+            }
+
+
+            var tour = await _dbContext.Tours
+               .Include(t => t.TourItineraries)
+               .FirstOrDefaultAsync(t => t.TourId == id && t.CreatedBy == UserId);
+
+            if (tour == null)
+                return NotFound(new { success = false, message = "Tour not found or you don't have permission" });
+
+            // Bước 3: Lấy danh sách TourAttractionsID từ TourItinerary
+            var attractionIds = tour.TourItineraries
+                .Where(i => i.TourAttractionsId != null)
+                .Select(i => i.TourAttractionsId!.Value)
+                .Distinct()
+                .ToList();
+
+            // Bước 4: Xóa toàn bộ itinerary liên quan
+            _dbContext.TourItineraries.RemoveRange(tour.TourItineraries);
+
+            // Bước 5: Xóa các attractions liên kết
+            var attractionsToDelete = await _dbContext.TourAttractions
+                .Where(a => attractionIds.Contains(a.TourAttractionsId))
+                .ToListAsync();
+            _dbContext.TourAttractions.RemoveRange(attractionsToDelete);
+
+            // Bước 6: Xóa tour
+            _dbContext.Tours.Remove(tour);
+
+            // Bước 7: Lưu thay đổi
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Tour deleted successfully" });
+        }
+
+
+        [HttpGet("GetHistoryByUser")]
+        public async Task<IActionResult> GetHistoryByUser()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
             int? UserId = null;
@@ -337,8 +518,8 @@ namespace SimpleChatboxAI.Controllers
         }
 
 
-        [HttpGet("history/{id}")]
-        public async Task<IActionResult> GetHistoryDetail(int id)
+        [HttpGet("GetHistoryDetailById/{id}")]
+        public async Task<IActionResult> GetHistoryDetailById(int id)
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
             int? UserId = null;
