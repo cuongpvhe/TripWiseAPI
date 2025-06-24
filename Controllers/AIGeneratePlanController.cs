@@ -140,49 +140,7 @@ namespace SimpleChatboxAI.Controllers
             var result = await _iAIGeneratePlanService.GetToursByUserIdAsync(userId);
             return Ok(new { message = "✅ Lấy danh sách tour theo user thành công.", data = result });
         }
-        [HttpDelete("tours/{id}")]
-        public async Task<IActionResult> DeleteTour(int id)
-        {
-            var userIdClaim = User.FindFirst("UserId")?.Value;
-            int? UserId = null;
-
-            if (int.TryParse(userIdClaim, out int parsedId))
-            {
-                UserId = parsedId;
-            }
-
-
-            var tour = await _dbContext.Tours
-               .Include(t => t.TourItineraries)
-               .FirstOrDefaultAsync(t => t.TourId == id && t.CreatedBy == UserId);
-
-            if (tour == null)
-                return NotFound(new { success = false, message = "Tour not found or you don't have permission" });
-
-            // Bước 3: Lấy danh sách TourAttractionsID từ TourItinerary
-            var attractionIds = tour.TourItineraries
-                .Where(i => i.TourAttractionsId != null)
-                .Select(i => i.TourAttractionsId!.Value)
-                .Distinct()
-                .ToList();
-
-            // Bước 4: Xóa toàn bộ itinerary liên quan
-            _dbContext.TourItineraries.RemoveRange(tour.TourItineraries);
-
-            // Bước 5: Xóa các attractions liên kết
-            var attractionsToDelete = await _dbContext.TourAttractions
-                .Where(a => attractionIds.Contains(a.TourAttractionsId))
-                .ToListAsync();
-            _dbContext.TourAttractions.RemoveRange(attractionsToDelete);
-
-            // Bước 6: Xóa tour
-            _dbContext.Tours.Remove(tour);
-
-            // Bước 7: Lưu thay đổi
-            await _dbContext.SaveChangesAsync();
-
-            return Ok(new { success = true, message = "Tour deleted successfully" });
-        }
+        
 
 
         [HttpGet("GetTourDetailById")]
