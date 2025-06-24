@@ -1,7 +1,6 @@
-# TripWiseAPI-0.2
-- API CRUD Blogs
-- Save, Delete, Update Plan From AI
-- History request, response users with AI
+# TripWiseAPI-0.3
+- API Plans
+- API User Plans
 ## Tech Stack
 - **Backend**: ASP.NET Core, Entity Framework Core, SQL Server
 - **Frontend**: React, Axios, React Router

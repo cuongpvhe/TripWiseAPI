@@ -85,6 +85,8 @@ namespace TripWiseAPI
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
             });
 
+            builder.Services.AddScoped<IAIGeneratePlanService, AIGeneratePlanService>();
+            builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
