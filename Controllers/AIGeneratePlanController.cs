@@ -121,6 +121,86 @@ namespace SimpleChatboxAI.Controllers
                 });
             }
         }
+
+        [HttpPost("UpdateItinerary/{generatePlanId}")]
+        public async Task<IActionResult> UpdateItinerary(int generatePlanId, [FromBody] ChatUpdateRequest userInput)
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (!int.TryParse(userIdClaim, out int userId))
+                return Unauthorized();
+
+            var existingPlan = await _dbContext.GenerateTravelPlans
+                .FirstOrDefaultAsync(p => p.Id == generatePlanId && p.UserId == userId);
+
+            if (existingPlan == null)
+                return NotFound("❌ Không tìm thấy lịch trình với ID đã cung cấp.");
+
+            var oldRequest = JsonSerializer.Deserialize<TravelRequest>(existingPlan.MessageRequest);
+            var oldResponse = JsonSerializer.Deserialize<ItineraryResponse>(existingPlan.MessageResponse);
+
+            if (oldRequest == null || oldResponse == null)
+                return BadRequest("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
+
+            try
+            {
+                // Gọi AI để tạo lịch trình mới dựa trên yêu cầu người dùng
+                var newItinerary = await _aiService.UpdateItineraryAsync(oldRequest, oldResponse, userInput.Message);
+
+                // Cập nhật thông tin thời tiết cho từng ngày mới
+                DateTime startDate = oldRequest.TravelDate;
+                for (int i = 0; i < newItinerary.Itinerary.Count; i++)
+                {
+                    var weather = await _weatherService.GetDailyWeatherAsync(oldRequest.Destination, startDate.AddDays(i));
+                    newItinerary.Itinerary[i].WeatherDescription = weather?.description ?? "Không có dữ liệu";
+                    newItinerary.Itinerary[i].TemperatureCelsius = weather?.temperature ?? 0;
+                }
+
+                // Gói lại thành ItineraryResponse để lưu trữ
+                var updatedResponse = new ItineraryResponse
+                {
+                    Destination = oldRequest.Destination,
+                    Days = oldRequest.Days,
+                    Preferences = oldRequest.Preferences,
+                    TravelDate = oldRequest.TravelDate,
+                    Transportation = oldRequest.Transportation,
+                    DiningStyle = oldRequest.DiningStyle,
+                    GroupType = oldRequest.GroupType,
+                    Accommodation = oldRequest.Accommodation,
+                    TotalEstimatedCost = newItinerary.TotalEstimatedCost,
+                    Budget = oldRequest.BudgetVND,
+                    Itinerary = newItinerary.Itinerary,
+                    SuggestedAccommodation = newItinerary.SuggestedAccommodation
+                };
+
+                // Lưu đè vào bản ghi cũ
+                existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions
+                {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                    WriteIndented = true
+                });
+                existingPlan.ResponseTime = DateTime.UtcNow;
+
+                await _dbContext.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Đã cập nhật lịch trình thành công.",
+                    data = updatedResponse
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi cập nhật lịch trình.",
+                    detail = ex.Message
+                });
+            }
+        }
+
+
         private async Task<int> SaveToGenerateTravelPlanAsync(TravelRequest request, ItineraryResponse response, ClaimsPrincipal user)
         {
             var userIdClaim = user.FindFirst("UserId")?.Value;

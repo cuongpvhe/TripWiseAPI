@@ -187,6 +187,136 @@ namespace TripWiseAPI.Services
                     : null
             };
         }
+        public async Task<ItineraryResponse> UpdateItineraryAsync(TravelRequest originalRequest,ItineraryResponse originalResponse,string userInstruction)
+        {
+            string prompt = _promptBuilder.BuildUpdatePrompt(originalRequest, originalResponse, userInstruction);
+
+
+            var payload = new
+            {
+                contents = new[] {
+            new {
+                parts = new[] {
+                    new { text = prompt }
+                }
+            }
+        },
+                generationConfig = new
+                {
+                    maxOutputTokens = 4096,
+                    temperature = 0.7
+                }
+            };
+
+            var response = await _httpClient.PostAsJsonAsync(
+                $"v1beta/models/gemini-1.5-flash:generateContent?key={_apiKey}", payload);
+
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"Gemini API failed: {await response.Content.ReadAsStringAsync()}");
+
+            string text = await response.Content.ReadAsStringAsync();
+            string raw = JsonDocument.Parse(text)
+                .RootElement.GetProperty("candidates")[0]
+                .GetProperty("content").GetProperty("parts")[0]
+                .GetProperty("text").GetString();
+            Console.WriteLine("🧠 Prompt gửi lên:\n" + prompt);
+            Console.WriteLine("📨 Kết quả Gemini trả về:\n" + raw);
+
+
+            string cleanedJson = ExtractJson(raw);
+
+            JsonDocument doc;
+            try
+            {
+                doc = JsonDocument.Parse(cleanedJson);
+            }
+            catch
+            {
+                string? repaired = await _repairService.TryRepairAsync(cleanedJson);
+                if (repaired == null) throw new Exception("JSON repair failed");
+                doc = JsonDocument.Parse(repaired);
+            }
+
+            var parsed = JsonSerializer.Deserialize<JsonItineraryFormat>(doc.RootElement.GetRawText());
+            if (parsed?.Days == null) throw new Exception("Invalid or empty itinerary");
+
+            var imageUrlsUsed = new HashSet<string>();
+            var allDays = new List<ItineraryDay>();
+            string fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
+
+            foreach (var d in parsed.Days)
+            {
+                var activities = await Task.WhenAll(d.Activities.Select(async a =>
+                {
+                    string imageUrl = a.Image;
+
+                    bool isFallbackImage = string.IsNullOrWhiteSpace(imageUrl)
+                        || imageUrl.Contains("unsplash")
+                        || imageUrl.Contains("wikipedia")
+                        || imageUrl.Contains("example.com")
+                        || imageUrl.Contains("vietflag.vn");
+
+                    if (isFallbackImage)
+                    {
+                        string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
+                            ? a.Address
+                            : !string.IsNullOrWhiteSpace(a.PlaceDetail)
+                                ? a.PlaceDetail
+                                : originalRequest.Destination;
+
+                        var imageCandidates = await _imageService.SearchImageUrlsAsync(searchKeyword);
+                        imageUrl = imageCandidates.FirstOrDefault(url => !imageUrlsUsed.Contains(url)) ?? fallbackImage;
+
+                        if (!imageUrlsUsed.Contains(imageUrl))
+                        {
+                            imageUrlsUsed.Add(imageUrl);
+                        }
+                    }
+
+                    return new ItineraryActivity
+                    {
+                        StartTime = a.StartTime,
+                        EndTime = a.EndTime,
+                        Description = a.Description,
+                        EstimatedCost = a.EstimatedCost,
+                        Transportation = a.Transportation,
+                        Address = a.Address,
+                        PlaceDetail = a.PlaceDetail,
+                        Image = imageUrl,
+                        MapUrl = string.IsNullOrWhiteSpace(a.Address) ? null
+                            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(a.Address)}"
+                    };
+                }));
+
+                allDays.Add(new ItineraryDay
+                {
+                    DayNumber = d.DayNumber,
+                    Title = d.Title,
+                    DailyCost = d.DailyCost,
+                    WeatherNote = d.WeatherNote,
+                    Activities = activities.ToList()
+                });
+            }
+
+            return new ItineraryResponse
+            {
+                Destination = originalRequest.Destination,
+                Days = originalRequest.Days,
+                Preferences = originalRequest.Preferences,
+                TravelDate = originalRequest.TravelDate,
+                Transportation = originalRequest.Transportation,
+                DiningStyle = originalRequest.DiningStyle,
+                GroupType = originalRequest.GroupType,
+                Accommodation = originalRequest.Accommodation,
+                TotalEstimatedCost = parsed.TotalCost,
+                Budget = (int)originalRequest.BudgetVND,
+                Itinerary = allDays,
+                SuggestedAccommodation = $"https://www.google.com/maps/search/?q=khách+sạn+{Uri.EscapeDataString(originalRequest.Accommodation ?? "3 sao")}+sao+{Uri.EscapeDataString(originalRequest.Destination)}",
+                HasMore = false,
+                NextStartDate = null
+            };
+        }
+
 
         private string ExtractJson(string raw)
         {
