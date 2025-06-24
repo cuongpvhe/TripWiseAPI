@@ -75,6 +75,8 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IPromptBuilder, PromptBuilder>();
             builder.Services.AddScoped<IJsonRepairService, JsonRepairService>();
             builder.Services.AddScoped<VectorSearchService>();
+            builder.Services.AddScoped<IAIGeneratePlanService, AIGeneratePlanService>();
+            builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
