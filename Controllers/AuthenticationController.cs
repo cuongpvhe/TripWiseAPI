@@ -62,10 +62,29 @@ namespace TripWiseAPI.Controllers
         }
 
         // Xác minh OTP và tạo tài khoản
-        [HttpPost("verifyOtp/{otp}")]
-        public async Task<ApiResponse<string>> VerifyOtp(string otp, UserSignupData data)
+        [HttpPost("verifyOtp/{enteredOtp}")]
+        public async Task<ApiResponse<string>> VerifyOtp(string enteredOtp, UserSignupData data)
         {
-            return await _authService.VerifyOtpAsync(otp, data);
+            return await _authService.VerifyOtpAsync(enteredOtp, data);
         }
+        [HttpPost("forgot-password")]
+        public async Task<ApiResponse<string>> ForgotPassword(ForgotPasswordRequest req)
+        {
+            return await _authService.SendForgotPasswordOtpAsync(req);
+        }
+
+        [HttpPost("verify-forgot-otp")]
+        public async Task<ApiResponse<string>> VerifyForgotOtp(string enteredOtp, VerifyForgotOtpRequest req)
+        {
+            return await _authService.VerifyForgotPasswordOtpAsync(enteredOtp, req);
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<ApiResponse<string>> ResetPassword(ResetPasswordRequest req)
+        {
+            return await _authService.ResetPasswordAsync(req);
+        }
+
+
     }
 }

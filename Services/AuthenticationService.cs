@@ -220,6 +220,79 @@ namespace TripWiseAPI.Services
                 await _context.SaveChangesAsync();
             }
         }
+        public async Task<ApiResponse<string>> SendForgotPasswordOtpAsync(ForgotPasswordRequest req)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
+            if (user == null)
+                return new ApiResponse<string>(404, "Email chưa được đăng ký");
+            // Xoá OTP cũ nếu đã tồn tại
+            var existingOtp = await _context.SignupOtps.FindAsync(req.Email);
+            if (existingOtp != null)
+            {
+                _context.SignupOtps.Remove(existingOtp);
+                await _context.SaveChangesAsync();
+            }
+            var otp = new SignupOtp
+            {
+                SignupRequestId = req.Email,
+                Otpstring = OtpHelper.GenerateRandomDigits(6),
+                RequestAttemptsRemains = 3,
+                ExpiresAt = DateTime.Now.AddMinutes(10)
+            };
+
+            await _context.SignupOtps.AddAsync(otp);
+            await _context.SaveChangesAsync();
+
+            _ = Task.Run(() =>
+                EmailHelper.SendEmailMultiThread(req.Email, "Mã OTP đặt lại mật khẩu", $"Mã OTP của bạn là <b>{otp.Otpstring}</b>")
+            );
+
+            return new ApiResponse<string>(200, "Mã OTP đã được gửi đến email");
+        }
+        public async Task<ApiResponse<string>> VerifyForgotPasswordOtpAsync(string enteredOtp, VerifyForgotOtpRequest req)
+        {
+            var otp = await _context.SignupOtps.FindAsync(req.Email);
+            if (otp == null)
+                return new ApiResponse<string>(401, ErrorMessage.InvalidRequestId);
+
+            if (otp.ExpiresAt < DateTime.Now)
+                return new ApiResponse<string>(401, ErrorMessage.ExpiredOTP);
+
+            if (otp.Otpstring != enteredOtp)
+            {
+                otp.RequestAttemptsRemains--;
+                if (otp.RequestAttemptsRemains <= 0)
+                {
+                    _context.SignupOtps.Remove(otp);
+                }
+                else
+                {
+                    _context.SignupOtps.Update(otp);
+                }
+                await _context.SaveChangesAsync();
+                return new ApiResponse<string>(400, $"OTP không đúng, còn lại {otp.RequestAttemptsRemains} lần thử.");
+            }
+
+            // OTP đúng → xóa
+            _context.SignupOtps.Remove(otp);
+            await _context.SaveChangesAsync();
+            return new ApiResponse<string>("OTP hợp lệ, bạn có thể đổi mật khẩu");
+        }
+
+        public async Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordRequest req)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(x => x.Email == req.Email);
+            if (user == null)
+                return new ApiResponse<string>(404, "Không tìm thấy tài khoản");
+
+            user.PasswordHash = PasswordHelper.HashPasswordBCrypt(req.NewPassword);
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse<string>("Mật khẩu đã được cập nhật");
+        }
+
+
     }
 
 }

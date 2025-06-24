@@ -10,7 +10,11 @@ namespace TripWiseAPI.Services
         Task<(string accessToken, string refreshToken)> RefreshTokenAsync(RefreshTokenRequest request);
         Task<string> LogoutAsync(string deviceId);
         Task<SignupResponse> SignupAsync(SignupRequest request);
-        Task<ApiResponse<string>> VerifyOtpAsync(string otp, UserSignupData data);
+        Task<ApiResponse<string>> VerifyOtpAsync(string enteredOtp, UserSignupData data);
+        Task<ApiResponse<string>> SendForgotPasswordOtpAsync(ForgotPasswordRequest req);
+        Task<ApiResponse<string>> VerifyForgotPasswordOtpAsync(string enteredOtp, VerifyForgotOtpRequest req);
+        Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordRequest req);
+
     }
 
 
