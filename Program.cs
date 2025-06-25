@@ -76,14 +76,10 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IPromptBuilder, PromptBuilder>();
             builder.Services.AddScoped<IJsonRepairService, JsonRepairService>();
             builder.Services.AddScoped<VectorSearchService>();
-            builder.Services.AddHttpClient<IPexelsImageService, PexelsImageService>((provider, client) =>
-            {
-                var config = provider.GetRequiredService<IConfiguration>();
-                var apiKey = config["Pexels:ApiKey"];
+            builder.Services.AddHttpClient<IWikimediaImageService, WikimediaImageService>();
+            builder.Services.AddHttpClient<WeatherService>();
 
-                client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-            });
+
 
             builder.Services.AddScoped<IAIGeneratePlanService, AIGeneratePlanService>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();

@@ -27,4 +27,9 @@ namespace TripWiseAPI.Model
         public int StartDayOffset { get; set; } = 0;
 
     }
+    public class ChatUpdateRequest
+    {
+        public string Message { get; set; }
+    }
+
 }
