@@ -19,14 +19,17 @@ namespace SimpleChatboxAI.Controllers
         private readonly IAiItineraryService _aiService;
         private readonly TripWiseDBContext _dbContext;
         private readonly WeatherService _weatherService;
+        private readonly IAIGeneratePlanService _iAIGeneratePlanService;
         public AIGeneratePlanController(
             VectorSearchService vectorSearchService,
-            IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService)
+            IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService, IAIGeneratePlanService iAIGeneratePlanService)
         {
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
             _dbContext = _context;
             _weatherService = weatherService;
+            _iAIGeneratePlanService = iAIGeneratePlanService;
+            _iAIGeneratePlanService = iAIGeneratePlanService;
         }
         private int? GetUserId()
         {
@@ -146,17 +149,7 @@ namespace SimpleChatboxAI.Controllers
                 });
             }
         }
-        private async Task<int> SaveToGenerateTravelPlanAsync(TravelRequest request, ItineraryResponse response, ClaimsPrincipal user)
-        {
-            var userIdClaim = user.FindFirst("UserId")?.Value;
-            int? UserId = null;
-
-            if (int.TryParse(userIdClaim, out int parsedId))
-            {
-                UserId = parsedId;
-            }
-
-        }
+       
 
         [HttpPost("SaveTourFromGenerated/{generatePlanId}")]
         public async Task<IActionResult> SaveTourFromGenerated(int generatePlanId)
