@@ -2,17 +2,15 @@
 {
     public class TourDetailDto
     {
-        public string? Destination { get; set; }
+        public string? TourName { get; set; }
+        public string? Description { get; set; }
         public DateTime? TravelDate { get; set; }
         public string? Days { get; set; }
         public string? Preferences { get; set; }
-        public string? GroupType { get; set; }
         public decimal? Budget { get; set; }
         public decimal? TotalEstimatedCost { get; set; }
-        public string? Transportation { get; set; }
-        public string? DiningStyle { get; set; }
-        public string? Accommodation { get; set; }
-        public string? SuggestedAccommodation { get; set; }
+        public string? TourInfo { get; set; }
+        public string? TourNote { get; set; }
         public List<ItineraryDto> Itinerary { get; set; } = new();
     }
 
@@ -30,7 +28,6 @@
         public TimeSpan? EndTime { get; set; }
         public string? Description { get; set; }
         public string? Address { get; set; }
-        public string? Transportation { get; set; }
         public decimal? EstimatedCost { get; set; }
         public string? PlaceDetail { get; set; }
         public string? MapUrl { get; set; }

@@ -207,8 +207,8 @@ namespace TripWiseAPI.Services
                 Location = destination,
                 MaxGroupSize = 10,
                 Category = preferences,
-                TourNote = $"Lưu trú: {accommodation}, Ăn uống: {diningStyle}",
-                TourInfo = $"Gợi ý KS: {suggestedAccommodation}",
+                TourInfo = $"Lưu trú: {accommodation}, Ăn uống: {diningStyle}",
+                TourNote = $"Gợi ý KS: {suggestedAccommodation}",
                 TourTypesId = 1,
                 CreatedDate = DateTime.UtcNow,
                 CreatedBy = userId
@@ -342,11 +342,10 @@ namespace TripWiseAPI.Services
                     {
                         StartTime = i.StartTime,
                         EndTime = i.EndTime,
-                        Description = i.Description,
-                        Address = i.TourAttractions?.Localtion,
-                        Transportation = null,
-                        EstimatedCost = i.TourAttractions?.Price ?? 0,
                         PlaceDetail = i.TourAttractions?.TourAttractionsName,
+                        Address = i.TourAttractions?.Localtion,
+                        EstimatedCost = i.TourAttractions?.Price ?? 0,
+                        Description = i.Description,
                         MapUrl = i.TourAttractions?.MapUrl,
                         Image = i.TourAttractions?.ImageUrl
                     }).ToList()
@@ -355,18 +354,16 @@ namespace TripWiseAPI.Services
 
             var dto = new TourDetailDto
             {
-                Destination = tour.Location,
+                TourName = tour.TourName,
+                Description = tour.Description,
                 TravelDate = tour.CreatedDate,
                 Days = tour.Duration,
-                Preferences = tour.TourNote,
-                GroupType = tour.Category,
+                Preferences = tour.Category,
                 Budget = tour.Price,
                 TotalEstimatedCost = itineraryByDay.Sum(d => d.DailyCost ?? 0),
-                Transportation = tour.TourInfo,
-                DiningStyle = "",
-                Accommodation = "",
-                SuggestedAccommodation = "",
-                Itinerary = itineraryByDay
+                Itinerary = itineraryByDay,
+                TourInfo = tour.TourInfo,
+                TourNote = tour.TourNote,
             };
 
             return dto;
