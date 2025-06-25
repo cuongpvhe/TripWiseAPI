@@ -29,7 +29,7 @@ namespace SimpleChatboxAI.Controllers
             _dbContext = _context;
             _weatherService = weatherService;
             _iAIGeneratePlanService = iAIGeneratePlanService;
-            _iAIGeneratePlanService = iAIGeneratePlanService;
+
         }
         private int? GetUserId()
         {
@@ -149,8 +149,38 @@ namespace SimpleChatboxAI.Controllers
                 });
             }
         }
-       
 
+        [HttpPost("UpdateItinerary/{generatePlanId}")]
+        public async Task<IActionResult> UpdateItinerary(int generatePlanId, [FromBody] ChatUpdateRequest userInput)
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (!int.TryParse(userIdClaim, out int userId))
+                return Unauthorized();
+
+            try
+            {
+                var updated = await _iAIGeneratePlanService.UpdateItineraryAsync(generatePlanId, userId, userInput.Message);
+
+                if (updated == null)
+                    return NotFound("❌ Không tìm thấy lịch trình với ID đã cung cấp.");
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "✅ Đã cập nhật lịch trình thành công.",
+                    data = updated
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "❌ Lỗi khi cập nhật lịch trình.",
+                    detail = ex.Message
+                });
+            }
+        }
         [HttpPost("SaveTourFromGenerated/{generatePlanId}")]
         public async Task<IActionResult> SaveTourFromGenerated(int generatePlanId)
         {

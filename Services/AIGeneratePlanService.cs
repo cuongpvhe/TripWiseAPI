@@ -9,10 +9,68 @@ namespace TripWiseAPI.Services
     public class AIGeneratePlanService : IAIGeneratePlanService
     {
         private readonly TripWiseDBContext _dbContext;
+        private readonly WeatherService _weatherService;
+        private readonly IAiItineraryService _aiService;
 
-        public AIGeneratePlanService (TripWiseDBContext dbContext)
+        public AIGeneratePlanService (TripWiseDBContext dbContext, WeatherService weatherService, IAiItineraryService aiService)
         {
             _dbContext = dbContext;
+            _weatherService = weatherService;
+            _aiService = aiService;
+        }
+        public async Task<ItineraryResponse?> UpdateItineraryAsync(int generatePlanId, int userId, string userMessage)
+        {
+            var existingPlan = await _dbContext.GenerateTravelPlans
+                .FirstOrDefaultAsync(p => p.Id == generatePlanId && p.UserId == userId);
+
+            if (existingPlan == null) return null;
+
+            var oldRequest = JsonSerializer.Deserialize<TravelRequest>(existingPlan.MessageRequest);
+            var oldResponse = JsonSerializer.Deserialize<ItineraryResponse>(existingPlan.MessageResponse);
+
+            if (oldRequest == null || oldResponse == null)
+                throw new InvalidOperationException("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
+
+            // Gọi AI để tạo lịch trình mới
+            var newItinerary = await _aiService.UpdateItineraryAsync(oldRequest, oldResponse, userMessage);
+
+            // Thêm thông tin thời tiết cho mỗi ngày
+            DateTime startDate = oldRequest.TravelDate;
+            for (int i = 0; i < newItinerary.Itinerary.Count; i++)
+            {
+                var weather = await _weatherService.GetDailyWeatherAsync(oldRequest.Destination, startDate.AddDays(i));
+                newItinerary.Itinerary[i].WeatherDescription = weather?.description ?? "Không có dữ liệu";
+                newItinerary.Itinerary[i].TemperatureCelsius = weather?.temperature ?? 0;
+            }
+
+            // Tạo response mới
+            var updatedResponse = new ItineraryResponse
+            {
+                Destination = oldRequest.Destination,
+                Days = oldRequest.Days,
+                Preferences = oldRequest.Preferences,
+                TravelDate = oldRequest.TravelDate,
+                Transportation = oldRequest.Transportation,
+                DiningStyle = oldRequest.DiningStyle,
+                GroupType = oldRequest.GroupType,
+                Accommodation = oldRequest.Accommodation,
+                TotalEstimatedCost = newItinerary.TotalEstimatedCost,
+                Budget = oldRequest.BudgetVND,
+                Itinerary = newItinerary.Itinerary,
+                SuggestedAccommodation = newItinerary.SuggestedAccommodation
+            };
+
+            // Lưu đè kết quả
+            existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                WriteIndented = true
+            });
+            existingPlan.ResponseTime = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync();
+
+            return updatedResponse;
         }
         public async Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId)
         {
