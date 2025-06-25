@@ -16,12 +16,14 @@ namespace TripWiseAPI.Models
         {
         }
 
-        public virtual DbSet<ActivityType> ActivityTypes { get; set; } = null!;
         public virtual DbSet<Blog> Blogs { get; set; } = null!;
         public virtual DbSet<BlogImage> BlogImages { get; set; } = null!;
+        public virtual DbSet<Booking> Bookings { get; set; } = null!;
         public virtual DbSet<EditVersionTravelPlan> EditVersionTravelPlans { get; set; } = null!;
         public virtual DbSet<GenerateTravelPlan> GenerateTravelPlans { get; set; } = null!;
         public virtual DbSet<Image> Images { get; set; } = null!;
+        public virtual DbSet<Partner> Partners { get; set; } = null!;
+        public virtual DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
         public virtual DbSet<Plan> Plans { get; set; } = null!;
         public virtual DbSet<Review> Reviews { get; set; } = null!;
         public virtual DbSet<SignupOtp> SignupOtps { get; set; } = null!;
@@ -35,6 +37,7 @@ namespace TripWiseAPI.Models
         public virtual DbSet<User> Users { get; set; } = null!;
         public virtual DbSet<UserPlan> UserPlans { get; set; } = null!;
         public virtual DbSet<UserRefreshToken> UserRefreshTokens { get; set; } = null!;
+        public virtual DbSet<VnpayLog> VnpayLogs { get; set; } = null!;
         public virtual DbSet<Wishlist> Wishlists { get; set; } = null!;
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -48,17 +51,6 @@ namespace TripWiseAPI.Models
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<ActivityType>(entity =>
-            {
-                entity.ToTable("ActivityType");
-
-                entity.Property(e => e.ActivityTypeId).HasColumnName("ActivityTypeID");
-
-                entity.Property(e => e.ActivityType1)
-                    .HasMaxLength(50)
-                    .HasColumnName("ActivityType");
-            });
-
             modelBuilder.Entity<Blog>(entity =>
             {
                 entity.ToTable("Blog");
@@ -101,6 +93,48 @@ namespace TripWiseAPI.Models
                     .WithMany(p => p.BlogImages)
                     .HasForeignKey(d => d.ImageId)
                     .HasConstraintName("FK_BlogImages_Images");
+            });
+
+            modelBuilder.Entity<Booking>(entity =>
+            {
+                entity.HasIndex(e => e.OrderCode, "UQ__Bookings__999B522941CF6868")
+                    .IsUnique();
+
+                entity.Property(e => e.BookingId).HasColumnName("BookingID");
+
+                entity.Property(e => e.BookingStatus)
+                    .HasMaxLength(20)
+                    .HasDefaultValueSql("('Pending')");
+
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("(getdate())");
+
+                entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
+
+                entity.Property(e => e.OrderCode).HasMaxLength(50);
+
+                entity.Property(e => e.RemovedDate).HasColumnType("datetime");
+
+                entity.Property(e => e.RemovedReason).HasMaxLength(255);
+
+                entity.Property(e => e.TotalAmount).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.TourId).HasColumnName("TourID");
+
+                entity.Property(e => e.UserId).HasColumnName("UserID");
+
+                entity.HasOne(d => d.Tour)
+                    .WithMany(p => p.Bookings)
+                    .HasForeignKey(d => d.TourId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_Orders_Tours");
+
+                entity.HasOne(d => d.User)
+                    .WithMany(p => p.Bookings)
+                    .HasForeignKey(d => d.UserId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_Orders_Users");
             });
 
             modelBuilder.Entity<EditVersionTravelPlan>(entity =>
@@ -164,6 +198,74 @@ namespace TripWiseAPI.Models
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.RemovedReason).HasMaxLength(255);
+            });
+
+            modelBuilder.Entity<Partner>(entity =>
+            {
+                entity.HasIndex(e => e.UserId, "UQ__Partners__1788CCADE54E8A1E")
+                    .IsUnique();
+
+                entity.Property(e => e.PartnerId).HasColumnName("PartnerID");
+
+                entity.Property(e => e.Address).HasMaxLength(255);
+
+                entity.Property(e => e.CompanyName).HasMaxLength(100);
+
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("(getdate())");
+
+                entity.Property(e => e.IsActive).HasDefaultValueSql("((1))");
+
+                entity.Property(e => e.PhoneNumber).HasMaxLength(20);
+
+                entity.Property(e => e.UserId).HasColumnName("UserID");
+
+                entity.Property(e => e.Website).HasMaxLength(100);
+
+                entity.HasOne(d => d.User)
+                    .WithOne(p => p.Partner)
+                    .HasForeignKey<Partner>(d => d.UserId)
+                    .HasConstraintName("FK_Partners_Users");
+            });
+
+            modelBuilder.Entity<PaymentTransaction>(entity =>
+            {
+                entity.HasKey(e => e.TransactionId)
+                    .HasName("PK__PaymentT__55433A4B75A20251");
+
+                entity.Property(e => e.TransactionId).HasColumnName("TransactionID");
+
+                entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.BankCode).HasMaxLength(50);
+
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("(getdate())");
+
+                entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
+
+                entity.Property(e => e.OrderCode).HasMaxLength(50);
+
+                entity.Property(e => e.PaymentStatus)
+                    .HasMaxLength(20)
+                    .HasDefaultValueSql("('Pending')");
+
+                entity.Property(e => e.PaymentTime).HasColumnType("datetime");
+
+                entity.Property(e => e.RemovedDate).HasColumnType("datetime");
+
+                entity.Property(e => e.RemovedReason).HasMaxLength(255);
+
+                entity.Property(e => e.UserId).HasColumnName("UserID");
+
+                entity.Property(e => e.VnpTransactionNo).HasMaxLength(50);
+
+                entity.HasOne(d => d.User)
+                    .WithMany(p => p.PaymentTransactions)
+                    .HasForeignKey(d => d.UserId)
+                    .HasConstraintName("FK_Transactions_Users");
             });
 
             modelBuilder.Entity<Plan>(entity =>
@@ -356,8 +458,6 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.ItineraryId).HasColumnName("ItineraryID");
 
-                entity.Property(e => e.ActivityTypeId).HasColumnName("ActivityTypeID");
-
                 entity.Property(e => e.Category).HasMaxLength(100);
 
                 entity.Property(e => e.CreatedDate).HasColumnType("datetime");
@@ -375,11 +475,6 @@ namespace TripWiseAPI.Models
                 entity.Property(e => e.TourAttractionsId).HasColumnName("TourAttractionsID");
 
                 entity.Property(e => e.TourId).HasColumnName("TourID");
-
-                entity.HasOne(d => d.ActivityType)
-                    .WithMany(p => p.TourItineraries)
-                    .HasForeignKey(d => d.ActivityTypeId)
-                    .HasConstraintName("FK_TourItinerary_ActivityType");
 
                 entity.HasOne(d => d.TourAttractions)
                     .WithMany(p => p.TourItineraries)
@@ -514,6 +609,28 @@ namespace TripWiseAPI.Models
                     .HasForeignKey(d => d.UserId)
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_UserRefreshToken_Users");
+            });
+
+            modelBuilder.Entity<VnpayLog>(entity =>
+            {
+                entity.HasKey(e => e.LogId)
+                    .HasName("PK__VnpayLog__5E5499A8A99B20CE");
+
+                entity.ToTable("VnpayLog");
+
+                entity.Property(e => e.LogId).HasColumnName("LogID");
+
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("(getdate())");
+
+                entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
+
+                entity.Property(e => e.OrderCode).HasMaxLength(50);
+
+                entity.Property(e => e.RemovedDate).HasColumnType("datetime");
+
+                entity.Property(e => e.RemovedReason).HasMaxLength(255);
             });
 
             modelBuilder.Entity<Wishlist>(entity =>

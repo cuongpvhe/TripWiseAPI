@@ -5,7 +5,7 @@ namespace TripWiseAPI.Services
 {
     public interface IAIGeneratePlanService
     {
-        Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId);
+
         Task<ItineraryResponse?> UpdateItineraryAsync(int generatePlanId, int userId, string userMessage);
         Task<int> SaveGeneratedPlanAsync(int? userId, TravelRequest request, ItineraryResponse response);
         Task<object?> SaveTourFromGeneratedAsync(int generatePlanId, int? userId);

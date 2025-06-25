@@ -3,17 +3,15 @@ using System.Collections.Generic;
 
 namespace TripWiseAPI.Models
 {
-    public partial class TourItinerary
+    public partial class Booking
     {
-        public int ItineraryId { get; set; }
-        public string? ItineraryName { get; set; }
+        public int BookingId { get; set; }
+        public string OrderCode { get; set; } = null!;
+        public int UserId { get; set; }
         public int TourId { get; set; }
-        public int? DayNumber { get; set; }
-        public int? TourAttractionsId { get; set; }
-        public TimeSpan? StartTime { get; set; }
-        public TimeSpan? EndTime { get; set; }
-        public string? Category { get; set; }
-        public string? Description { get; set; }
+        public int Quantity { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string? BookingStatus { get; set; }
         public DateTime? CreatedDate { get; set; }
         public DateTime? ModifiedDate { get; set; }
         public DateTime? RemovedDate { get; set; }
@@ -23,6 +21,6 @@ namespace TripWiseAPI.Models
         public string? RemovedReason { get; set; }
 
         public virtual Tour Tour { get; set; } = null!;
-        public virtual TourAttraction? TourAttractions { get; set; }
+        public virtual User User { get; set; } = null!;
     }
 }

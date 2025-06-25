@@ -20,15 +20,17 @@ namespace SimpleChatboxAI.Controllers
         private readonly TripWiseDBContext _dbContext;
         private readonly WeatherService _weatherService;
         private readonly IAIGeneratePlanService _iAIGeneratePlanService;
+        private readonly IPlanService _iplanService;
         public AIGeneratePlanController(
             VectorSearchService vectorSearchService,
-            IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService, IAIGeneratePlanService iAIGeneratePlanService)
+            IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService, IAIGeneratePlanService iAIGeneratePlanService, IPlanService iplanService)
         {
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
             _dbContext = _context;
             _weatherService = weatherService;
             _iAIGeneratePlanService = iAIGeneratePlanService;
+            _iplanService = iplanService;
 
         }
         private int? GetUserId()
@@ -75,7 +77,7 @@ namespace SimpleChatboxAI.Controllers
                 request.Destination, 12,
                 request.GroupType ?? "", request.DiningStyle ?? "", request.Preferences ?? "");
             // Validate user plan (tách vào service)
-            var validationResult = await _iAIGeneratePlanService.ValidateAndUpdateUserPlanAsync(UserId.Value);
+            var validationResult = await _iplanService.ValidateAndUpdateUserPlanAsync(UserId.Value);
             if (!validationResult.IsValid)
             {
                 return BadRequest(new

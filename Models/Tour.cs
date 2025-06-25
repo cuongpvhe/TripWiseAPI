@@ -7,6 +7,7 @@ namespace TripWiseAPI.Models
     {
         public Tour()
         {
+            Bookings = new HashSet<Booking>();
             GenerateTravelPlans = new HashSet<GenerateTravelPlan>();
             Reviews = new HashSet<Review>();
             TourImages = new HashSet<TourImage>();
@@ -34,6 +35,7 @@ namespace TripWiseAPI.Models
         public string? RemovedReason { get; set; }
 
         public virtual TourType? TourTypes { get; set; }
+        public virtual ICollection<Booking> Bookings { get; set; }
         public virtual ICollection<GenerateTravelPlan> GenerateTravelPlans { get; set; }
         public virtual ICollection<Review> Reviews { get; set; }
         public virtual ICollection<TourImage> TourImages { get; set; }

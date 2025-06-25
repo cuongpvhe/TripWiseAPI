@@ -7,7 +7,9 @@ namespace TripWiseAPI.Models
     {
         public User()
         {
+            Bookings = new HashSet<Booking>();
             GenerateTravelPlans = new HashSet<GenerateTravelPlan>();
+            PaymentTransactions = new HashSet<PaymentTransaction>();
             Reviews = new HashSet<Review>();
             UserPlans = new HashSet<UserPlan>();
             UserRefreshTokens = new HashSet<UserRefreshToken>();
@@ -38,7 +40,10 @@ namespace TripWiseAPI.Models
         public string? RemovedBy { get; set; }
         public string? RemovedReason { get; set; }
 
+        public virtual Partner? Partner { get; set; }
+        public virtual ICollection<Booking> Bookings { get; set; }
         public virtual ICollection<GenerateTravelPlan> GenerateTravelPlans { get; set; }
+        public virtual ICollection<PaymentTransaction> PaymentTransactions { get; set; }
         public virtual ICollection<Review> Reviews { get; set; }
         public virtual ICollection<UserPlan> UserPlans { get; set; }
         public virtual ICollection<UserRefreshToken> UserRefreshTokens { get; set; }
