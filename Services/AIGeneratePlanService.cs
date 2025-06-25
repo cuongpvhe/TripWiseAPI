@@ -261,50 +261,59 @@ namespace TripWiseAPI.Services
                 .ToListAsync();
         }
 
-        public async Task<object?> GetTourDetailByIdAsync(int tourId)
+        public async Task<TourDetailDto?> GetTourDetailByIdAsync(int tourId)
         {
-            return await _dbContext.Tours
+            var tour = await _dbContext.Tours
                 .Where(t => t.TourId == tourId)
-                .Select(t => new
-                {
-                    t.TourId,
-                    t.TourName,
-                    t.Description,
-                    t.Duration,
-                    t.Location,
-                    t.Price,
-                    t.Category,
-                    t.TourNote,
-                    t.TourInfo,
-                    t.CreatedDate,
-                    Itineraries = _dbContext.TourItineraries
-                        .Where(i => i.TourId == t.TourId)
-                        .OrderBy(i => i.DayNumber)
-                        .Select(i => new
-                        {
-                            i.ItineraryId,
-                            i.ItineraryName,
-                            i.DayNumber,
-                            i.StartTime,
-                            i.EndTime,
-                            i.Description,
-                            i.Category,
-                            Activities = _dbContext.TourAttractions
-                                .Where(a => a.TourAttractionsId == i.TourAttractionsId)
-                                .Select(a => new
-                                {
-                                    a.TourAttractionsId,
-                                    a.TourAttractionsName,
-                                    a.Price,
-                                    a.Localtion,
-                                    a.Category,
-                                    a.MapUrl,
-                                    a.ImageUrl
-                                }).FirstOrDefault()
-                        }).ToList()
-                })
+                .Include(t => t.TourItineraries)
+                    .ThenInclude(i => i.TourAttractions)
                 .FirstOrDefaultAsync();
+
+            if (tour == null) return null;
+
+            var itineraryByDay = tour.TourItineraries
+                .Where(i => i.DayNumber.HasValue)
+                .GroupBy(i => i.DayNumber.Value)
+                .OrderBy(g => g.Key)
+                .Select(g => new ItineraryDto
+                {
+                    DayNumber = g.Key,
+                    Title = g.FirstOrDefault()?.ItineraryName,
+                    DailyCost = g.Sum(x => x.TourAttractions?.Price ?? 0),
+                    Activities = g.Select(i => new ActivityDto
+                    {
+                        StartTime = i.StartTime,
+                        EndTime = i.EndTime,
+                        Description = i.Description,
+                        Address = i.TourAttractions?.Localtion,
+                        Transportation = null,
+                        EstimatedCost = i.TourAttractions?.Price ?? 0,
+                        PlaceDetail = i.TourAttractions?.TourAttractionsName,
+                        MapUrl = i.TourAttractions?.MapUrl,
+                        Image = i.TourAttractions?.ImageUrl
+                    }).ToList()
+                })
+                .ToList();
+
+            var dto = new TourDetailDto
+            {
+                Destination = tour.Location,
+                TravelDate = tour.CreatedDate,
+                Days = tour.Duration,
+                Preferences = tour.TourNote,
+                GroupType = tour.Category,
+                Budget = tour.Price,
+                TotalEstimatedCost = itineraryByDay.Sum(d => d.DailyCost ?? 0),
+                Transportation = tour.TourInfo,
+                DiningStyle = "",
+                Accommodation = "",
+                SuggestedAccommodation = "",
+                Itinerary = itineraryByDay
+            };
+
+            return dto;
         }
+
 
         public async Task<bool> DeleteTourAsync(int tourId, int? userId)
         {
