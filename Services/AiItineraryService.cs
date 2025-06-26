@@ -187,10 +187,12 @@ namespace TripWiseAPI.Services
                     : null
             };
         }
-        public async Task<ItineraryResponse> UpdateItineraryAsync(TravelRequest originalRequest,ItineraryResponse originalResponse,string userInstruction)
+        public async Task<ItineraryResponse> UpdateItineraryAsync(
+    TravelRequest originalRequest,
+    ItineraryResponse originalResponse,
+    string userInstruction)
         {
             string prompt = _promptBuilder.BuildUpdatePrompt(originalRequest, originalResponse, userInstruction);
-
 
             var payload = new
             {
@@ -219,9 +221,9 @@ namespace TripWiseAPI.Services
                 .RootElement.GetProperty("candidates")[0]
                 .GetProperty("content").GetProperty("parts")[0]
                 .GetProperty("text").GetString();
+
             Console.WriteLine("🧠 Prompt gửi lên:\n" + prompt);
             Console.WriteLine("📨 Kết quả Gemini trả về:\n" + raw);
-
 
             string cleanedJson = ExtractJson(raw);
 
@@ -241,61 +243,71 @@ namespace TripWiseAPI.Services
             if (parsed?.Days == null) throw new Exception("Invalid or empty itinerary");
 
             var imageUrlsUsed = new HashSet<string>();
-            var allDays = new List<ItineraryDay>();
-            string fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
+            var fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
 
-            foreach (var d in parsed.Days)
+            var mergedDays = new List<ItineraryDay>();
+
+            foreach (var originalDay in originalResponse.Itinerary)
             {
-                var activities = await Task.WhenAll(d.Activities.Select(async a =>
+                var updatedDay = parsed.Days.FirstOrDefault(d => d.DayNumber == originalDay.DayNumber);
+
+                if (updatedDay == null)
                 {
-                    string imageUrl = a.Image;
-
-                    bool isFallbackImage = string.IsNullOrWhiteSpace(imageUrl)
-                        || imageUrl.Contains("unsplash")
-                        || imageUrl.Contains("wikipedia")
-                        || imageUrl.Contains("example.com")
-                        || imageUrl.Contains("vietflag.vn");
-
-                    if (isFallbackImage)
+                    // Không thay đổi gì -> giữ nguyên
+                    mergedDays.Add(originalDay);
+                }
+                else
+                {
+                    // Có cập nhật -> xử lý lại activities + image
+                    var updatedActivities = await Task.WhenAll(updatedDay.Activities.Select(async a =>
                     {
-                        string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
-                            ? a.Address
-                            : !string.IsNullOrWhiteSpace(a.PlaceDetail)
-                                ? a.PlaceDetail
-                                : originalRequest.Destination;
+                        string imageUrl = a.Image;
 
-                        var imageCandidates = await _imageService.SearchImageUrlsAsync(searchKeyword);
-                        imageUrl = imageCandidates.FirstOrDefault(url => !imageUrlsUsed.Contains(url)) ?? fallbackImage;
+                        bool isFallbackImage = string.IsNullOrWhiteSpace(imageUrl)
+                            || imageUrl.Contains("unsplash")
+                            || imageUrl.Contains("wikipedia")
+                            || imageUrl.Contains("example.com")
+                            || imageUrl.Contains("vietflag.vn");
 
-                        if (!imageUrlsUsed.Contains(imageUrl))
+                        if (isFallbackImage)
                         {
+                            string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
+                                ? a.Address
+                                : !string.IsNullOrWhiteSpace(a.PlaceDetail)
+                                    ? a.PlaceDetail
+                                    : originalRequest.Destination;
+
+                            var imageCandidates = await _imageService.SearchImageUrlsAsync(searchKeyword);
+                            imageUrl = imageCandidates.FirstOrDefault(url => !imageUrlsUsed.Contains(url)) ?? fallbackImage;
+
                             imageUrlsUsed.Add(imageUrl);
                         }
-                    }
 
-                    return new ItineraryActivity
+                        return new ItineraryActivity
+                        {
+                            StartTime = a.StartTime,
+                            EndTime = a.EndTime,
+                            Description = a.Description,
+                            EstimatedCost = a.EstimatedCost,
+                            Transportation = a.Transportation,
+                            Address = a.Address,
+                            PlaceDetail = a.PlaceDetail,
+                            Image = imageUrl,
+                            MapUrl = string.IsNullOrWhiteSpace(a.Address)
+                                ? null
+                                : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(a.Address)}"
+                        };
+                    }));
+
+                    mergedDays.Add(new ItineraryDay
                     {
-                        StartTime = a.StartTime,
-                        EndTime = a.EndTime,
-                        Description = a.Description,
-                        EstimatedCost = a.EstimatedCost,
-                        Transportation = a.Transportation,
-                        Address = a.Address,
-                        PlaceDetail = a.PlaceDetail,
-                        Image = imageUrl,
-                        MapUrl = string.IsNullOrWhiteSpace(a.Address) ? null
-                            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(a.Address)}"
-                    };
-                }));
-
-                allDays.Add(new ItineraryDay
-                {
-                    DayNumber = d.DayNumber,
-                    Title = d.Title,
-                    DailyCost = d.DailyCost,
-                    WeatherNote = d.WeatherNote,
-                    Activities = activities.ToList()
-                });
+                        DayNumber = updatedDay.DayNumber,
+                        Title = updatedDay.Title,
+                        DailyCost = updatedDay.DailyCost,
+                        WeatherNote = updatedDay.WeatherNote,
+                        Activities = updatedActivities.ToList()
+                    });
+                }
             }
 
             return new ItineraryResponse
@@ -308,14 +320,15 @@ namespace TripWiseAPI.Services
                 DiningStyle = originalRequest.DiningStyle,
                 GroupType = originalRequest.GroupType,
                 Accommodation = originalRequest.Accommodation,
-                TotalEstimatedCost = parsed.TotalCost,
+                TotalEstimatedCost = mergedDays.Sum(d => d.DailyCost),
                 Budget = (int)originalRequest.BudgetVND,
-                Itinerary = allDays,
+                Itinerary = mergedDays,
                 SuggestedAccommodation = $"https://www.google.com/maps/search/?q=khách+sạn+{Uri.EscapeDataString(originalRequest.Accommodation ?? "3 sao")}+sao+{Uri.EscapeDataString(originalRequest.Destination)}",
                 HasMore = false,
                 NextStartDate = null
             };
         }
+
 
 
         private string ExtractJson(string raw)
