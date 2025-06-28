@@ -131,8 +131,8 @@ namespace TripWiseAPI.Services
                 Location = destination,
                 MaxGroupSize = 10,
                 Category = preferences,
-                TourInfo = $"Lưu trú: {accommodation}, Ăn uống: {diningStyle}",
-                TourNote = $"Gợi ý KS: {suggestedAccommodation}",
+                TourInfo = $"Lưu trú: {accommodation}, Phong cách ăn uống: {diningStyle}",
+                TourNote = $"{suggestedAccommodation}",
                 TourTypesId = 1,
                 CreatedDate = DateTime.UtcNow,
                 CreatedBy = userId
