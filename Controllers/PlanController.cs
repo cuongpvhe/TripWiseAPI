@@ -5,6 +5,7 @@ using TripWiseAPI.Services;
 
 namespace TripWiseAPI.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/plan")]
     public class PlanController : ControllerBase
@@ -23,7 +24,7 @@ namespace TripWiseAPI.Controllers
             return Ok(plans);
         }
 
-        [Authorize]
+     
         [HttpPost("upgrade/{planId}")]
         public async Task<IActionResult> UpgradePlan(int planId)
         {
@@ -34,5 +35,20 @@ namespace TripWiseAPI.Controllers
             var result = await _planService.UpgradePlanAsync(userId, planId);
             return StatusCode(result.StatusCode, result);
         }
+
+        [HttpGet("requests-remaining/{userId}")]
+        public async Task<IActionResult> GetRemainingRequests(int userId)
+        {
+            try
+            {
+                int remaining = await _planService.GetRemainingRequestsAsync(userId);
+                return Ok(new { UserId = userId, RemainingRequests = remaining });
+            }
+            catch (Exception ex)
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+        }
+
     }
 }

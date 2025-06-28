@@ -185,6 +185,7 @@ namespace TripWiseAPI.Services
                 PasswordHash = PasswordHelper.HashPasswordBCrypt(data.Password),
                 CreatedDate = DateTime.UtcNow,
                 Role = "USER",
+                RequestChatbot = 0,
                 IsActive = true
             };
 

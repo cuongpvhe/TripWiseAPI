@@ -14,7 +14,7 @@ namespace TripWiseAPI.Services
             _dbContext = dbContext;
         }
 
-        public async Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId)
+        public async Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId, bool isSuccess)
         {
             var userPlan = await _dbContext.UserPlans
                 .Include(up => up.Plan)
@@ -49,6 +49,16 @@ namespace TripWiseAPI.Services
                         ErrorMessage = "Bạn đã hết 3 lượt miễn phí trong ngày hôm nay."
                     };
                 }
+                if (isSuccess)
+                {
+                    var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+                    if (user != null)
+                    {
+                        user.RequestChatbot = (user.RequestChatbot ?? 0) + 1;
+                        _dbContext.Users.Update(user);
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
             }
             else
             {
@@ -61,10 +71,23 @@ namespace TripWiseAPI.Services
                     };
                 }
 
-                userPlan.RequestInDays--;
-                userPlan.ModifiedDate = DateTime.UtcNow;
-                _dbContext.UserPlans.Update(userPlan);
-                await _dbContext.SaveChangesAsync();
+                if (isSuccess)
+                {
+                    userPlan.RequestInDays--;
+                    userPlan.ModifiedDate = DateTime.UtcNow;
+                    _dbContext.UserPlans.Update(userPlan);
+
+                    var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+                    if (user != null)
+                    {
+                        user.RequestChatbot = (user.RequestChatbot ?? 0) + 1;
+                        _dbContext.Users.Update(user);
+                    }
+
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                
             }
 
             return new PlanValidationResult { IsValid = true };
@@ -150,5 +173,17 @@ namespace TripWiseAPI.Services
                 })
                 .ToListAsync();
         }
+
+        public async Task<int> GetRemainingRequestsAsync(int userId)
+        {
+            var userPlan = await _dbContext.UserPlans
+                .FirstOrDefaultAsync(p => p.UserId == userId && p.IsActive == true);
+
+            if (userPlan == null)
+                throw new Exception("Không tìm thấy gói sử dụng hiện tại.");
+
+            return userPlan.RequestInDays ?? 0;
+        }
+
     }
 }
