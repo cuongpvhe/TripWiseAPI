@@ -76,24 +76,24 @@ namespace SimpleChatboxAI.Controllers
             string relatedKnowledge = await _vectorSearchService.RetrieveRelevantJsonEntries(
                 request.Destination, 12,
                 request.GroupType ?? "", request.DiningStyle ?? "", request.Preferences ?? "");
-            // Validate user plan (tách vào service)
-            var validationResult = await _iplanService.ValidateAndUpdateUserPlanAsync(UserId.Value);
-            if (!validationResult.IsValid)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = validationResult.ErrorMessage,
-                    suggestUpgrade = validationResult.SuggestUpgrade,
-                    suggestedPlans = validationResult.SuggestedPlans
-                });
-            }
+          
 
             // Generate itinerary using Gemini Service
             try
             {
                 var itinerary = await _aiService.GenerateItineraryAsync(request, relatedKnowledge);
-
+                // Validate user plan (tách vào service)
+                var validationResult = await _iplanService.ValidateAndUpdateUserPlanAsync(UserId.Value, true);
+                if (!validationResult.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = validationResult.ErrorMessage,
+                        suggestUpgrade = validationResult.SuggestUpgrade,
+                        suggestedPlans = validationResult.SuggestedPlans
+                    });
+                }
                 DateTime startDate = request.TravelDate;
 
                 for (int i = 0; i < itinerary.Itinerary.Count; i++)
