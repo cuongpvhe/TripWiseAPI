@@ -5,6 +5,7 @@ using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Models;
 using TripWiseAPI.Utils;
 using Microsoft.EntityFrameworkCore;
+using TripWiseAPI.Services.AdminServices;
 
 namespace TripWiseAPI.Services
 {
@@ -12,11 +13,13 @@ namespace TripWiseAPI.Services
     {
         private readonly TripWiseDBContext _context;
         private readonly IConfiguration _config;
+        private readonly IAppSettingsService _appSettingsService;
 
-        public AuthenticationService(TripWiseDBContext context, IConfiguration config)
+        public AuthenticationService(TripWiseDBContext context, IConfiguration config, IAppSettingsService appSettingsService)
         {
             _context = context;
             _config = config;
+            _appSettingsService = appSettingsService;
         }
 
         public async Task<(string accessToken, string refreshToken)> LoginAsync(LoginModel loginModel)
@@ -192,19 +195,47 @@ namespace TripWiseAPI.Services
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
 
-            var freePlan = await _context.Plans.FirstOrDefaultAsync(p => p.PlanName == "Free" && p.RemovedDate == null);
-            if (freePlan != null)
+            string? trialPlanName = await _appSettingsService.GetValueAsync("DefaultTrialPlanName");
+            string? freePlanName = await _appSettingsService.GetValueAsync("FreePlan");
+            int trialDuration = await _appSettingsService.GetIntValueAsync("TrialDurationInDays", 90);
+
+            Plan? planToAssign = null;
+            DateTime? endDate = null;
+
+            if (!string.IsNullOrEmpty(trialPlanName))
             {
-                var plan = new UserPlan
+                planToAssign = await _context.Plans
+                    .FirstOrDefaultAsync(p => p.PlanName == trialPlanName && p.RemovedDate == null);
+
+                if (planToAssign != null)
+                {
+                    endDate = DateTime.UtcNow.AddDays(trialDuration);
+                }
+            }
+
+            // Nếu không có Trial, dùng gói Free
+            if (planToAssign == null && !string.IsNullOrEmpty(freePlanName))
+            {
+                planToAssign = await _context.Plans
+                    .FirstOrDefaultAsync(p => p.PlanName == freePlanName && p.RemovedDate == null);
+            }
+
+            if (planToAssign != null)
+            {
+                var userPlan = new UserPlan
                 {
                     UserId = user.UserId,
-                    PlanId = freePlan.PlanId,
+                    PlanId = planToAssign.PlanId,
                     StartDate = DateTime.UtcNow,
+                    EndDate = endDate,
                     CreatedDate = DateTime.UtcNow,
-                    IsActive = true
+                    IsActive = true,
+                    RequestInDays = planToAssign.MaxRequests ?? 0
                 };
-                await _context.UserPlans.AddAsync(plan);
+
+                await _context.UserPlans.AddAsync(userPlan);
             }
+
 
             _context.SignupOtps.Remove(otp);
             await _context.SaveChangesAsync();

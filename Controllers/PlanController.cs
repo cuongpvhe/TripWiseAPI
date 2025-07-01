@@ -23,8 +23,23 @@ namespace TripWiseAPI.Controllers
             var plans = await _planService.GetAvailablePlansAsync();
             return Ok(plans);
         }
+        [HttpGet("current-plan/{userId}")]
+        public async Task<IActionResult> GetCurrentPlan(int userId)
+        {
+            var plan = await _planService.GetCurrentPlanByUserIdAsync(userId);
+            if (plan == null)
+                return NotFound("Không tìm thấy gói cho người dùng.");
 
-     
+            return Ok(plan);
+        }
+        [HttpGet("purchased/{userId}")]
+        public async Task<IActionResult> GetPurchasedPlans(int userId)
+        {
+            var plans = await _planService.GetPurchasedPlansAsync(userId);
+            return Ok(plans);
+        }
+
+
         [HttpPost("upgrade/{planId}")]
         public async Task<IActionResult> UpgradePlan(int planId)
         {
@@ -48,6 +63,12 @@ namespace TripWiseAPI.Controllers
             {
                 return NotFound(new { Message = ex.Message });
             }
+        }
+        [HttpGet("trial-days-left/{userId}")]
+        public async Task<IActionResult> GetTrialDaysLeft(int userId)
+        {
+            var result = await _planService.GetRemainingTrialDaysResponseAsync(userId);
+            return Ok(result);
         }
 
     }
