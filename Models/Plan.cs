@@ -21,6 +21,7 @@ namespace TripWiseAPI.Models
         public int? RemovedBy { get; set; }
         public string? RemovedReason { get; set; }
         public string? Description { get; set; }
+        public int? MaxRequests { get; set; }
 
         public virtual ICollection<UserPlan> UserPlans { get; set; }
     }

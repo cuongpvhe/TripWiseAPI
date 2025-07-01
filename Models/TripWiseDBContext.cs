@@ -16,6 +16,7 @@ namespace TripWiseAPI.Models
         {
         }
 
+        public virtual DbSet<AppSetting> AppSettings { get; set; } = null!;
         public virtual DbSet<Blog> Blogs { get; set; } = null!;
         public virtual DbSet<BlogImage> BlogImages { get; set; } = null!;
         public virtual DbSet<Booking> Bookings { get; set; } = null!;
@@ -43,14 +44,22 @@ namespace TripWiseAPI.Models
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             var builder = new ConfigurationBuilder()
-                    .SetBasePath(Directory.GetCurrentDirectory())
-                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
             IConfigurationRoot configuration = builder.Build();
             optionsBuilder.UseSqlServer(configuration.GetConnectionString("DBContext"));
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<AppSetting>(entity =>
+            {
+                entity.HasIndex(e => e.Key, "UQ__AppSetti__C41E0289A74E9F47")
+                    .IsUnique();
+
+                entity.Property(e => e.Key).HasMaxLength(100);
+            });
+
             modelBuilder.Entity<Blog>(entity =>
             {
                 entity.ToTable("Blog");
