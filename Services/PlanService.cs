@@ -340,7 +340,7 @@ namespace TripWiseAPI.Services
             return true;
         }
 
-        public async Task<bool> SoftDeleteAsync(int id)
+        public async Task<bool> DeleteAsync(int id)
         {
             var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
             if (plan == null) return false;

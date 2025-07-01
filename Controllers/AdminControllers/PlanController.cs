@@ -53,7 +53,7 @@ namespace TripWiseAPI.Controllers.Admin
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var success = await _service.SoftDeleteAsync(id);
+            var success = await _service.DeleteAsync(id);
             if (!success) return NotFound("Plan not found");
             return Ok(new { message = "Soft-deleted successfully" });
         }

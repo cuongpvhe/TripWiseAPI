@@ -16,6 +16,6 @@ namespace TripWiseAPI.Services
         Task<PlanDto?> GetByIdAsync(int id);
         Task<PlanDto> CreateAsync(PlanCreateDto dto);
         Task<bool> UpdateAsync(int id, PlanUpdateDto dto);
-        Task<bool> SoftDeleteAsync(int id);
+        Task<bool> DeleteAsync(int id);
     }
 }
