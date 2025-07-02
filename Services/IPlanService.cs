@@ -13,9 +13,9 @@ namespace TripWiseAPI.Services
 
         Task<int> GetRemainingRequestsAsync(int userId);
         Task<ApiResponse<int>> GetRemainingTrialDaysResponseAsync(int userId);
-        Task<PlanDto?> GetByIdAsync(int id);
-        Task<PlanDto> CreateAsync(PlanCreateDto dto);
-        Task<bool> UpdateAsync(int id, PlanUpdateDto dto);
+        Task<PlanDto?> GetPlanDetailAsync(int id);
+        Task<PlanDto> CreateAsync(PlanCreateDto dto, int createdBy);
+        Task<bool> UpdateAsync(int id, PlanUpdateDto dto, int modifiedBy);
         Task<bool> DeleteAsync(int id);
     }
 }

@@ -13,6 +13,18 @@
         
 
     }
+    public class UserCreateDto
+    {
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string Email { get; set; } = null!;
+        public string Password { get; set; } = null!; 
+        public string? UserName { get; set; }
+        public string? PhoneNumber { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public int? CreatedBy { get; set; }
+    }
+
     public class UserUpdatelDto
     {
         public string? FirstName { get; set; }
@@ -55,6 +67,11 @@
         public int? RemovedBy { get; set; }
         public string? RemovedByName { get; set; }
         public string? RemovedReason { get; set; }
+        public string? CurrentPlanName { get; set; }
+        public DateTime? PlanStartDate { get; set; }
+        public DateTime? PlanEndDate { get; set; }
+        public int? RemainingRequestInDay { get; set; }
+
     }
 
 }

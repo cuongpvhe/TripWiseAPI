@@ -36,6 +36,20 @@ namespace TripWiseAPI.Controllers.Admin
             var users = await _service.GetAllUserNonActiveAsync();
             return Ok(users);
         }
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateUser([FromBody] UserCreateDto dto)
+        {
+            var createdBy = GetUserId();
+            if (createdBy == null)
+                return Unauthorized();
+
+            var result = await _service.CreateUserAsync(dto, createdBy.Value);
+            if (!result)
+                return BadRequest("Email đã tồn tại hoặc lỗi khi tạo.");
+
+            return Ok(new { message = "Tạo người dùng thành công." });
+        }
+
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeleteUser(int id, [FromBody] string removedReason)
         {
