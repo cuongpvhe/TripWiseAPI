@@ -262,22 +262,7 @@ namespace TripWiseAPI.Services
 
             return userPlan.RequestInDays ?? 0;
         }
-        public async Task<PlanDto?> GetByIdAsync(int id)
-        {
-            var p = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
-            if (p == null) return null;
-
-            return new PlanDto
-            {
-                PlanId = p.PlanId,
-                PlanName = p.PlanName,
-                Price = p.Price,
-                Description = p.Description,
-                MaxRequests = p.MaxRequests,
-                CreatedDate = p.CreatedDate,
-                ModifiedDate = p.ModifiedDate
-            };
-        }
+        
         public async Task<int> GetRemainingTrialDaysAsync(int userId)
         {
             var userPlan = await _dbContext.UserPlans
@@ -299,7 +284,7 @@ namespace TripWiseAPI.Services
             int daysLeft = await GetRemainingTrialDaysAsync(userId);
             return new ApiResponse<int>(200, "Số ngày dùng thử còn lại", daysLeft);
         }
-        public async Task<PlanDto> CreateAsync(PlanCreateDto dto)
+        public async Task<PlanDto> CreateAsync(PlanCreateDto dto, int createdBy)
         {
             var plan = new Plan
             {
@@ -307,7 +292,8 @@ namespace TripWiseAPI.Services
                 Price = dto.Price,
                 Description = dto.Description,
                 MaxRequests = dto.MaxRequests,
-                CreatedDate = DateTime.UtcNow
+                CreatedDate = DateTime.UtcNow,
+                CreatedBy = createdBy,
             };
 
             await _dbContext.Plans.AddAsync(plan);
@@ -324,7 +310,7 @@ namespace TripWiseAPI.Services
             };
         }
 
-        public async Task<bool> UpdateAsync(int id, PlanUpdateDto dto)
+        public async Task<bool> UpdateAsync(int id, PlanUpdateDto dto, int modifiedBy)
         {
             var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
             if (plan == null) return false;
@@ -334,7 +320,7 @@ namespace TripWiseAPI.Services
             plan.Description = dto.Description;
             plan.MaxRequests = dto.MaxRequests;
             plan.ModifiedDate = DateTime.UtcNow;
-
+            plan.ModifiedBy = modifiedBy;
             _dbContext.Plans.Update(plan);
             await _dbContext.SaveChangesAsync();
             return true;
@@ -349,6 +335,33 @@ namespace TripWiseAPI.Services
             _dbContext.Plans.Update(plan);
             await _dbContext.SaveChangesAsync();
             return true;
+        }
+        public async Task<PlanDto?> GetPlanDetailAsync(int id)
+        {
+            var p = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
+            if (p == null) return null;
+            async Task<string?> GetUserNameById(int? id)
+            {
+                if (!id.HasValue) return null;
+                return await _dbContext.Users
+                    .Where(u => u.UserId == id)
+                    .Select(u => u.UserName)
+                    .FirstOrDefaultAsync();
+            }
+            return new PlanDto
+            {
+                PlanId = p.PlanId,
+                PlanName = p.PlanName,
+                Price = p.Price,
+                Description = p.Description,
+                MaxRequests = p.MaxRequests,
+                CreatedDate = p.CreatedDate,
+                CreatedBy = p.CreatedBy,
+                CreatedByName = await GetUserNameById(p.CreatedBy),
+                ModifiedDate = p.ModifiedDate,
+                ModifiedBy = p.ModifiedBy,
+                ModifiedByName = await GetUserNameById(p.ModifiedBy)
+            };
         }
     }
 }

@@ -8,11 +8,11 @@ namespace TripWiseAPI.Controllers
     [Authorize]
     [ApiController]
     [Route("api/plan")]
-    public class PlanController : ControllerBase
+    public class PlanUserController : ControllerBase
     {
         private readonly IPlanService _planService;
 
-        public PlanController(IPlanService planService)
+        public PlanUserController(IPlanService planService)
         {
             _planService = planService;
         }
