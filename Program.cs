@@ -79,6 +79,7 @@ namespace TripWiseAPI
             builder.Services.AddScoped<VectorSearchService>();
             builder.Services.AddHttpClient<IWikimediaImageService, WikimediaImageService>();
             builder.Services.AddHttpClient<WeatherService>();
+            builder.Services.AddHttpClient<IGoogleMapsPlaceService, GoogleMapsPlaceService>();
 
 
 

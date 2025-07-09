@@ -7,98 +7,90 @@ namespace TripWiseAPI.Services
     {
         public string Build(TravelRequest request, string budgetVNDFormatted, string relatedKnowledge)
         {
-            string filterNote = $"Hãy ưu tiên các địa điểm phù hợp với nhóm '{request.GroupType}', ăn uống kiểu '{request.DiningStyle}', mục đích '{request.Preferences}', và ngân sách tối đa {budgetVNDFormatted} đồng.";
+            string filterNote = $"Ưu tiên địa điểm phù hợp với nhóm '{request.GroupType}', ăn uống kiểu '{request.DiningStyle}', chủ đề '{request.Preferences}', ngân sách tối đa {budgetVNDFormatted} đồng.";
 
-            var dayNote = request.Days switch
+            string dayNote = request.Days switch
             {
-                <= 2 => "Tập trung vào các điểm nổi bật nhất, không dàn trải.",
-                <= 4 => "Phân bổ thời gian hợp lý giữa khám phá và nghỉ ngơi.",
-                > 4 => "Tạo lịch trình đều đặn, có cả hoạt động và thư giãn."
+                <= 2 => "Tạo trải nghiệm đậm nét, không lan man. Ưu tiên những nơi biểu tượng và đồ ăn đặc sắc.",
+                <= 4 => "Cân bằng giữa ăn uống, khám phá, nghỉ ngơi. Không dồn quá nhiều hoạt động trong ngày.",
+                _ => "Lịch trình có nhịp độ thoải mái, kết hợp giữa hoạt động vui chơi, thư giãn và văn hóa địa phương."
             };
 
             return $$"""
-                {{filterNote}}
+        {{filterNote}}
+        {{dayNote}}
 
-                Bạn là một hướng dẫn viên du lịch AI chuyên nghiệp. Hãy tạo lịch trình {{request.Days}} ngày tại {{request.Destination}}, theo chủ đề "{{request.Preferences}}", với ngân sách khoảng {{budgetVNDFormatted}} đồng.
+        Bạn là một hướng dẫn viên du lịch AI chuyên nghiệp của nền tảng TravelMate. Hãy tạo lịch trình {{request.Days}} ngày tại {{request.Destination}} cho nhóm {{request.GroupType}}, theo chủ đề "{{request.Preferences}}", với ngân sách khoảng {{budgetVNDFormatted}} đồng.
 
-                Thông tin chuyến đi:
-                - Ngày khởi hành: {{request.TravelDate:dd/MM/yyyy}}
-                - Phương tiện di chuyển: {{(request.Transportation ?? "tự túc")}}
-                - Phong cách ăn uống: {{(request.DiningStyle ?? "địa phương")}}
-                - Nhóm người đi: {{(request.GroupType ?? "2 người")}}
-                - Chỗ ở mong muốn: {{(request.Accommodation ?? "3 sao")}}
+        === THÔNG TIN CHUYẾN ĐI ===
+        - Ngày khởi hành: {{request.TravelDate:dd/MM/yyyy}}
+        - Phương tiện di chuyển: {{(request.Transportation ?? "tự túc")}}
+        - Phong cách ăn uống: {{(request.DiningStyle ?? "địa phương")}}
+        - Chỗ ở mong muốn: {{(request.Accommodation ?? "3 sao")}}
 
-                MÔ TẢ ĐỊA ĐIỂM:
-                - Trường "placeDetail" bắt buộc phải có trong mỗi hoạt động
-                - Nội dung placeDetail mô tả địa điểm đó có gì hay, đặc biệt, nổi bật gì về cảnh quan – lịch sử – đặc sản – văn hóa
-                - Giải thích vì sao nên đến vào thời điểm đó trong ngày (sáng/chiều/tối)
-                - Viết giống như bạn đang giới thiệu địa điểm này cho du khách
+        === HƯỚNG DẪN TẠO LỊCH TRÌNH ===
+        - Mỗi ngày phải có hoạt động trải đều các khung: sáng, trưa, chiều, tối
+        - Sáng (07:00–10:30), trưa (11:00–13:00), chiều (14:30–17:00), tối (18:00–21:00)
+        - Ưu tiên các hoạt động ăn uống, tham quan đặc sắc, nghỉ ngơi hợp lý
+        - Có thể kèm mẹo hữu ích cho du khách như: "nên đến sớm để tránh đông", "nên đặt bàn trước"
 
-                ĐỊA ĐIỂM & ĐỊA CHỈ:
-                - Phải gợi ý tên địa điểm nổi bật cụ thể, có thật và phổ biến trên Google Maps
-                - Không được ghi mơ hồ như: "quán ăn địa phương", "chợ trung tâm", "ven hồ", "gần khu du lịch", "tùy chọn"
-                - Gợi ý tên địa điểm cụ thể như sau:
-                  - Ví dụ: "Bánh mì xíu mại Cô Ba, 16 Nguyễn Văn Trỗi, Phường 1, Thành phố Đà Lạt"
-                  - Ví dụ: "Cafe Tùng, 6 Khu Hòa Bình, Phường 1, Thành phố Đà Lạt"
-                - Địa chỉ phải đầy đủ: tên địa điểm + số nhà (nếu có) + đường + phường/xã + quận/huyện + tỉnh/thành
-                - Ưu tiên những địa điểm có đánh giá tốt, nhiều người biết, được khách du lịch yêu thích
-                - Trường "image" nếu có thể thì phải lấy link ảnh của địa điểm đó ở trên Google Maps
+        === RÀNG BUỘC BẮT BUỘC ===
+        - Mỗi hoạt động phải có các trường:
+          - `"starttime"`: định dạng HH:mm
+          - `"endtime"`: định dạng HH:mm, hợp lý với thời lượng
+          - `"description"`: mô tả ngắn gọn hoạt động
+          - `"estimatedCost"`: số nguyên, đơn vị VNĐ, không có ký hiệu hoặc dấu phẩy
+          - `"transportation"`: ghi rõ phương tiện (VD: "Grab", "Taxi", "Đi bộ", "Xe máy")
+          - `"address"`: phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng")
+          - `"placeDetail"`: mô tả sinh động, giải thích lý do nên đến
+          - `"mapUrl"`: link đúng định dạng Google Maps
+          - `"image"`: nếu có thumbnail thì dùng, nếu không thì để chuỗi rỗng `""`
 
-                Yêu cầu khi tạo lịch trình:
-                - {{dayNote}}
-                - Ưu tiên các địa điểm xuất hiện trong danh sách bên dưới
-                - estimatedCost phải là số nguyên (VD: 150000)
-                - Mỗi activity phải có thời gian cụ thể bắt đầu và kết thúc theo định dạng HH:mm (VD: "08:00", "14:30")
-                - Thời gian cụ thể bắt đầu và kết thúc phải phù hợp với mỗi địa điểm của lịch trình. Ví dụ: ăn sáng thường chỉ tầm 30 phút tới 1 tiếng
-                - lịch trình cần có thời gian cụ thể đủ sáng|trưa|chiều|tối
-                - Nếu các địa điểm trong dữ liệu không đủ để tạo thành một lịch trình hoàn chỉnh thì hãy tạo thêm địa điểm mới phù hợp.
-                - Mỗi activity **bắt buộc** phải có trường "image". 
-                  - Nếu địa điểm có sẵn trường "thumbnail" trong dữ liệu đầu vào thì dùng chính nó làm "image"
-                  - Nếu không có thumbnail sẵn, để trường "image" là chuỗi rỗng (""). Hệ thống backend sẽ tự động tìm ảnh minh họa phù hợp dựa trên mô tả địa điểm.
-                - Với mỗi ngày, thêm trường "weatherNote": Viết một ghi chú ngắn dựa vào "weatherDescription" (mô tả thời tiết) và "temperatureCelsius" (nhiệt độ C) để đưa lời khuyên cho du khách (VD: "Trời mưa nhẹ, nhớ mang theo ô.", "Nắng gắt buổi trưa, nên dùng kem chống nắng.")
-                
-                
-                Ví dụ:
+        - CẤM HOÀN TOÀN các cụm từ sau trong bất kỳ trường nào:
+          - "tự chọn", "tùy chọn", "tùy ý", "tự do lựa chọn", "ven biển", "gần", bao gồm bất kỳ cụm từ nào yêu cầu khách hàng tự quyết định, lựa chọn, đoán địa điểm, hoặc tự tìm nơi ăn/chơi/nghỉ
+
+        - Mỗi ngày phải có trường `"weatherNote"`: mô tả thời tiết ngắn gọn dựa trên `"weatherDescription"` và `"temperatureCelsius"`
+
+        === NGUỒN ĐỊA ĐIỂM ===
+        - Ưu tiên địa điểm có trong danh sách `relatedKnowledge` nếu phù hợp logic chuyến đi
+        - Nếu thiếu, có thể đề xuất địa điểm thật, nổi tiếng, được đánh giá cao trên Google Maps
+        - Không chấp nhận địa điểm mơ hồ, chung chung, không có địa chỉ cụ thể
+
+        === OUTPUT FORMAT ===
+        Trả về duy nhất một object JSON theo định dạng sau. Không thêm bất kỳ giải thích, markdown, hoặc văn bản ngoài nào.
+
+        {
+          "version": "v1.0",
+          "totalCost": 1234567,
+          "days": [
+            {
+              "dayNumber": 1,
+              "title": "string",
+              "dailyCost": 123456,
+              "weatherNote": "string",
+              "activities": [
                 {
-                  "name": "Chè Liên",
-                  "address": "189 Hoàng Diệu, Đà Nẵng",
-                  "city": "Đà Nẵng",
-                  "cost": "30.000 VND",
-                  "interests": "Street food;Dessert",
-                  "thumbnail": "https://example.com/image.jpg"
+                  "starttime": "08:00",
+                  "endtime": "10:00",
+                  "description": "string",
+                  "estimatedCost": 123456,
+                  "transportation": "string",
+                  "address": "string",
+                  "placeDetail": "string",
+                  "mapUrl": "string",
+                  "image": "string"
                 }
-                === START DATA ===
-                {{relatedKnowledge}}
-                === END DATA ===
-
-                Trả về kết quả JSON chuẩn, không giải thích, không thêm text nào bên ngoài:
-                {
-                  "version": "v1.0",
-                  "totalCost": 123456,
-                  "days": [
-                    {
-                      "dayNumber": 1,
-                      "title": "string",
-                      "dailyCost": 123456,
-                      "weatherNote": "string",
-                      "activities": [
-                        {
-                          "starttime": "08:00",
-                          "endtime": "10:00",
-                          "description": "string",
-                          "estimatedCost": 123456,
-                          "transportation": "string",
-                          "address": "string",
-                          "placeDetail": "string",
-                          "mapUrl": "string",
-                          "image": "string"
-                        }
-                      ]
-                    }
-                  ]
-                }
-                """;
+              ]
+            }
+          ]
         }
+
+        === START DATA ===
+        {{relatedKnowledge}}
+        === END DATA ===
+        """;
+        }
+
         public string BuildUpdatePrompt(TravelRequest request, ItineraryResponse originalResponse, string userInstruction)
         {
             var originalJson = JsonSerializer.Serialize(
