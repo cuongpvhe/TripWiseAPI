@@ -13,6 +13,12 @@ namespace TripWiseAPI.Models
         public string? Website { get; set; }
         public bool? IsActive { get; set; }
         public DateTime? CreatedDate { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public DateTime? RemovedDate { get; set; }
+        public int? CreatedBy { get; set; }
+        public int? ModifiedBy { get; set; }
+        public int? RemovedBy { get; set; }
+        public string? RemovedReason { get; set; }
 
         public virtual User User { get; set; } = null!;
     }

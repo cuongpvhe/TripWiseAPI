@@ -4,6 +4,7 @@ using TripWiseAPI.Services;
 using TripWiseAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Utils;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace TripWiseAPI.Controllers
 {
@@ -64,25 +65,36 @@ namespace TripWiseAPI.Controllers
         [HttpGet("callback")]
         public async Task<IActionResult> PaymentCallback()
         {
-            try
-            {
-                var result = await _vnPayService.HandlePaymentCallbackAsync(Request.Query);
+            await _vnPayService.HandlePaymentCallbackAsync(Request.Query);
 
-                return Ok(new
-                {
-                    status = result, // "Success", "Canceled", "Failed"
-                    timestamp = TimeHelper.GetVietnamTime()
-            });
-            }
-            catch (Exception ex)
+            var vnp_ResponseCode = Request.Query["vnp_ResponseCode"].ToString();
+            var vnp_TransactionNo = Request.Query["vnp_TransactionNo"].ToString();
+
+            var message = GetVnpMessage(vnp_ResponseCode);
+
+            var queryParams = new Dictionary<string, string>
             {
-                return BadRequest(new
-                {
-                    status = "Failed",
-                    error = ex.Message
-                });
-            }
+                 { "success", vnp_ResponseCode == "00" ? "true" : "false" },
+                 { "message", message },
+                 { "transactionId", vnp_TransactionNo }
+            };
+
+            var url = QueryHelpers.AddQueryString("http://localhost:5175/vnpay-callback", queryParams);
+
+            return Redirect(url);
         }
+        private string GetVnpMessage(string code)
+        {
+            return code switch
+            {
+                "00" => "Thanh toán thành công",
+                "01" => "Giao dịch không thành công",
+                "02" => "Giao dịch bị từ chối",
+                "24" => "Giao dịch bị hủy",
+                _ => "Không xác định"
+            };
+        }
+
 
     }
 }

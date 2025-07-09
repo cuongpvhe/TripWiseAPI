@@ -151,15 +151,15 @@ public class UserService : IUserService
             RemainingRequestInDay = activePlan?.RequestInDays
         };
 
-            // Logic: nếu EndDate có giá trị => ẩn RemainingRequestInDay, ngược lại ẩn EndDate
-            if (dto.PlanEndDate != null)
-            {
-               dto.RemainingRequestInDay = null;
-            }
-            else
-            {
-               dto.PlanEndDate = null;
-            }
+        // Logic: nếu EndDate có giá trị => ẩn RemainingRequestInDay, ngược lại ẩn EndDate
+        if (dto.PlanEndDate != null)
+        {
+            dto.RemainingRequestInDay = null;
+        }
+        else
+        {
+            dto.PlanEndDate = null;
+        }
     
         //  Chỉ gán thông tin Removed nếu IsActive = false
         if (!user.IsActive)

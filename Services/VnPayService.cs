@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -59,7 +60,7 @@ namespace TripWiseAPI.Services
             return pay.CreateRequestUrl(_configuration["Vnpay:BaseUrl"], _configuration["Vnpay:HashSecret"]);
         }
 
-        public async Task<string> HandlePaymentCallbackAsync(IQueryCollection query)
+        public async Task HandlePaymentCallbackAsync(IQueryCollection query)
         {
             var pay = new VnPayLibrary();
             var response = pay.GetFullResponseData(query, _configuration["Vnpay:HashSecret"]);
@@ -84,12 +85,9 @@ namespace TripWiseAPI.Services
             var responseCode = query["vnp_ResponseCode"];
             var transactionStatus = query["vnp_TransactionStatus"];
 
-            string status;
-
             if (response.Success && responseCode == "00" && transactionStatus == "00")
             {
                 transaction.PaymentStatus = "Success";
-                status = "Success";
             }
             else if (responseCode == "24")
             {
@@ -97,18 +95,17 @@ namespace TripWiseAPI.Services
                 transaction.RemovedDate = TimeHelper.GetVietnamTime();
                 transaction.RemovedBy = transaction.UserId;
                 transaction.RemovedReason = "Người dùng huỷ thanh toán tại VNPay";
-                status = "Canceled";
             }
             else
             {
                 transaction.PaymentStatus = "Failed";
-                status = "Failed";
             }
 
             await _dbContext.SaveChangesAsync();
 
-            // Nếu là plan
-            if (status == "Success" && orderCode.Contains("plan", StringComparison.OrdinalIgnoreCase))
+            // Nếu là plan và thanh toán thành công thì nâng cấp plan
+            if (transaction.PaymentStatus == "Success" &&
+                orderCode.Contains("plan", StringComparison.OrdinalIgnoreCase))
             {
                 var match = Regex.Match(orderCode, @"user_(\d+)_plan_(\d+)_");
 
@@ -117,12 +114,7 @@ namespace TripWiseAPI.Services
                     var userId = int.Parse(match.Groups[1].Value);
                     var planId = int.Parse(match.Groups[2].Value);
 
-                    Console.WriteLine($"✅ Parsed from Regex: userId={userId}, planId={planId}");
                     await _planService.UpgradePlanAsync(userId, planId);
-                }
-                else
-                {
-                    Console.WriteLine("❌ Không match được OrderCode bằng Regex.");
                 }
             }
 
@@ -144,7 +136,7 @@ namespace TripWiseAPI.Services
             //        Console.WriteLine("❌ Không match được OrderCode tour.");
             //    }
             //}
-            return status;
+         
         }
 
     }

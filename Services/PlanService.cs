@@ -198,7 +198,7 @@ namespace TripWiseAPI.Services
                     Price = p.Price,
                     Description = p.Description,
                     MaxRequests = p.MaxRequests,
-                    CreatedDate = TimeHelper.GetVietnamTime()
+                    CreatedDate = p.CreatedDate,
                 })
                 .ToListAsync();
         }
