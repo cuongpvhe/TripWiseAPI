@@ -3,6 +3,7 @@ using TripWiseAPI.Models;
 using TripWiseAPI.Models.APIModel;
 using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Services.AdminServices;
+using TripWiseAPI.Utils;
 
 namespace TripWiseAPI.Services
 {
@@ -34,7 +35,7 @@ namespace TripWiseAPI.Services
 
             var freePlanId = await _appSettingsService.GetIntValueAsync("FreePlanId", -1);
             // ✅ Nếu đang trong thời gian Trial (EndDate còn hiệu lực), thì dùng không giới hạn
-            if (userPlan.EndDate != null && userPlan.EndDate > DateTime.UtcNow)
+            if (userPlan.EndDate != null && userPlan.EndDate > TimeHelper.GetVietnamTime())
             {
                 if (isSuccess)
                 {
@@ -51,7 +52,7 @@ namespace TripWiseAPI.Services
             }
             if (userPlan.PlanId == freePlanId)
             {
-                var nowVN = DateTime.UtcNow.AddHours(7);
+                var nowVN = TimeHelper.GetVietnamTime().AddHours(7);
                 var startOfDayUtc = nowVN.Date.AddHours(-7);
 
                 // Lấy số ngày cuối cùng đã reset
@@ -59,7 +60,7 @@ namespace TripWiseAPI.Services
                 {
                     // Nếu đã sang ngày mới thì reset lượt theo MaxRequests
                     userPlan.RequestInDays = userPlan.Plan.MaxRequests ?? 0;
-                    userPlan.ModifiedDate = DateTime.UtcNow;
+                    userPlan.ModifiedDate = TimeHelper.GetVietnamTime();
 
                     _dbContext.UserPlans.Update(userPlan);
                     await _dbContext.SaveChangesAsync();
@@ -107,7 +108,7 @@ namespace TripWiseAPI.Services
                 if (isSuccess)
                 {
                     userPlan.RequestInDays--;
-                    userPlan.ModifiedDate = DateTime.UtcNow;
+                    userPlan.ModifiedDate = TimeHelper.GetVietnamTime();
                     _dbContext.UserPlans.Update(userPlan);
 
                     var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == userId);
@@ -163,8 +164,8 @@ namespace TripWiseAPI.Services
                 }
 
                 currentPlan.IsActive = false;
-                currentPlan.ModifiedDate = DateTime.UtcNow;
-                currentPlan.EndDate = DateTime.UtcNow;
+                currentPlan.ModifiedDate = TimeHelper.GetVietnamTime();
+                currentPlan.EndDate = TimeHelper.GetVietnamTime();
             }
 
             // Tạo gói mới (cộng thêm lượt còn lại nếu có)
@@ -173,9 +174,9 @@ namespace TripWiseAPI.Services
             {
                 UserId = userId,
                 PlanId = newPlan.PlanId,
-                StartDate = DateTime.UtcNow,
+                StartDate = TimeHelper.GetVietnamTime(),
                 IsActive = true,
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 RequestInDays = (newPlan.MaxRequests ?? 0) + remainingRequests
             };
 
@@ -197,7 +198,7 @@ namespace TripWiseAPI.Services
                     Price = p.Price,
                     Description = p.Description,
                     MaxRequests = p.MaxRequests,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = TimeHelper.GetVietnamTime()
                 })
                 .ToListAsync();
         }
@@ -273,7 +274,7 @@ namespace TripWiseAPI.Services
             if (userPlan == null || userPlan.EndDate == null)
                 return 0;
 
-            var today = DateTime.UtcNow.Date;
+            var today = TimeHelper.GetVietnamTime().Date;
             var endDate = userPlan.EndDate.Value.Date;
 
             return (endDate < today) ? 0 : (endDate - today).Days;
@@ -292,7 +293,7 @@ namespace TripWiseAPI.Services
                 Price = dto.Price,
                 Description = dto.Description,
                 MaxRequests = dto.MaxRequests,
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = createdBy,
             };
 
@@ -319,7 +320,7 @@ namespace TripWiseAPI.Services
             plan.Price = dto.Price;
             plan.Description = dto.Description;
             plan.MaxRequests = dto.MaxRequests;
-            plan.ModifiedDate = DateTime.UtcNow;
+            plan.ModifiedDate = TimeHelper.GetVietnamTime();
             plan.ModifiedBy = modifiedBy;
             _dbContext.Plans.Update(plan);
             await _dbContext.SaveChangesAsync();
@@ -331,7 +332,7 @@ namespace TripWiseAPI.Services
             var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
             if (plan == null) return false;
 
-            plan.RemovedDate = DateTime.UtcNow;
+            plan.RemovedDate = TimeHelper.GetVietnamTime();
             _dbContext.Plans.Update(plan);
             await _dbContext.SaveChangesAsync();
             return true;

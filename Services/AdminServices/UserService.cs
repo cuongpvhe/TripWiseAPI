@@ -61,7 +61,7 @@ public class UserService : IUserService
             Role = "USER", // hoặc cho chọn nếu bạn muốn đa vai trò
             PasswordHash = PasswordHelper.HashPasswordBCrypt(dto.Password),
             IsActive = true,
-            CreatedDate = DateTime.UtcNow,
+            CreatedDate = TimeHelper.GetVietnamTime(),
             CreatedBy = createdBy
         };
 
@@ -77,7 +77,7 @@ public class UserService : IUserService
             return false;
 
         user.IsActive = false;
-        user.RemovedDate = DateTime.UtcNow;
+        user.RemovedDate = TimeHelper.GetVietnamTime();
         user.RemovedBy = removedBy;
         user.RemovedReason = removedReason;
         _context.Users.Update(user);
@@ -190,7 +190,7 @@ public class UserService : IUserService
         user.StreetAddress = dto.StreetAddress;
 
         user.ModifiedBy = modifiedBy;
-        user.ModifiedDate = DateTime.UtcNow;
+        user.ModifiedDate = TimeHelper.GetVietnamTime();
 
         _context.Users.Update(user);
         await _context.SaveChangesAsync();

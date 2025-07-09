@@ -4,6 +4,7 @@ using System.Text.Json;
 using TripWiseAPI.Model;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
+using TripWiseAPI.Utils;
 
 namespace TripWiseAPI.Services
 {
@@ -92,8 +93,8 @@ namespace TripWiseAPI.Services
                     Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                     WriteIndented = true
                 }),
-                ResponseTime = DateTime.UtcNow
-            };
+                ResponseTime = TimeHelper.GetVietnamTime()
+        };
 
             _dbContext.GenerateTravelPlans.Add(entity);
             await _dbContext.SaveChangesAsync();
@@ -146,7 +147,7 @@ namespace TripWiseAPI.Services
                 TourInfo = $"{accommodation}, Phong cách ăn uống: {diningStyle}",
                 TourNote = $"{suggestedAccommodation}",
                 TourTypesId = 1,
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = userId
             };
 
@@ -186,7 +187,7 @@ namespace TripWiseAPI.Services
                         EndTime = endtime,
                         MapUrl = mapUrl,
                         ImageUrl = imageUrl,
-                        CreatedDate = DateTime.UtcNow,
+                        CreatedDate = TimeHelper.GetVietnamTime(),
                         CreatedBy = userId
                     };
 
@@ -201,7 +202,7 @@ namespace TripWiseAPI.Services
                         Description = placeDetail,
                         StartTime = starttime,
                         EndTime = endtime,
-                        CreatedDate = DateTime.UtcNow,
+                        CreatedDate = TimeHelper.GetVietnamTime(),
                         TourAttractions = attraction,
                         CreatedBy = userId
                     });
