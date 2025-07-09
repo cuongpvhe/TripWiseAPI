@@ -44,8 +44,8 @@ namespace TripWiseAPI.Models
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             var builder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
             IConfigurationRoot configuration = builder.Build();
             optionsBuilder.UseSqlServer(configuration.GetConnectionString("DBContext"));
         }
@@ -226,7 +226,13 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.IsActive).HasDefaultValueSql("((1))");
 
+                entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
+
                 entity.Property(e => e.PhoneNumber).HasMaxLength(20);
+
+                entity.Property(e => e.RemovedDate).HasColumnType("datetime");
+
+                entity.Property(e => e.RemovedReason).HasMaxLength(255);
 
                 entity.Property(e => e.UserId).HasColumnName("UserID");
 
