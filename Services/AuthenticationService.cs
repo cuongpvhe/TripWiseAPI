@@ -38,8 +38,8 @@ namespace TripWiseAPI.Services
                 UserId = user.UserId,
                 RefreshToken = refreshToken,
                 DeviceId = loginModel.DeviceId,
-                CreatedAt = DateTime.Now,
-                ExpiresAt = DateTime.Now.AddMonths(1)
+                CreatedAt = TimeHelper.GetVietnamTime(),
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1)
             });
 
             await _context.SaveChangesAsync();
@@ -61,7 +61,7 @@ namespace TripWiseAPI.Services
                 {
                     Email = payload.Email,
                     UserName = payload.Email.Split('@')[0],
-                    CreatedDate = DateTime.Now,
+                    CreatedDate = TimeHelper.GetVietnamTime(),
                     IsActive = true,
                     Role = "USER",
                     PasswordHash = ""
@@ -83,8 +83,8 @@ namespace TripWiseAPI.Services
                 UserId = user.UserId,
                 RefreshToken = refreshToken,
                 DeviceId = model.DeviceId,
-                CreatedAt = DateTime.Now,
-                ExpiresAt = DateTime.Now.AddMonths(1)
+                CreatedAt = TimeHelper.GetVietnamTime(),
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1)
             });
 
             await _context.SaveChangesAsync();
@@ -97,7 +97,7 @@ namespace TripWiseAPI.Services
                 .FirstOrDefaultAsync(x =>
                     x.RefreshToken == request.RefreshToken &&
                     x.DeviceId == request.DeviceId &&
-                    x.ExpiresAt > DateTime.UtcNow);
+                    x.ExpiresAt > TimeHelper.GetVietnamTime());
 
             if (token == null)
                 throw new UnauthorizedAccessException("Token không hợp lệ.");
@@ -107,7 +107,7 @@ namespace TripWiseAPI.Services
                 throw new UnauthorizedAccessException("Người dùng không tồn tại.");
 
             token.RefreshToken = JwtHelper.GenerateRefreshToken();
-            token.ExpiresAt = DateTime.UtcNow.AddMonths(1);
+            token.ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1);
             await _context.SaveChangesAsync();
 
             return (JwtHelper.GenerateJwtToken(_config, user), token.RefreshToken);
@@ -146,7 +146,7 @@ namespace TripWiseAPI.Services
                 SignupRequestId = req.SignupRequestId,
                 Otpstring = OtpHelper.GenerateRandomDigits(6),
                 RequestAttemptsRemains = 3,
-                ExpiresAt = DateTime.Now.AddMinutes(10)
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(10)
             };
 
             await _context.SignupOtps.AddAsync(otp);
@@ -186,7 +186,7 @@ namespace TripWiseAPI.Services
                 UserName = data.Username,
                 Email = data.Email,
                 PasswordHash = PasswordHelper.HashPasswordBCrypt(data.Password),
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 Role = "USER",
                 RequestChatbot = 0,
                 IsActive = true
@@ -209,7 +209,7 @@ namespace TripWiseAPI.Services
 
                 if (planToAssign != null)
                 {
-                    endDate = DateTime.UtcNow.AddDays(trialDuration);
+                    endDate = TimeHelper.GetVietnamTime().AddDays(trialDuration);
                 }
             }
 
@@ -226,9 +226,9 @@ namespace TripWiseAPI.Services
                 {
                     UserId = user.UserId,
                     PlanId = planToAssign.PlanId,
-                    StartDate = DateTime.UtcNow,
+                    StartDate = TimeHelper.GetVietnamTime(),
                     EndDate = endDate,
-                    CreatedDate = DateTime.UtcNow,
+                    CreatedDate = TimeHelper.GetVietnamTime(),
                     IsActive = true,
                     RequestInDays = planToAssign.MaxRequests ?? 0
                 };
@@ -269,7 +269,7 @@ namespace TripWiseAPI.Services
                 SignupRequestId = req.Email,
                 Otpstring = OtpHelper.GenerateRandomDigits(6),
                 RequestAttemptsRemains = 3,
-                ExpiresAt = DateTime.Now.AddMinutes(10)
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(10)
             };
 
             await _context.SignupOtps.AddAsync(otp);

@@ -15,7 +15,7 @@ namespace TripWiseAPI.Utils
             var claims = new[] {
                         new Claim(JwtRegisteredClaimNames.Sub, _configuration["Jwt:Subject"]),
                         new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                        new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString()),
+                        new Claim(JwtRegisteredClaimNames.Iat, TimeHelper.GetVietnamTime().ToString()),
                         new Claim("UserId", user.UserId.ToString()),
                         new Claim("Username", user.UserName),
                         new Claim(ClaimTypes.Role, user.Role)
@@ -28,7 +28,7 @@ namespace TripWiseAPI.Utils
                 _configuration["Jwt:Issuer"],
                 _configuration["Jwt:Audience"],
                 claims,
-                expires: DateTime.UtcNow.AddMinutes(30),
+                expires: TimeHelper.GetVietnamTime().AddMinutes(30),
                 signingCredentials: signIn);
             return tokenHandler.WriteToken(token);
         }
