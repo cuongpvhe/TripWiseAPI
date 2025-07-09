@@ -1,4 +1,6 @@
-﻿namespace TripWiseAPI.Models.DTO
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace TripWiseAPI.Models.DTO
 {
     public class UserDto
     {
@@ -74,4 +76,39 @@
 
     }
 
+    public class UserProfileDTO
+    {
+        public string? UserName { get; set; }
+        public string Email { get; set; } = null!;
+        public string? PhoneNumber { get; set; }
+        public string? Country { get; set; }
+        public string? City { get; set; }
+        public string? Ward { get; set; }
+        public string? District { get; set; }
+        public string? StreetAddress { get; set; }
+    }
+    public class UserProfileUpdateDTO
+    {
+        [StringLength(50, ErrorMessage = "UserName tối đa 50 ký tự")]
+        public string? UserName { get; set; }
+
+        [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
+        [StringLength(11, ErrorMessage = "Số điện thoại tối đa 11 ký tự")]
+        public string? PhoneNumber { get; set; }
+
+        [StringLength(100, ErrorMessage = "Quốc gia tối đa 100 ký tự")]
+        public string? Country { get; set; }
+
+        [StringLength(100, ErrorMessage = "Thành phố tối đa 100 ký tự")]
+        public string? City { get; set; }
+
+        [StringLength(100, ErrorMessage = "Phường/Xã tối đa 100 ký tự")]
+        public string? Ward { get; set; }
+
+        [StringLength(100, ErrorMessage = "Quận/Huyện tối đa 100 ký tự")]
+        public string? District { get; set; }
+
+        [StringLength(200, ErrorMessage = "Địa chỉ tối đa 200 ký tự")]
+        public string? StreetAddress { get; set; }
+    }
 }
