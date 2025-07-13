@@ -5,6 +5,11 @@ namespace TripWiseAPI.Models
 {
     public partial class Partner
     {
+        public Partner()
+        {
+            Tours = new HashSet<Tour>();
+        }
+
         public int PartnerId { get; set; }
         public int UserId { get; set; }
         public string CompanyName { get; set; } = null!;
@@ -21,5 +26,6 @@ namespace TripWiseAPI.Models
         public string? RemovedReason { get; set; }
 
         public virtual User User { get; set; } = null!;
+        public virtual ICollection<Tour> Tours { get; set; }
     }
 }

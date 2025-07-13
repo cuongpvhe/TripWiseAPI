@@ -364,15 +364,28 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
+                entity.Property(e => e.PartnerId).HasColumnName("PartnerID");
+
                 entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
+
+                entity.Property(e => e.RejectReason).HasMaxLength(500);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.RemovedReason).HasMaxLength(255);
 
+                entity.Property(e => e.Status)
+                    .HasMaxLength(50)
+                    .HasDefaultValueSql("('Draft')");
+
                 entity.Property(e => e.TourName).HasMaxLength(200);
 
                 entity.Property(e => e.TourTypesId).HasColumnName("TourTypesID");
+
+                entity.HasOne(d => d.Partner)
+                    .WithMany(p => p.Tours)
+                    .HasForeignKey(d => d.PartnerId)
+                    .HasConstraintName("FK_Tours_Partners");
 
                 entity.HasOne(d => d.TourTypes)
                     .WithMany(p => p.Tours)
