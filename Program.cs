@@ -8,6 +8,7 @@ using System.Text;
 using TripWiseAPI.Models;
 using TripWiseAPI.Services;
 using TripWiseAPI.Services.AdminServices;
+using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Utils;
 
 namespace TripWiseAPI
@@ -91,7 +92,9 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IPartnerService, PartnerService>();
             builder.Services.AddScoped<IVnPayService, VnPayService>();
             builder.Services.AddScoped<IUserProfileService, UserProfileService>();
-
+            builder.Services.AddScoped<IPartnerService, PartnerService>();
+            builder.Services.AddScoped<IManageTourService, ManageTourService>();
+            builder.Services.AddScoped<ITourService, TourService>();
 
             builder.Services.AddSwaggerGen(c =>
             {
