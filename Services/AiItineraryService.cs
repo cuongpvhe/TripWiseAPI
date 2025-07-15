@@ -239,7 +239,18 @@ namespace TripWiseAPI.Services
             }
 
             var parsed = JsonSerializer.Deserialize<JsonItineraryFormat>(doc.RootElement.GetRawText());
-            if (parsed?.Days == null) throw new Exception("Invalid or empty itinerary");
+            if (parsed?.Days == null)
+                throw new Exception("Invalid itinerary format: days == null");
+
+            if (parsed.Days.Count == 0)
+            {
+                Console.WriteLine("⚠️ Gemini không trả về bất kỳ ngày nào được cập nhật. Giữ nguyên lịch trình gốc.");
+                return originalResponse;
+            }
+
+            Console.WriteLine($"📋 Gemini trả về {parsed.Days.Count} ngày được cập nhật:");
+            foreach (var d in parsed.Days)
+                Console.WriteLine($"- Ngày {d.DayNumber}: {d.Title} với {d.Activities.Count} hoạt động");
 
             var imageUrlsUsed = new HashSet<string>();
             var fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
@@ -340,6 +351,7 @@ namespace TripWiseAPI.Services
                 NextStartDate = null
             };
         }
+
 
         private string ExtractJson(string raw)
         {
