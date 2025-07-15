@@ -13,6 +13,12 @@ public class ApiResponse<T>
         Message = message;
         Data = data;
     }
+    public ApiResponse(int statusCode, string message, T data)
+    {
+        StatusCode = statusCode;
+        Message = message;
+        Data = data;
+    }
 
     public ApiResponse(T data)
     {

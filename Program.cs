@@ -7,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using TripWiseAPI.Models;
 using TripWiseAPI.Services;
+using TripWiseAPI.Services.AdminServices;
+using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Utils;
 
 namespace TripWiseAPI
@@ -20,7 +22,7 @@ namespace TripWiseAPI
             builder.Configuration
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .AddEnvironmentVariables()
-                .AddUserSecrets<Program>();
+                .AddUserSecrets<Program>(optional: true);
             // Add services to the container.
 
             builder.Services.AddDbContext<TripWiseDBContext>(options =>
@@ -78,14 +80,26 @@ namespace TripWiseAPI
             builder.Services.AddScoped<VectorSearchService>();
             builder.Services.AddHttpClient<IWikimediaImageService, WikimediaImageService>();
             builder.Services.AddHttpClient<WeatherService>();
+            builder.Services.AddHttpClient<IGoogleMapsPlaceService, GoogleMapsPlaceService>();
 
 
 
             builder.Services.AddScoped<IAIGeneratePlanService, AIGeneratePlanService>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+            builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
             builder.Services.AddScoped<IPlanService, PlanService>();
+
             builder.Services.AddScoped<IReviewService, ReviewService>();
-			builder.Services.AddSwaggerGen(c =>
+
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IPartnerService, PartnerService>();
+            builder.Services.AddScoped<IVnPayService, VnPayService>();
+            builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+            builder.Services.AddScoped<IPartnerService, PartnerService>();
+            builder.Services.AddScoped<IManageTourService, ManageTourService>();
+            builder.Services.AddScoped<ITourService, TourService>();
+
+            builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
 

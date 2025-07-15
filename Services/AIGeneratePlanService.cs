@@ -1,8 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Text;
 using System.Text.Json;
 using TripWiseAPI.Model;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
+using TripWiseAPI.Utils;
 
 namespace TripWiseAPI.Services
 {
@@ -91,8 +93,8 @@ namespace TripWiseAPI.Services
                     Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                     WriteIndented = true
                 }),
-                ResponseTime = DateTime.UtcNow
-            };
+                ResponseTime = TimeHelper.GetVietnamTime()
+        };
 
             _dbContext.GenerateTravelPlans.Add(entity);
             await _dbContext.SaveChangesAsync();
@@ -122,21 +124,33 @@ namespace TripWiseAPI.Services
             int totalEstimatedCost = root.GetProperty("TotalEstimatedCost").GetInt32();
             string suggestedAccommodation = root.GetProperty("SuggestedAccommodation").GetString();
 
+            var descriptionBuilder = new StringBuilder($"Chuyến đi {destination}");
+
+            if (!string.IsNullOrWhiteSpace(groupType))
+                descriptionBuilder.Append($" cho {groupType}");
+
+            if (!string.IsNullOrWhiteSpace(preferences))
+                descriptionBuilder.Append($", ưu tiên {preferences}");
+
+            if (!string.IsNullOrWhiteSpace(transportation))
+                descriptionBuilder.Append($", di chuyển bằng {transportation}");
+
             var tour = new Tour
             {
-                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {groupType}",
-                Description = $"Chuyến đi {destination} cho {groupType}, ưu tiên {preferences}, di chuyển bằng {transportation}",
+                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType) ? "không rõ nhóm" : groupType)}",
+                Description = descriptionBuilder.ToString(),
                 Duration = days.ToString(),
                 Price = totalEstimatedCost,
                 Location = destination,
                 MaxGroupSize = 10,
-                Category = preferences,
-                TourInfo = $"Lưu trú: {accommodation}, Ăn uống: {diningStyle}",
-                TourNote = $"Gợi ý KS: {suggestedAccommodation}",
+                Category = string.IsNullOrWhiteSpace(preferences) ? "Không rõ" : preferences,
+                TourInfo = $"{accommodation}, Phong cách ăn uống: {diningStyle}",
+                TourNote = $"{suggestedAccommodation}",
                 TourTypesId = 1,
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = userId
             };
+
 
             _dbContext.Tours.Add(tour);
             await _dbContext.SaveChangesAsync();
@@ -173,7 +187,7 @@ namespace TripWiseAPI.Services
                         EndTime = endtime,
                         MapUrl = mapUrl,
                         ImageUrl = imageUrl,
-                        CreatedDate = DateTime.UtcNow,
+                        CreatedDate = TimeHelper.GetVietnamTime(),
                         CreatedBy = userId
                     };
 
@@ -188,7 +202,7 @@ namespace TripWiseAPI.Services
                         Description = placeDetail,
                         StartTime = starttime,
                         EndTime = endtime,
-                        CreatedDate = DateTime.UtcNow,
+                        CreatedDate = TimeHelper.GetVietnamTime(),
                         TourAttractions = attraction,
                         CreatedBy = userId
                     });

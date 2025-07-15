@@ -14,21 +14,19 @@ namespace TripWiseAPI.Services
         private readonly IJsonRepairService _repairService;
         private readonly IWikimediaImageService _imageService;
         private const int MaxDaysPerChunk = 3;
+        private readonly IGoogleMapsPlaceService _googleMapsPlaceService;
 
-        public AiItineraryService(
-            IHttpClientFactory httpClientFactory,
-            IConfiguration config,
-            IPromptBuilder promptBuilder,
-            IJsonRepairService repairService,
-            IWikimediaImageService imageService)
+        public AiItineraryService(IHttpClientFactory httpClientFactory, IConfiguration config, IPromptBuilder promptBuilder, IJsonRepairService repairService, IWikimediaImageService imageService, IGoogleMapsPlaceService googleMapsPlaceService)
         {
             _httpClient = httpClientFactory.CreateClient("Gemini");
             _apiKey = config["Gemini:ApiKey"];
             _promptBuilder = promptBuilder;
             _repairService = repairService;
             _imageService = imageService;
+            _googleMapsPlaceService = googleMapsPlaceService;
             Console.OutputEncoding = Encoding.UTF8;
         }
+
 
         public async Task<ItineraryResponse> GenerateItineraryAsync(TravelRequest request, string relatedKnowledge)
         {
@@ -50,6 +48,9 @@ namespace TripWiseAPI.Services
             };
 
             string prompt = _promptBuilder.Build(subRequest, budgetFormatted, relatedKnowledge);
+            Console.WriteLine("===== PROMPT SENT TO GEMINI =====");
+            Console.WriteLine(prompt);
+            Console.WriteLine("===== END PROMPT =====");
 
             var payload = new
             {
@@ -62,7 +63,7 @@ namespace TripWiseAPI.Services
                 },
                 generationConfig = new
                 {
-                    maxOutputTokens = 4096,
+                    maxOutputTokens = 20000,
                     temperature = 0.7
                 }
             };
@@ -98,48 +99,47 @@ namespace TripWiseAPI.Services
 
             var imageUrlsUsed = new HashSet<string>();
             var allDays = new List<ItineraryDay>();
-
             string fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
 
             foreach (var d in parsed.Days)
             {
                 var activities = await Task.WhenAll(d.Activities.Select(async a =>
                 {
-                    string imageUrl = a.Image;
+                    string? imageUrl = null;
 
-                    bool isFallbackImage = string.IsNullOrWhiteSpace(imageUrl)
-                        || imageUrl.Contains("unsplash")
-                        || imageUrl.Contains("wikipedia")
-                        || imageUrl.Contains("example.com")
-                        || imageUrl.Contains("vietflag.vn");
-
-                    if (isFallbackImage)
+                    if (!string.IsNullOrWhiteSpace(a.Image))
                     {
-                        Console.WriteLine($"[Image] Fallback detected: {imageUrl}");
-
-                        // 🔁 Ưu tiên tìm ảnh theo địa điểm cụ thể
+                        imageUrl = a.Image;
+                    }
+                    else
+                    {
                         string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
                             ? a.Address
                             : !string.IsNullOrWhiteSpace(a.PlaceDetail)
                                 ? a.PlaceDetail
                                 : request.Destination;
 
-                        Console.WriteLine($"[Image] Searching image for: {searchKeyword}");
-
-                        var imageCandidates = await _imageService.SearchImageUrlsAsync(searchKeyword);
-                        Console.WriteLine($"[Image] Wikimedia search returned {imageCandidates.Count} result(s)");
-
-                        imageUrl = imageCandidates.FirstOrDefault(url => !imageUrlsUsed.Contains(url)) ?? fallbackImage;
-
-                        if (!imageUrlsUsed.Contains(imageUrl))
+                        try
                         {
-                            imageUrlsUsed.Add(imageUrl);
-                            Console.WriteLine($"[Image] Selected new image from Wikimedia or fallback: {imageUrl}");
+                            var (lat, lng, googleImage) = await _googleMapsPlaceService.GetPlaceInfoAsync(searchKeyword);
+
+                            if (!string.IsNullOrWhiteSpace(googleImage) && !imageUrlsUsed.Contains(googleImage))
+                            {
+                                imageUrl = googleImage;
+                                imageUrlsUsed.Add(imageUrl);
+                                Console.WriteLine($"[Image] Google Maps image used: {imageUrl}");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[Image] Google Maps fallback for: {searchKeyword}");
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            Console.WriteLine($"[Image] Reused fallback or duplicate image: {imageUrl}");
+                            Console.WriteLine($"[Image] Google Maps error: {ex.Message}");
                         }
+
+                        imageUrl ??= fallbackImage;
                     }
 
                     return new ItineraryActivity
@@ -152,7 +152,8 @@ namespace TripWiseAPI.Services
                         Address = a.Address,
                         PlaceDetail = a.PlaceDetail,
                         Image = imageUrl,
-                        MapUrl = string.IsNullOrWhiteSpace(a.Address) ? null
+                        MapUrl = string.IsNullOrWhiteSpace(a.Address)
+                            ? null
                             : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(a.Address)}"
                     };
                 }));
@@ -187,10 +188,8 @@ namespace TripWiseAPI.Services
                     : null
             };
         }
-        public async Task<ItineraryResponse> UpdateItineraryAsync(
-    TravelRequest originalRequest,
-    ItineraryResponse originalResponse,
-    string userInstruction)
+
+        public async Task<ItineraryResponse> UpdateItineraryAsync(TravelRequest originalRequest, ItineraryResponse originalResponse, string userInstruction)
         {
             string prompt = _promptBuilder.BuildUpdatePrompt(originalRequest, originalResponse, userInstruction);
 
@@ -253,23 +252,19 @@ namespace TripWiseAPI.Services
 
                 if (updatedDay == null)
                 {
-                    // Không thay đổi gì -> giữ nguyên
-                    mergedDays.Add(originalDay);
+                    mergedDays.Add(originalDay); // giữ nguyên nếu không có thay đổi
                 }
                 else
                 {
-                    // Có cập nhật -> xử lý lại activities + image
                     var updatedActivities = await Task.WhenAll(updatedDay.Activities.Select(async a =>
                     {
-                        string imageUrl = a.Image;
+                        string? imageUrl = null;
 
-                        bool isFallbackImage = string.IsNullOrWhiteSpace(imageUrl)
-                            || imageUrl.Contains("unsplash")
-                            || imageUrl.Contains("wikipedia")
-                            || imageUrl.Contains("example.com")
-                            || imageUrl.Contains("vietflag.vn");
-
-                        if (isFallbackImage)
+                        if (!string.IsNullOrWhiteSpace(a.Image))
+                        {
+                            imageUrl = a.Image;
+                        }
+                        else
                         {
                             string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
                                 ? a.Address
@@ -277,10 +272,27 @@ namespace TripWiseAPI.Services
                                     ? a.PlaceDetail
                                     : originalRequest.Destination;
 
-                            var imageCandidates = await _imageService.SearchImageUrlsAsync(searchKeyword);
-                            imageUrl = imageCandidates.FirstOrDefault(url => !imageUrlsUsed.Contains(url)) ?? fallbackImage;
+                            try
+                            {
+                                var (lat, lng, googleImage) = await _googleMapsPlaceService.GetPlaceInfoAsync(searchKeyword);
 
-                            imageUrlsUsed.Add(imageUrl);
+                                if (!string.IsNullOrWhiteSpace(googleImage) && !imageUrlsUsed.Contains(googleImage))
+                                {
+                                    imageUrl = googleImage;
+                                    imageUrlsUsed.Add(imageUrl);
+                                    Console.WriteLine($"[Image] Google Maps image used: {imageUrl}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[Image] Google Maps fallback for: {searchKeyword}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[Image] Google Maps error: {ex.Message}");
+                            }
+
+                            imageUrl ??= fallbackImage;
                         }
 
                         return new ItineraryActivity
@@ -328,8 +340,6 @@ namespace TripWiseAPI.Services
                 NextStartDate = null
             };
         }
-
-
 
         private string ExtractJson(string raw)
         {

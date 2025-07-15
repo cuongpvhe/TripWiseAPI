@@ -1,0 +1,16 @@
+﻿using TripWiseAPI.Models;
+
+namespace TripWiseAPI.Services.AdminServices
+{
+    public interface IAppSettingsService
+    {
+        Task<List<AppSetting>> GetAllAsync();
+        Task<AppSetting> GetByKeyAsync(string key);
+        Task<bool> UpdateAsync(AppSetting dto);
+        Task<string?> GetValueAsync(string key);
+        Task<int> GetIntValueAsync(string key, int defaultValue = 0);
+        Task<bool> SetFreePlanAsync(string planName);
+        Task<bool> SetTrialPlanAsync(string planName);
+        Task<bool> SetValueAsync(string key, string value);
+    }
+}

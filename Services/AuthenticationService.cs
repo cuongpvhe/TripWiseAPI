@@ -5,6 +5,7 @@ using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Models;
 using TripWiseAPI.Utils;
 using Microsoft.EntityFrameworkCore;
+using TripWiseAPI.Services.AdminServices;
 
 namespace TripWiseAPI.Services
 {
@@ -12,11 +13,13 @@ namespace TripWiseAPI.Services
     {
         private readonly TripWiseDBContext _context;
         private readonly IConfiguration _config;
+        private readonly IAppSettingsService _appSettingsService;
 
-        public AuthenticationService(TripWiseDBContext context, IConfiguration config)
+        public AuthenticationService(TripWiseDBContext context, IConfiguration config, IAppSettingsService appSettingsService)
         {
             _context = context;
             _config = config;
+            _appSettingsService = appSettingsService;
         }
 
         public async Task<(string accessToken, string refreshToken)> LoginAsync(LoginModel loginModel)
@@ -35,8 +38,8 @@ namespace TripWiseAPI.Services
                 UserId = user.UserId,
                 RefreshToken = refreshToken,
                 DeviceId = loginModel.DeviceId,
-                CreatedAt = DateTime.Now,
-                ExpiresAt = DateTime.Now.AddMonths(1)
+                CreatedAt = TimeHelper.GetVietnamTime(),
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1)
             });
 
             await _context.SaveChangesAsync();
@@ -58,7 +61,7 @@ namespace TripWiseAPI.Services
                 {
                     Email = payload.Email,
                     UserName = payload.Email.Split('@')[0],
-                    CreatedDate = DateTime.Now,
+                    CreatedDate = TimeHelper.GetVietnamTime(),
                     IsActive = true,
                     Role = "USER",
                     PasswordHash = ""
@@ -80,8 +83,8 @@ namespace TripWiseAPI.Services
                 UserId = user.UserId,
                 RefreshToken = refreshToken,
                 DeviceId = model.DeviceId,
-                CreatedAt = DateTime.Now,
-                ExpiresAt = DateTime.Now.AddMonths(1)
+                CreatedAt = TimeHelper.GetVietnamTime(),
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1)
             });
 
             await _context.SaveChangesAsync();
@@ -94,7 +97,7 @@ namespace TripWiseAPI.Services
                 .FirstOrDefaultAsync(x =>
                     x.RefreshToken == request.RefreshToken &&
                     x.DeviceId == request.DeviceId &&
-                    x.ExpiresAt > DateTime.UtcNow);
+                    x.ExpiresAt > TimeHelper.GetVietnamTime());
 
             if (token == null)
                 throw new UnauthorizedAccessException("Token không hợp lệ.");
@@ -104,7 +107,7 @@ namespace TripWiseAPI.Services
                 throw new UnauthorizedAccessException("Người dùng không tồn tại.");
 
             token.RefreshToken = JwtHelper.GenerateRefreshToken();
-            token.ExpiresAt = DateTime.UtcNow.AddMonths(1);
+            token.ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1);
             await _context.SaveChangesAsync();
 
             return (JwtHelper.GenerateJwtToken(_config, user), token.RefreshToken);
@@ -143,7 +146,7 @@ namespace TripWiseAPI.Services
                 SignupRequestId = req.SignupRequestId,
                 Otpstring = OtpHelper.GenerateRandomDigits(6),
                 RequestAttemptsRemains = 3,
-                ExpiresAt = DateTime.Now.AddMinutes(10)
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(10)
             };
 
             await _context.SignupOtps.AddAsync(otp);
@@ -183,27 +186,56 @@ namespace TripWiseAPI.Services
                 UserName = data.Username,
                 Email = data.Email,
                 PasswordHash = PasswordHelper.HashPasswordBCrypt(data.Password),
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 Role = "USER",
+                RequestChatbot = 0,
                 IsActive = true
             };
 
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
 
-            var freePlan = await _context.Plans.FirstOrDefaultAsync(p => p.PlanName == "Free" && p.RemovedDate == null);
-            if (freePlan != null)
+            string? trialPlanName = await _appSettingsService.GetValueAsync("DefaultTrialPlanName");
+            string? freePlanName = await _appSettingsService.GetValueAsync("FreePlan");
+            int trialDuration = await _appSettingsService.GetIntValueAsync("TrialDurationInDays", 90);
+
+            Plan? planToAssign = null;
+            DateTime? endDate = null;
+
+            if (!string.IsNullOrEmpty(trialPlanName))
             {
-                var plan = new UserPlan
+                planToAssign = await _context.Plans
+                    .FirstOrDefaultAsync(p => p.PlanName == trialPlanName && p.RemovedDate == null);
+
+                if (planToAssign != null)
+                {
+                    endDate = TimeHelper.GetVietnamTime().AddDays(trialDuration);
+                }
+            }
+
+            // Nếu không có Trial, dùng gói Free
+            if (planToAssign == null && !string.IsNullOrEmpty(freePlanName))
+            {
+                planToAssign = await _context.Plans
+                    .FirstOrDefaultAsync(p => p.PlanName == freePlanName && p.RemovedDate == null);
+            }
+
+            if (planToAssign != null)
+            {
+                var userPlan = new UserPlan
                 {
                     UserId = user.UserId,
-                    PlanId = freePlan.PlanId,
-                    StartDate = DateTime.UtcNow,
-                    CreatedDate = DateTime.UtcNow,
-                    IsActive = true
+                    PlanId = planToAssign.PlanId,
+                    StartDate = TimeHelper.GetVietnamTime(),
+                    EndDate = endDate,
+                    CreatedDate = TimeHelper.GetVietnamTime(),
+                    IsActive = true,
+                    RequestInDays = planToAssign.MaxRequests ?? 0
                 };
-                await _context.UserPlans.AddAsync(plan);
+
+                await _context.UserPlans.AddAsync(userPlan);
             }
+
 
             _context.SignupOtps.Remove(otp);
             await _context.SaveChangesAsync();
@@ -237,7 +269,7 @@ namespace TripWiseAPI.Services
                 SignupRequestId = req.Email,
                 Otpstring = OtpHelper.GenerateRandomDigits(6),
                 RequestAttemptsRemains = 3,
-                ExpiresAt = DateTime.Now.AddMinutes(10)
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(10)
             };
 
             await _context.SignupOtps.AddAsync(otp);
