@@ -88,6 +88,9 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
             builder.Services.AddScoped<IPlanService, PlanService>();
+
+            builder.Services.AddScoped<IReviewService, ReviewService>();
+
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IPartnerService, PartnerService>();
             builder.Services.AddScoped<IVnPayService, VnPayService>();
