@@ -95,6 +95,10 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IPartnerService, PartnerService>();
             builder.Services.AddScoped<IManageTourService, ManageTourService>();
             builder.Services.AddScoped<ITourService, TourService>();
+            builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
+
+            
+
 
             builder.Services.AddSwaggerGen(c =>
             {

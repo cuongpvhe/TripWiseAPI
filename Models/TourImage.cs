@@ -6,7 +6,7 @@ namespace TripWiseAPI.Models
     public partial class TourImage
     {
         public int TourImageId { get; set; }
-        public int? ImageId { get; set; }
+        public int ImageId { get; set; }
         public int? TourId { get; set; }
         public DateTime? CreatedDate { get; set; }
         public DateTime? ModifiedDate { get; set; }

@@ -1,4 +1,5 @@
 ﻿using TripWiseAPI.Models.DTO;
+using static TripWiseAPI.Models.DTO.UpdateTourDto;
 
 namespace TripWiseAPI.Services.AdminServices
 {

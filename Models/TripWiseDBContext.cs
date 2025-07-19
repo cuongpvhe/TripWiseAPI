@@ -44,8 +44,8 @@ namespace TripWiseAPI.Models
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             var builder = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+.SetBasePath(Directory.GetCurrentDirectory())
+.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
             IConfigurationRoot configuration = builder.Build();
             optionsBuilder.UseSqlServer(configuration.GetConnectionString("DBContext"));
         }
@@ -360,6 +360,8 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.Duration).HasMaxLength(10);
 
+                entity.Property(e => e.ImageUrl).HasColumnName("imageUrl");
+
                 entity.Property(e => e.Location).HasMaxLength(150);
 
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
@@ -408,6 +410,8 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.ImageUrl).HasColumnName("imageUrl");
 
+                entity.Property(e => e.ItineraryId).HasColumnName("ItineraryID");
+
                 entity.Property(e => e.Localtion).HasMaxLength(255);
 
                 entity.Property(e => e.MapUrl).HasColumnName("mapUrl");
@@ -421,6 +425,11 @@ namespace TripWiseAPI.Models
                 entity.Property(e => e.RemovedReason).HasMaxLength(255);
 
                 entity.Property(e => e.StartTime).HasColumnType("time(0)");
+
+                entity.HasOne(d => d.Itinerary)
+                    .WithMany(p => p.TourAttractions)
+                    .HasForeignKey(d => d.ItineraryId)
+                    .HasConstraintName("FK_TourAttractions_Itinerary");
             });
 
             modelBuilder.Entity<TourAttractionImage>(entity =>
@@ -500,14 +509,7 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.StartTime).HasColumnType("time(0)");
 
-                entity.Property(e => e.TourAttractionsId).HasColumnName("TourAttractionsID");
-
                 entity.Property(e => e.TourId).HasColumnName("TourID");
-
-                entity.HasOne(d => d.TourAttractions)
-                    .WithMany(p => p.TourItineraries)
-                    .HasForeignKey(d => d.TourAttractionsId)
-                    .HasConstraintName("FK_TourItinerary_TourAttractions");
 
                 entity.HasOne(d => d.Tour)
                     .WithMany(p => p.TourItineraries)
