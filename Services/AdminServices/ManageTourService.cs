@@ -3,6 +3,7 @@ using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Utils;
+using static TripWiseAPI.Models.DTO.UpdateTourDto;
 
 namespace TripWiseAPI.Services.AdminServices
 {
@@ -59,10 +60,18 @@ namespace TripWiseAPI.Services.AdminServices
         {
             var tour = await _dbContext.Tours
                 .Include(t => t.TourItineraries)
-                    .ThenInclude(i => i.TourAttractions)
                 .FirstOrDefaultAsync(t => t.TourId == tourId && t.RemovedDate == null);
 
             if (tour == null) return null;
+
+            // Lấy tất cả ItineraryId của tour
+            var itineraryIds = tour.TourItineraries.Select(i => i.ItineraryId).ToList();
+
+            // Lấy tất cả TourAttractions theo danh sách ItineraryId
+            var allAttractions = await _dbContext.TourAttractions
+                .Where(a => itineraryIds.Contains(a.ItineraryId ?? 0))
+                .ToListAsync();
+
             async Task<string?> GetUserNameById(int? id)
             {
                 if (!id.HasValue) return null;
@@ -71,6 +80,7 @@ namespace TripWiseAPI.Services.AdminServices
                     .Select(u => u.UserName)
                     .FirstOrDefaultAsync();
             }
+
             var dto = new TourDetailDto
             {
                 TourName = tour.TourName,
@@ -84,22 +94,32 @@ namespace TripWiseAPI.Services.AdminServices
                 TourNote = tour.TourNote,
                 Itinerary = tour.TourItineraries
                     .GroupBy(i => i.DayNumber)
-                    .Select(g => new ItineraryDto
+                    .Select(g =>
                     {
-                        DayNumber = g.Key,
-                        Title = g.FirstOrDefault()?.ItineraryName,
-                        DailyCost = g.Sum(x => x.TourAttractions?.Price ?? 0),
-                        Activities = g.Select(i => new ActivityDto
+                        var firstItinerary = g.FirstOrDefault();
+                        var itineraryIdList = g.Select(x => x.ItineraryId).ToList();
+                        var activities = allAttractions
+                            .Where(a => a.ItineraryId != null && itineraryIdList.Contains(a.ItineraryId.Value))
+                            .Select(a => new ActivityDto
+                            {
+                                StartTime = a.StartTime,
+                                EndTime = a.EndTime,
+                                Description = a.TourAttractionsName,
+                                Address = a.Localtion,
+                                EstimatedCost = a.Price,
+                                PlaceDetail = a.Description,
+                                MapUrl = a.MapUrl,
+                                ImageUrls = new List<string> { a.ImageUrl }
+
+                            }).ToList();
+
+                        return new ItineraryDto
                         {
-                            StartTime = i.StartTime,
-                            EndTime = i.EndTime,
-                            Description = i.TourAttractions?.TourAttractionsName,
-                            Address = i.TourAttractions?.Localtion,
-                            EstimatedCost = i.TourAttractions?.Price,
-                            PlaceDetail = i.Description,
-                            MapUrl = i.TourAttractions?.MapUrl,
-                            Image = i.TourAttractions?.ImageUrl
-                        }).ToList()
+                            DayNumber = g.Key,
+                            Title = firstItinerary?.ItineraryName,
+                            DailyCost = activities.Sum(x => x.EstimatedCost ?? 0),
+                            Activities = activities
+                        };
                     }).ToList(),
                 CreatedDate = tour.CreatedDate,
                 CreatedBy = tour.CreatedBy,
@@ -111,6 +131,7 @@ namespace TripWiseAPI.Services.AdminServices
 
             return dto;
         }
-    
-}
+
+
+    }
 }

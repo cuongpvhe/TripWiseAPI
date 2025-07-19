@@ -30,6 +30,7 @@ namespace TripWiseAPI.Controllers
                 return userId;
             return null;
         }
+
         [HttpPost("buy-plan")]
         public async Task<IActionResult> BuyPlan([FromBody] BuyPlanRequest request)
         {
@@ -37,28 +38,33 @@ namespace TripWiseAPI.Controllers
             if (userId == null)
                 return Unauthorized("Bạn chưa đăng nhập.");
 
-            var plan = await _dbContext.Plans
-                .FirstOrDefaultAsync(p => p.PlanId == request.PlanId && p.RemovedDate == null);
-
-            if (plan == null)
-                return NotFound("Gói cước không tồn tại.");
-
-            if (plan.Price == null || plan.Price <= 0)
-                return BadRequest("Gói cước không hợp lệ.");
-
-            var paymentModel = new PaymentInformationModel
+            try
             {
-                UserId = userId.Value,
-                Amount = (decimal)plan.Price,
-                Name = $"Plan: {plan.PlanName}",
-                OrderDescription = $"Thanh toán gói {plan.PlanName} giá {plan.Price:N0} VND",
-                OrderType = "plan",
-                PlanId = plan.PlanId
-            };
+                var paymentUrl = await _vnPayService.BuyPlanAsync(request, userId.Value, HttpContext);
+                return Ok(new { url = paymentUrl });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
-            var paymentUrl = _vnPayService.CreatePaymentUrl(paymentModel, HttpContext);
+        [HttpPost("booking")]
+        public async Task<IActionResult> PayBooking([FromBody] BuyTourRequest request)
+        {
+            var userId = GetUserId();
+            if (userId == null)
+                return Unauthorized("Bạn chưa đăng nhập.");
 
-            return Ok(new { url = paymentUrl });
+            try
+            {
+                var paymentUrl = await _vnPayService.CreateBookingAndPayAsync(request, userId.Value, HttpContext);
+                return Ok(new { url = paymentUrl });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
 
