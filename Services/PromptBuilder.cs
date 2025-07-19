@@ -5,7 +5,7 @@ namespace TripWiseAPI.Services
 {
     public class PromptBuilder : IPromptBuilder
     {
-        public string Build(TravelRequest request, string budgetVNDFormatted, string relatedKnowledge, List<string>? previousAddresses = null)
+        public string Build(TravelRequest request, string budgetVNDFormatted, string relatedKnowledge)
         {
             string filterNote = $"Ưu tiên địa điểm phù hợp với nhóm '{request.GroupType}', ăn uống kiểu '{request.DiningStyle}', chủ đề '{request.Preferences}', ngân sách tối đa {budgetVNDFormatted} đồng.";
 
@@ -15,91 +15,81 @@ namespace TripWiseAPI.Services
                 <= 4 => "Cân bằng giữa ăn uống, khám phá, nghỉ ngơi. Không dồn quá nhiều hoạt động trong ngày.",
                 _ => "Lịch trình có nhịp độ thoải mái, kết hợp giữa hoạt động vui chơi, thư giãn và văn hóa địa phương."
             };
-            var limitedPrevious = previousAddresses?.TakeLast(30).ToList();
-            string exclusionNote = "";
-            if (limitedPrevious != null && limitedPrevious.Any())
-            {
-                exclusionNote = """
-                - Không được trùng các địa điểm đã xuất hiện trong các ngày trước đó (dưới đây):
-                """ + string.Join("\n", limitedPrevious.Select(a => $"  - {a}"));
-            }
 
             return $$"""
-                {{filterNote}}
-                {{dayNote}}
+        {{filterNote}}
+        {{dayNote}}
 
-                Bạn là một hướng dẫn viên du lịch AI chuyên nghiệp của nền tảng TravelMate. Hãy tạo lịch trình {{request.Days}} ngày tại {{request.Destination}} cho nhóm {{request.GroupType}}, theo chủ đề "{{request.Preferences}}", với ngân sách khoảng {{budgetVNDFormatted}} đồng.
+        Bạn là một hướng dẫn viên du lịch AI chuyên nghiệp của nền tảng TravelMate. Hãy tạo lịch trình {{request.Days}} ngày tại {{request.Destination}} cho nhóm {{request.GroupType}}, theo chủ đề "{{request.Preferences}}", với ngân sách khoảng {{budgetVNDFormatted}} đồng.
 
-                === THÔNG TIN CHUYẾN ĐI ===
-                - Ngày khởi hành: {{request.TravelDate:dd/MM/yyyy}}
-                - Phương tiện di chuyển: {{(request.Transportation ?? "tự túc")}}
-                - Phong cách ăn uống: {{(request.DiningStyle ?? "địa phương")}}
-                - Chỗ ở mong muốn: {{(request.Accommodation ?? "3 sao")}}
+        === THÔNG TIN CHUYẾN ĐI ===
+        - Ngày khởi hành: {{request.TravelDate:dd/MM/yyyy}}
+        - Phương tiện di chuyển: {{(request.Transportation ?? "tự túc")}}
+        - Phong cách ăn uống: {{(request.DiningStyle ?? "địa phương")}}
+        - Chỗ ở mong muốn: {{(request.Accommodation ?? "3 sao")}}
 
-                === HƯỚNG DẪN TẠO LỊCH TRÌNH ===
-                - Mỗi ngày phải có hoạt động trải đều các khung: sáng, trưa, chiều, tối
-                - Sáng (07:00–10:30), trưa (11:00–13:00), chiều (14:30–17:00), tối (18:00–21:00)
-                - Ưu tiên các hoạt động ăn uống, tham quan đặc sắc, nghỉ ngơi hợp lý
-                - Có thể kèm mẹo hữu ích cho du khách như: "nên đến sớm để tránh đông", "nên đặt bàn trước"
+        === HƯỚNG DẪN TẠO LỊCH TRÌNH ===
+        - Mỗi ngày phải có hoạt động trải đều các khung: sáng, trưa, chiều, tối
+        - Sáng (07:00–10:30), trưa (11:00–13:00), chiều (14:30–17:00), tối (18:00–21:00)
+        - Ưu tiên các hoạt động ăn uống, tham quan đặc sắc, nghỉ ngơi hợp lý
+        - Có thể kèm mẹo hữu ích cho du khách như: "nên đến sớm để tránh đông", "nên đặt bàn trước"
 
-                === RÀNG BUỘC BẮT BUỘC ===
-                - Mỗi hoạt động phải có các trường:
-                  - `"starttime"`: định dạng HH:mm
-                  - `"endtime"`: định dạng HH:mm, hợp lý với thời lượng
-                  - `"description"`: mô tả ngắn gọn hoạt động
-                  - `"estimatedCost"`: số nguyên, đơn vị VNĐ, không có ký hiệu hoặc dấu phẩy
-                  - `"transportation"`: ghi rõ phương tiện (VD: "Grab", "Taxi", "Đi bộ", "Xe máy")
-                  - `"address"`: phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng")
-                  - `"placeDetail"`: mô tả sinh động, giải thích lý do nên đến
-                  - `"mapUrl"`: link đúng định dạng Google Maps
-                  - `"image"`: nếu có thumbnail thì dùng, nếu không thì để chuỗi rỗng `""`
+        === RÀNG BUỘC BẮT BUỘC ===
+        - Mỗi hoạt động phải có các trường:
+          - `"starttime"`: định dạng HH:mm
+          - `"endtime"`: định dạng HH:mm, hợp lý với thời lượng
+          - `"description"`: mô tả ngắn gọn hoạt động
+          - `"estimatedCost"`: số nguyên, đơn vị VNĐ, không có ký hiệu hoặc dấu phẩy
+          - `"transportation"`: ghi rõ phương tiện (VD: "Grab", "Taxi", "Đi bộ", "Xe máy")
+          - `"address"`: phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng")
+          - `"placeDetail"`: mô tả sinh động, giải thích lý do nên đến
+          - `"mapUrl"`: link đúng định dạng Google Maps
+          - `"image"`: nếu có thumbnail thì dùng, nếu không thì để chuỗi rỗng `""`
 
-                - CẤM HOÀN TOÀN các cụm từ sau trong bất kỳ trường nào:
-                  - "tự chọn", "tùy chọn", "tùy ý", "tự do lựa chọn", "ven biển", "gần", bao gồm bất kỳ cụm từ nào yêu cầu khách hàng tự quyết định, lựa chọn, đoán địa điểm, hoặc tự tìm nơi ăn/chơi/nghỉ
+        - CẤM HOÀN TOÀN các cụm từ sau trong bất kỳ trường nào:
+          - "tự chọn", "tùy chọn", "tùy ý", "tự do lựa chọn", "ven biển", "gần", bao gồm bất kỳ cụm từ nào yêu cầu khách hàng tự quyết định, lựa chọn, đoán địa điểm, hoặc tự tìm nơi ăn/chơi/nghỉ
 
-                - Mỗi ngày phải có trường `"weatherNote"`: mô tả thời tiết ngắn gọn dựa trên `"weatherDescription"` và `"temperatureCelsius"`
+        - Mỗi ngày phải có trường `"weatherNote"`: mô tả thời tiết ngắn gọn dựa trên `"weatherDescription"` và `"temperatureCelsius"`
 
-                === NGUỒN ĐỊA ĐIỂM ===
-                - Ưu tiên địa điểm có trong danh sách `relatedKnowledge` nếu phù hợp logic chuyến đi
-                - Nếu thiếu, có thể đề xuất địa điểm thật, nổi tiếng, được đánh giá cao trên Google Maps
-                - Không chấp nhận địa điểm mơ hồ, chung chung, không có địa chỉ cụ thể
-                {{exclusionNote}}
+        === NGUỒN ĐỊA ĐIỂM ===
+        - Ưu tiên địa điểm có trong danh sách `relatedKnowledge` nếu phù hợp logic chuyến đi
+        - Nếu thiếu, có thể đề xuất địa điểm thật, nổi tiếng, được đánh giá cao trên Google Maps
+        - Không chấp nhận địa điểm mơ hồ, chung chung, không có địa chỉ cụ thể
 
-                === OUTPUT FORMAT ===
-                Trả về duy nhất một object JSON theo định dạng sau. Không thêm bất kỳ giải thích, markdown, hoặc văn bản ngoài nào.
+        === OUTPUT FORMAT ===
+        Trả về duy nhất một object JSON theo định dạng sau. Không thêm bất kỳ giải thích, markdown, hoặc văn bản ngoài nào.
 
+        {
+          "version": "v1.0",
+          "totalCost": 1234567,
+          "days": [
+            {
+              "dayNumber": 1,
+              "title": "string",
+              "dailyCost": 123456,
+              "weatherNote": "string",
+              "activities": [
                 {
-                  "version": "v1.0",
-                  "totalCost": 1234567,
-                  "days": [
-                    {
-                      "dayNumber": 1,
-                      "title": "string",
-                      "dailyCost": 123456,
-                      "weatherNote": "string",
-                      "activities": [
-                        {
-                          "starttime": "08:00",
-                          "endtime": "10:00",
-                          "description": "string",
-                          "estimatedCost": 123456,
-                          "transportation": "string",
-                          "address": "string",
-                          "placeDetail": "string",
-                          "mapUrl": "string",
-                          "image": "string"
-                        }
-                      ]
-                    }
-                  ]
+                  "starttime": "08:00",
+                  "endtime": "10:00",
+                  "description": "string",
+                  "estimatedCost": 123456,
+                  "transportation": "string",
+                  "address": "string",
+                  "placeDetail": "string",
+                  "mapUrl": "string",
+                  "image": "string"
                 }
+              ]
+            }
+          ]
+        }
 
-                === START DATA ===
-                {{relatedKnowledge}}
-                === END DATA ===
-                """;
-                        }
-
+        === START DATA ===
+        {{relatedKnowledge}}
+        === END DATA ===
+        """;
+        }
 
         public string BuildUpdatePrompt(TravelRequest request, ItineraryResponse originalResponse, string userInstruction)
         {
