@@ -48,41 +48,52 @@ namespace SimpleChatboxAI.Controllers
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
             int? UserId = null;
-
             if (int.TryParse(userIdClaim, out int parsedId))
                 UserId = parsedId;
 
-            
-            // Validate input
+            // Kiểm tra đầu vào
             if (string.IsNullOrWhiteSpace(request.Destination))
-                return BadRequest(new { success = false, error = "Destination is required" });
+                return BadRequest(new { success = false, error = "Vui lòng nhập điểm đến." });
 
             if (request.TravelDate == default)
-                return BadRequest(new { success = false, error = "Travel date is required" });
+                return BadRequest(new { success = false, error = "Vui lòng chọn ngày khởi hành." });
 
             if (request.TravelDate < DateTime.Today)
-                return BadRequest(new { success = false, error = "Travel date must be today or later" });
+                return BadRequest(new { success = false, error = "Ngày khởi hành phải từ hôm nay trở đi." });
 
             if (request.Days <= 0)
-                return BadRequest(new { success = false, error = "Days must be a positive number" });
+                return BadRequest(new { success = false, error = "Số ngày phải lớn hơn 0." });
 
             if (string.IsNullOrWhiteSpace(request.Preferences))
-                return BadRequest(new { success = false, error = "Purpose of trip (Preferences) is required" });
+                return BadRequest(new { success = false, error = "Vui lòng chọn mục đích chuyến đi." });
 
             if (request.BudgetVND <= 0)
-                return BadRequest(new { success = false, error = "Budget must be a positive number (VND)" });
+                return BadRequest(new { success = false, error = "Ngân sách phải là một số dương (VND)." });
 
-            // Call Vector Search
-            string relatedKnowledge = await _vectorSearchService.RetrieveRelevantJsonEntries(
-                request.Destination, 12,
-                request.GroupType ?? "", request.DiningStyle ?? "", request.Preferences ?? "");
-          
-
-            // Generate itinerary using Gemini Service
             try
             {
-                var itinerary = await _aiService.GenerateItineraryAsync(request, relatedKnowledge);
-                // Validate user plan (tách vào service)
+                string relatedKnowledge = await _vectorSearchService.RetrieveRelevantJsonEntries(
+                    request.Destination, 12,
+                    request.GroupType ?? "", request.DiningStyle ?? "", request.Preferences ?? "");
+
+                int maxDaysPerChunk = 3;
+                int requestedDays = request.Days;
+
+                var chunkRequest = new TravelRequest
+                {
+                    Destination = request.Destination,
+                    TravelDate = request.TravelDate,
+                    Days = Math.Min(requestedDays, maxDaysPerChunk),
+                    Preferences = request.Preferences,
+                    BudgetVND = request.BudgetVND,
+                    Transportation = request.Transportation,
+                    DiningStyle = request.DiningStyle,
+                    GroupType = request.GroupType,
+                    Accommodation = request.Accommodation
+                };
+
+                var itinerary = await _aiService.GenerateItineraryAsync(chunkRequest, relatedKnowledge);
+
                 var validationResult = await _iplanService.ValidateAndUpdateUserPlanAsync(UserId.Value, true);
                 if (!validationResult.IsValid)
                 {
@@ -94,25 +105,23 @@ namespace SimpleChatboxAI.Controllers
                         suggestedPlans = validationResult.SuggestedPlans
                     });
                 }
-                DateTime startDate = request.TravelDate;
 
+                DateTime startDate = request.TravelDate;
                 for (int i = 0; i < itinerary.Itinerary.Count; i++)
                 {
                     var day = itinerary.Itinerary[i];
                     var weather = await _weatherService.GetDailyWeatherAsync(request.Destination, startDate.AddDays(i));
 
-                    if (weather != null)
-                    {
-                        day.WeatherDescription = weather.Value.description;
-                        day.TemperatureCelsius = weather.Value.temperature;
-                    }
-                    else
-                    {
-                        day.WeatherDescription = "Không có dữ liệu";
-                        day.TemperatureCelsius = 0;
-                    }
+                    day.WeatherDescription = weather?.description ?? "Không có dữ liệu";
+                    day.TemperatureCelsius = weather?.temperature ?? 0;
                 }
 
+                var usedPlaces = itinerary.Itinerary
+                    .SelectMany(day => day.Activities)
+                    .Select(act => act.Address?.Trim())
+                    .Where(addr => !string.IsNullOrWhiteSpace(addr))
+                    .Distinct()
+                    .ToList();
 
                 var response = new ItineraryResponse
                 {
@@ -127,11 +136,13 @@ namespace SimpleChatboxAI.Controllers
                     TotalEstimatedCost = itinerary.TotalEstimatedCost,
                     Budget = request.BudgetVND,
                     Itinerary = itinerary.Itinerary,
-                    SuggestedAccommodation = itinerary.SuggestedAccommodation
+                    SuggestedAccommodation = itinerary.SuggestedAccommodation,
+                    HasMore = request.Days > maxDaysPerChunk,
+                    NextStartDate = request.Days > maxDaysPerChunk ? request.TravelDate.AddDays(maxDaysPerChunk) : null,
+                    PreviousAddresses = usedPlaces
                 };
 
                 int generatedId = await _iAIGeneratePlanService.SaveGeneratedPlanAsync(UserId.Value, request, response);
-
 
                 return Ok(new
                 {
@@ -146,11 +157,80 @@ namespace SimpleChatboxAI.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    error = "An error occurred while generating the itinerary.",
+                    error = "Đã xảy ra lỗi trong quá trình tạo lịch trình.",
                     detail = ex.Message
                 });
             }
         }
+
+        [HttpPost("GenerateItineraryChunk")]
+        [ProducesResponseType(typeof(ItineraryChunkResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> GenerateItineraryChunk([FromBody] ItineraryChunkRequest request)
+        {
+            try
+            {
+                // Validate
+                if (request.BaseRequest == null)
+                    return BadRequest(new { success = false, error = "Missing base request" });
+
+                if (request.ChunkSize <= 0 || request.ChunkSize > 3)
+                    return BadRequest(new { success = false, error = "Chunk size must be between 1 and 3" });
+
+                // Gọi AI sinh lịch trình tiếp theo
+                var result = await _aiService.GenerateChunkAsync(
+                    request.BaseRequest,
+                    request.StartDate,
+                    request.ChunkSize,
+                    request.ChunkIndex,
+                    request.RelatedKnowledge,
+                    request.UsedPlaces
+                );
+
+                // Lấy thời tiết cho các ngày mới
+                for (int i = 0; i < result.Itinerary.Count; i++)
+                {
+                    var day = result.Itinerary[i];
+                    var weather = await _weatherService.GetDailyWeatherAsync(request.BaseRequest.Destination, request.StartDate.AddDays(i));
+                    if (weather != null)
+                    {
+                        day.WeatherDescription = weather.Value.description;
+                        day.TemperatureCelsius = weather.Value.temperature;
+                    }
+                    else
+                    {
+                        day.WeatherDescription = "Không có dữ liệu";
+                        day.TemperatureCelsius = 0;
+                    }
+                }
+
+                // Trích xuất địa điểm mới để gửi về client
+                var newUsedPlaces = result.Itinerary
+                    .SelectMany(day => day.Activities)
+                    .Select(act => act.Address?.Trim())
+                    .Where(addr => !string.IsNullOrWhiteSpace(addr))
+                    .Distinct()
+                    .ToList();
+
+                return Ok(new
+                {
+                    success = true,
+                    data = result,
+                    usedPlaces = newUsedPlaces
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error generating itinerary chunk",
+                    detail = ex.Message
+                });
+            }
+        }
+
 
         [HttpPost("UpdateItinerary/{generatePlanId}")]
         public async Task<IActionResult> UpdateItinerary(int generatePlanId, [FromBody] ChatUpdateRequest userInput)
