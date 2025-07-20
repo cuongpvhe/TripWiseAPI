@@ -98,23 +98,25 @@ namespace TripWiseAPI.Services
             if (tour == null)
                 throw new Exception("Tour không tồn tại.");
 
-            if (tour.Price == null || tour.Price <= 0)
-                throw new Exception("Tour chưa có giá hợp lệ.");
+            if (tour.PricePerDay == null || tour.PricePerDay <= 0)
+                throw new Exception("Tour chưa có giá theo ngày hợp lệ.");
 
             var now = TimeHelper.GetVietnamTime();
-            var quantity = tour.MaxGroupSize.Value;
-            var totalAmount = (decimal)tour.Price;
+
+            // ✅ Tính tổng tiền
+            var totalAmount = (decimal)(tour.PricePerDay * request.NumberOfPeople * request.NumberOfDays);
+
             // Bước 1: Tạo booking
             var booking = new Booking
             {
                 UserId = userId,
                 TourId = request.TourId,
-                Quantity = quantity,
+                Quantity = request.NumberOfPeople,
                 TotalAmount = totalAmount,
                 BookingStatus = PaymentStatus.Pending,
                 CreatedDate = now,
                 CreatedBy = userId,
-                OrderCode = "temp" // tạm để không bị null, sau sẽ cập nhật lại sau khi có BookingId
+                OrderCode = "temp" // Tạm thời, sẽ cập nhật lại
             };
             _dbContext.Bookings.Add(booking);
             await _dbContext.SaveChangesAsync();
@@ -144,7 +146,7 @@ namespace TripWiseAPI.Services
                 UserId = userId,
                 Amount = totalAmount,
                 Name = $"Tour: {tour.TourName}",
-                OrderDescription = $"Thanh toán tour{tour.TourName} tổng tiền {totalAmount:N0} VND",
+                OrderDescription = $"Thanh toán tour {tour.TourName} cho {request.NumberOfPeople} người, {request.NumberOfDays} ngày. Tổng: {totalAmount:N0} VND",
                 OrderType = "booking",
                 BookingId = booking.BookingId,
                 OrderCode = booking.OrderCode,
@@ -152,6 +154,7 @@ namespace TripWiseAPI.Services
 
             return CreatePaymentUrl(paymentModel, context);
         }
+
 
         public async Task HandlePaymentCallbackAsync(IQueryCollection query)
         {

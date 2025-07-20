@@ -71,6 +71,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 TourInfo = request.TourInfo,
                 TourTypesId = request.TourTypesID,
                 PartnerId = partnerId,
+                PricePerDay = request.PricePerDay,
                 CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = partnerId
             };
@@ -243,6 +244,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 Preferences = tour.Category,
                 Budget = null,
                 TotalEstimatedCost = tour.Price,
+                PricePerDay = tour.PricePerDay,
                 TourInfo = tour.TourInfo,
                 TourNote = tour.TourNote,
                 Itinerary = itineraryDtos,
@@ -269,6 +271,7 @@ namespace TripWiseAPI.Services.PartnerServices
             tour.Duration = request.Duration;
             tour.Category = request.Category;
             tour.Price = request.Price;
+            tour.PricePerDay = request.PricePerDay;
             tour.ModifiedBy = userId;
             tour.ModifiedDate = TimeHelper.GetVietnamTime();
 

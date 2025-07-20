@@ -96,8 +96,7 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IManageTourService, ManageTourService>();
             builder.Services.AddScoped<ITourService, TourService>();
             builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
-
-            
+            builder.Services.AddScoped<ITourUserService, TourUserService>();
 
 
             builder.Services.AddSwaggerGen(c =>

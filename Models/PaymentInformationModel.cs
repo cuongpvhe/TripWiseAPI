@@ -15,4 +15,6 @@ namespace TripWiseAPI.Models
         public int? BookingId { get; set; }
         public int? PlanId { get; set; }
     }
+
+
 }
