@@ -24,7 +24,8 @@ namespace TripWiseAPI.Services.PartnerServices
         public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status)
         {
             var query = _dbContext.Tours
-                .Where(t => t.RemovedDate == null); 
+                .Include(t => t.TourImages).ThenInclude(ti => ti.Image) 
+                .Where(t => t.RemovedDate == null);
 
             if (!string.IsNullOrEmpty(status))
             {
@@ -40,10 +41,12 @@ namespace TripWiseAPI.Services.PartnerServices
                     Location = t.Location,
                     Price = (decimal)t.Price,
                     Status = t.Status,
-                    CreatedDate = t.CreatedDate
+                    CreatedDate = t.CreatedDate,
+                    ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList()
                 })
                 .ToListAsync();
         }
+
         public async Task<int> CreateTourAsync(CreateTourDto request, int partnerId)
         {
 
