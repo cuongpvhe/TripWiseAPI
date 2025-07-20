@@ -83,6 +83,7 @@ namespace TripWiseAPI.Services
             {
                 TourName = tour.TourName,
                 Description = tour.Description,
+                Location = tour.Location,
                 TravelDate = tour.CreatedDate,
                 Days = tour.Duration,
                 Preferences = tour.Category,
