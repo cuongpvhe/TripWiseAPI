@@ -360,8 +360,6 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.Duration).HasMaxLength(10);
 
-                entity.Property(e => e.ImageUrl).HasColumnName("imageUrl");
-
                 entity.Property(e => e.Location).HasMaxLength(150);
 
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
@@ -369,6 +367,8 @@ namespace TripWiseAPI.Models
                 entity.Property(e => e.PartnerId).HasColumnName("PartnerID");
 
                 entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
+
+                entity.Property(e => e.PricePerDay).HasColumnType("decimal(18, 0)");
 
                 entity.Property(e => e.RejectReason).HasMaxLength(500);
 

@@ -36,7 +36,7 @@ namespace TripWiseAPI.Models
         public int? PartnerId { get; set; }
         public string? Status { get; set; }
         public string? RejectReason { get; set; }
-        public string? ImageUrl { get; set; }
+        public decimal PricePerDay { get; set; }
 
         public virtual Partner? Partner { get; set; }
         public virtual TourType? TourTypes { get; set; }
