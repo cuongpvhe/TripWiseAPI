@@ -10,6 +10,7 @@ namespace TripWiseAPI.Models.DTO
         public string? Days { get; set; }
         public string? Preferences { get; set; }
         public decimal? Budget { get; set; }
+        public decimal PricePerDay { get; set; }
         public decimal? TotalEstimatedCost { get; set; }
         public string? TourInfo { get; set; }
         public string? TourNote { get; set; }
@@ -31,6 +32,7 @@ namespace TripWiseAPI.Models.DTO
         public string Description { get; set; }
         public string Duration { get; set; }
         public decimal Price { get; set; }
+        public decimal PricePerDay { get; set; }
         public string Location { get; set; }
         public string? Category { get; set; }
         public List<string>? ImageUrls { get; set; } // ảnh từ URL
@@ -70,6 +72,7 @@ namespace TripWiseAPI.Models.DTO
         public string Description { get; set; }
         public string Duration { get; set; }
         public decimal Price { get; set; }
+        public decimal PricePerDay { get; set; }
         public string Location { get; set; }
         public int MaxGroupSize { get; set; }
         public string? Category { get; set; }
