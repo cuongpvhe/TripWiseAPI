@@ -205,29 +205,40 @@ namespace TripWiseAPI.Services.PartnerServices
 
             if (tour == null) return null;
 
-            var itineraryDtos = new List<ItineraryDto>();
+            var itineraryDtos = new List<ItineraryDetailDto>();
 
             foreach (var itinerary in tour.TourItineraries.OrderBy(i => i.DayNumber))
             {
                 var attractions = await _dbContext.TourAttractions
                     .Where(a => a.ItineraryId == itinerary.ItineraryId)
+                    .Include(a => a.TourAttractionImages)
+                        .ThenInclude(ai => ai.Image)
                     .ToListAsync();
 
-                itineraryDtos.Add(new ItineraryDto
+                itineraryDtos.Add(new ItineraryDetailDto
                 {
+                    ItineraryId = itinerary.ItineraryId,
                     DayNumber = itinerary.DayNumber,
                     Title = itinerary.ItineraryName,
                     DailyCost = attractions.Sum(x => x.Price ?? 0),
-                    Activities = attractions.Select(a => new ActivityDto
+                    Activities = attractions.Select(a => new ActivityDetailDto
                     {
-                        StartTime = a.StartTime ?? TimeSpan.Zero, 
+                        AttractionId = a.TourAttractionsId,
+                        StartTime = a.StartTime ?? TimeSpan.Zero,
                         EndTime = a.EndTime ?? TimeSpan.Zero,
                         Description = a.TourAttractionsName,
                         Address = a.Localtion,
                         EstimatedCost = a.Price,
                         PlaceDetail = a.Description,
                         MapUrl = a.MapUrl,
-                        ImageUrls = new List<string> { a.ImageUrl }
+                        ImageUrls = a.TourAttractionImages
+                            .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
+                            .Select(ai => ai.Image.ImageUrl)
+                            .ToList(),
+                        ImageIds = a.TourAttractionImages
+                            .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
+                            .Select(ai => ai.Image.ImageId.ToString())
+                            .ToList()
                     }).ToList()
                 });
             }
@@ -238,8 +249,14 @@ namespace TripWiseAPI.Services.PartnerServices
                 .Where(url => !string.IsNullOrEmpty(url))
                 .ToList();
 
+            var imageIds = tour.TourImages
+                .Where(ti => ti.Image != null && ti.Image.RemovedDate == null)
+                .Select(ti => ti.Image.ImageId.ToString())
+                .ToList();
+
             var dto = new TourDetailDto
             {
+                TourId = tour.TourId,
                 TourName = tour.TourName,
                 Description = tour.Description,
                 TravelDate = tour.CreatedDate,
@@ -254,7 +271,8 @@ namespace TripWiseAPI.Services.PartnerServices
                 Itinerary = itineraryDtos,
                 Status = tour.Status,
                 RejectReason = tour.RejectReason,
-                ImageUrls = imageUrls // ✅ danh sách URL ảnh từ cloud
+                ImageUrls = imageUrls,
+                ImageIds = imageIds
             };
 
             return dto;

@@ -100,7 +100,7 @@ namespace TripWiseAPI.Services.AdminServices
                         var itineraryIdList = g.Select(x => x.ItineraryId).ToList();
                         var activities = allAttractions
                             .Where(a => a.ItineraryId != null && itineraryIdList.Contains(a.ItineraryId.Value))
-                            .Select(a => new ActivityDto
+                            .Select(a => new ActivityDetailDto
                             {
                                 StartTime = a.StartTime,
                                 EndTime = a.EndTime,
@@ -113,7 +113,7 @@ namespace TripWiseAPI.Services.AdminServices
 
                             }).ToList();
 
-                        return new ItineraryDto
+                        return new ItineraryDetailDto
                         {
                             DayNumber = g.Key,
                             Title = firstItinerary?.ItineraryName,

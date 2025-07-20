@@ -46,7 +46,7 @@ namespace TripWiseAPI.Services
 
             if (tour == null) return null;
 
-            var itineraryDtos = new List<ItineraryDto>();
+            var itineraryDtos = new List<ItineraryDetailDto>();
 
             foreach (var itinerary in tour.TourItineraries.OrderBy(i => i.DayNumber))
             {
@@ -54,13 +54,15 @@ namespace TripWiseAPI.Services
                     .Where(a => a.ItineraryId == itinerary.ItineraryId)
                     .ToListAsync();
 
-                itineraryDtos.Add(new ItineraryDto
+                itineraryDtos.Add(new ItineraryDetailDto
                 {
+                    ItineraryId = itinerary.ItineraryId,
                     DayNumber = itinerary.DayNumber,
                     Title = itinerary.ItineraryName,
                     DailyCost = attractions.Sum(x => x.Price ?? 0),
-                    Activities = attractions.Select(a => new ActivityDto
+                    Activities = attractions.Select(a => new ActivityDetailDto
                     {
+                        AttractionId = a.TourAttractionsId,
                         StartTime = a.StartTime ?? TimeSpan.Zero,
                         EndTime = a.EndTime ?? TimeSpan.Zero,
                         Description = a.TourAttractionsName,
@@ -68,7 +70,14 @@ namespace TripWiseAPI.Services
                         EstimatedCost = a.Price,
                         PlaceDetail = a.Description,
                         MapUrl = a.MapUrl,
-                        ImageUrls = new List<string> { a.ImageUrl }
+                        ImageUrls = a.TourAttractionImages
+                            .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
+                            .Select(ai => ai.Image.ImageUrl)
+                            .ToList(),
+                        ImageIds = a.TourAttractionImages
+                            .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
+                            .Select(ai => ai.Image.ImageId.ToString())
+                            .ToList()
                     }).ToList()
                 });
             }
@@ -78,9 +87,13 @@ namespace TripWiseAPI.Services
                 .Select(ti => ti.Image.ImageUrl)
                 .Where(url => !string.IsNullOrEmpty(url))
                 .ToList();
-
+            var imageIds = tour.TourImages
+                .Where(ti => ti.Image != null && ti.Image.RemovedDate == null)
+                .Select(ti => ti.Image.ImageId.ToString())
+                .ToList();
             return new TourDetailDto
             {
+                TourId = tour.TourId,
                 TourName = tour.TourName,
                 Description = tour.Description,
                 Location = tour.Location,
@@ -95,7 +108,8 @@ namespace TripWiseAPI.Services
                 Itinerary = itineraryDtos,
                 Status = tour.Status,
                 RejectReason = tour.RejectReason,
-                ImageUrls = imageUrls
+                ImageUrls = imageUrls,
+                ImageIds = imageIds
             };
         }
     }
