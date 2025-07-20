@@ -34,8 +34,9 @@ namespace TripWiseAPI.Models
         public int? RemovedBy { get; set; }
         public string? RemovedReason { get; set; }
         public int? PartnerId { get; set; }
-        public string Status { get; set; } = null!;
+        public string? Status { get; set; }
         public string? RejectReason { get; set; }
+        public string? ImageUrl { get; set; }
 
         public virtual Partner? Partner { get; set; }
         public virtual TourType? TourTypes { get; set; }

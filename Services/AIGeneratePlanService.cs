@@ -5,6 +5,7 @@ using TripWiseAPI.Model;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Utils;
+using static TripWiseAPI.Models.DTO.UpdateTourDto;
 
 namespace TripWiseAPI.Services
 {
@@ -155,13 +156,37 @@ namespace TripWiseAPI.Services
             _dbContext.Tours.Add(tour);
             await _dbContext.SaveChangesAsync();
 
-            var tourAttractions = new List<TourAttraction>();
             var tourItineraries = new List<TourItinerary>();
+            var tourAttractions = new List<TourAttraction>();
 
             foreach (var day in root.GetProperty("Itinerary").EnumerateArray())
             {
                 int dayNumber = day.GetProperty("DayNumber").GetInt32();
                 string title = day.GetProperty("Title").GetString();
+
+                // Tạo itinerary cho mỗi ngày
+                var itinerary = new TourItinerary
+                {
+                    TourId = tour.TourId,
+                    DayNumber = dayNumber,
+                    ItineraryName = title,
+                    CreatedBy = userId,
+                    CreatedDate = TimeHelper.GetVietnamTime()
+                };
+
+                tourItineraries.Add(itinerary);
+            }
+
+            // Lưu trước để lấy được ItineraryId
+            _dbContext.TourItineraries.AddRange(tourItineraries);
+            await _dbContext.SaveChangesAsync();
+
+            // Lặp lại để tạo attraction tương ứng theo Itinerary đã lưu
+            int index = 0;
+            foreach (var day in root.GetProperty("Itinerary").EnumerateArray())
+            {
+                var itinerary = tourItineraries[index];
+                index++;
 
                 foreach (var activity in day.GetProperty("Activities").EnumerateArray())
                 {
@@ -188,48 +213,17 @@ namespace TripWiseAPI.Services
                         MapUrl = mapUrl,
                         ImageUrl = imageUrl,
                         CreatedDate = TimeHelper.GetVietnamTime(),
-                        CreatedBy = userId
+                        CreatedBy = userId,
+                        ItineraryId = itinerary.ItineraryId, // Gán ItineraryId cho attraction
                     };
 
                     tourAttractions.Add(attraction);
-
-                    tourItineraries.Add(new TourItinerary
-                    {
-                        ItineraryName = title,
-                        TourId = tour.TourId,
-                        DayNumber = dayNumber,
-                        Category = preferences,
-                        Description = placeDetail,
-                        StartTime = starttime,
-                        EndTime = endtime,
-                        CreatedDate = TimeHelper.GetVietnamTime(),
-                        TourAttractions = attraction,
-                        CreatedBy = userId
-                    });
                 }
             }
 
             _dbContext.TourAttractions.AddRange(tourAttractions);
             await _dbContext.SaveChangesAsync();
 
-            // Gán lại ID
-            foreach (var itineraryItem in tourItineraries)
-            {
-                var matchedAttraction = tourAttractions.FirstOrDefault(a =>
-                    a.TourAttractionsName == itineraryItem.TourAttractions.TourAttractionsName &&
-                    a.Price == itineraryItem.TourAttractions.Price &&
-                    a.Localtion == itineraryItem.TourAttractions.Localtion &&
-                    a.StartTime == itineraryItem.TourAttractions.StartTime);
-
-                if (matchedAttraction != null)
-                {
-                    itineraryItem.TourAttractionsId = matchedAttraction.TourAttractionsId;
-                    itineraryItem.TourAttractions = null;
-                }
-            }
-
-            _dbContext.TourItineraries.AddRange(tourItineraries);
-            await _dbContext.SaveChangesAsync();
 
             return new
             {
@@ -262,7 +256,7 @@ namespace TripWiseAPI.Services
             var tour = await _dbContext.Tours
                 .Where(t => t.TourId == tourId)
                 .Include(t => t.TourItineraries)
-                    .ThenInclude(i => i.TourAttractions)
+                .ThenInclude(i => i.TourAttractions)
                 .FirstOrDefaultAsync();
 
             if (tour == null) return null;
@@ -275,20 +269,19 @@ namespace TripWiseAPI.Services
                 {
                     DayNumber = g.Key,
                     Title = g.FirstOrDefault()?.ItineraryName,
-                    DailyCost = g.Sum(x => x.TourAttractions?.Price ?? 0),
-                    Activities = g.Select(i => new ActivityDto
+                    DailyCost = g.SelectMany(i => i.TourAttractions).Sum(a => a.Price ?? 0),
+                    Activities = g.SelectMany(i => i.TourAttractions.Select(a => new ActivityDto
                     {
-                        StartTime = i.StartTime,
-                        EndTime = i.EndTime,
-                        PlaceDetail = i.TourAttractions?.TourAttractionsName,
-                        Address = i.TourAttractions?.Localtion,
-                        EstimatedCost = i.TourAttractions?.Price ?? 0,
-                        Description = i.Description,
-                        MapUrl = i.TourAttractions?.MapUrl,
-                        Image = i.TourAttractions?.ImageUrl
-                    }).ToList()
-                })
-                .ToList();
+                        StartTime = a.StartTime,
+                        EndTime = a.EndTime,
+                        Category = a.Category,
+                        PlaceDetail = a.TourAttractionsName,
+                        Address = a.Localtion,
+                        EstimatedCost = a.Price ?? 0,
+                        MapUrl = a.MapUrl,
+                        ImageUrls = new List<string> { a.ImageUrl }
+                    })).ToList()
+                }).ToList();
 
             var dto = new TourDetailDto
             {
@@ -308,6 +301,7 @@ namespace TripWiseAPI.Services
         }
 
 
+
         public async Task<bool> DeleteTourAsync(int tourId, int? userId)
         {
             var tour = await _dbContext.Tours
@@ -316,24 +310,27 @@ namespace TripWiseAPI.Services
 
             if (tour == null) return false;
 
-            var attractionIds = tour.TourItineraries
-                .Where(i => i.TourAttractionsId != null)
-                .Select(i => i.TourAttractionsId!.Value)
-                .Distinct()
-                .ToList();
+            // Lấy danh sách ItineraryId từ TourItineraries
+            var itineraryIds = tour.TourItineraries.Select(i => i.ItineraryId).ToList();
 
-            _dbContext.TourItineraries.RemoveRange(tour.TourItineraries);
-
+            // Tìm tất cả các TourAttractions có ItineraryId trong danh sách
             var attractionsToDelete = await _dbContext.TourAttractions
-                .Where(a => attractionIds.Contains(a.TourAttractionsId))
+                .Where(a => a.ItineraryId != null && itineraryIds.Contains(a.ItineraryId.Value))
                 .ToListAsync();
 
+            // Xoá các attractions trước
             _dbContext.TourAttractions.RemoveRange(attractionsToDelete);
+
+            // Sau đó xoá các itinerary
+            _dbContext.TourItineraries.RemoveRange(tour.TourItineraries);
+
+            // Cuối cùng xoá tour
             _dbContext.Tours.Remove(tour);
 
             await _dbContext.SaveChangesAsync();
             return true;
         }
+
 
         public async Task<List<object>> GetHistoryByUserAsync(int userId)
         {

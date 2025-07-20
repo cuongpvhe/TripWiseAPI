@@ -24,6 +24,7 @@ namespace TripWiseAPI.Model
 
         public bool HasMore { get; set; }
         public DateTime? NextStartDate { get; set; }
+        public List<string>? PreviousAddresses { get; set; }
 
     }
 
@@ -96,4 +97,15 @@ namespace TripWiseAPI.Model
         public string? WeatherNote { get; set; }
 
     }
+
+    public class ItineraryChunkResponse
+    {
+        public bool Success { get; set; }
+        public bool HasMore { get; set; }
+        public DateTime? NextStartDate { get; set; }
+        public int NextChunkIndex { get; set; }
+        public List<ItineraryDay> Itinerary { get; set; } = new();
+        public int TotalEstimatedCost { get; set; }
+    }
+
 }

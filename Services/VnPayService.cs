@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System;
+using System.Net;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using TripWiseAPI.Models;
 using TripWiseAPI.Utils;
@@ -25,19 +27,24 @@ namespace TripWiseAPI.Services
         public string CreatePaymentUrl(PaymentInformationModel model, HttpContext context)
         {
             var tick = TimeHelper.GetVietnamTime().Ticks.ToString();
-            var orderCode = $"user_{model.UserId}_{model.OrderType}_{model.PlanId}_{tick}";
+            var orderCode = model.OrderType switch
+            {
+                "plan" => $"user_{model.UserId}_plan_{model.PlanId}_{tick}",
+                "booking" => $"user_{model.UserId}_booking_{model.BookingId}_{tick}",
+                _ => throw new Exception("OrderType không hợp lệ")
+            };
             var pay = new VnPayLibrary();
             var timeNow = TimeHelper.GetVietnamTime();
 
             pay.AddRequestData("vnp_Version", _configuration["Vnpay:Version"]);
             pay.AddRequestData("vnp_Command", _configuration["Vnpay:Command"]);
             pay.AddRequestData("vnp_TmnCode", _configuration["Vnpay:TmnCode"]);
-            pay.AddRequestData("vnp_Amount", (model.Amount * 100).ToString());
+            pay.AddRequestData("vnp_Amount", ((long)(model.Amount * 100)).ToString());
             pay.AddRequestData("vnp_CreateDate", timeNow.ToString("yyyyMMddHHmmss"));
             pay.AddRequestData("vnp_CurrCode", _configuration["Vnpay:CurrCode"]);
             pay.AddRequestData("vnp_IpAddr", pay.GetIpAddress(context));
             pay.AddRequestData("vnp_Locale", _configuration["Vnpay:Locale"]);
-            pay.AddRequestData("vnp_OrderInfo", model.OrderDescription);
+            pay.AddRequestData("vnp_OrderInfo", WebUtility.UrlEncode(model.OrderDescription));
             pay.AddRequestData("vnp_OrderType", model.OrderType);
             pay.AddRequestData("vnp_ReturnUrl", _configuration["PaymentCallBack:ReturnUrl"]);
             pay.AddRequestData("vnp_TxnRef", orderCode);
@@ -58,6 +65,92 @@ namespace TripWiseAPI.Services
             model.OrderCode = orderCode;
 
             return pay.CreateRequestUrl(_configuration["Vnpay:BaseUrl"], _configuration["Vnpay:HashSecret"]);
+        }
+        public async Task<string> BuyPlanAsync(BuyPlanRequest request, int userId, HttpContext context)
+        {
+            var plan = await _dbContext.Plans
+                .FirstOrDefaultAsync(p => p.PlanId == request.PlanId && p.RemovedDate == null);
+
+            if (plan == null)
+                throw new Exception("Gói cước không tồn tại.");
+
+            if (plan.Price == null || plan.Price <= 0)
+                throw new Exception("Gói cước không hợp lệ.");
+
+            var paymentModel = new PaymentInformationModel
+            {
+                UserId = userId,
+                Amount = (decimal)plan.Price,
+                Name = $"Plan: {plan.PlanName}",
+                OrderDescription = $"Thanh toán gói {plan.PlanName} giá {plan.Price:N0} VND",
+                OrderType = "plan",
+                PlanId = plan.PlanId
+            };
+
+            return CreatePaymentUrl(paymentModel, context);
+        }
+
+        public async Task<string> CreateBookingAndPayAsync(BuyTourRequest request, int userId, HttpContext context)
+        {
+            var tour = await _dbContext.Tours
+                .FirstOrDefaultAsync(t => t.TourId == request.TourId && t.RemovedDate == null);
+
+            if (tour == null)
+                throw new Exception("Tour không tồn tại.");
+
+            if (tour.Price == null || tour.Price <= 0)
+                throw new Exception("Tour chưa có giá hợp lệ.");
+
+            var now = TimeHelper.GetVietnamTime();
+            var quantity = tour.MaxGroupSize.Value;
+            var totalAmount = (decimal)tour.Price;
+            // Bước 1: Tạo booking
+            var booking = new Booking
+            {
+                UserId = userId,
+                TourId = request.TourId,
+                Quantity = quantity,
+                TotalAmount = totalAmount,
+                BookingStatus = PaymentStatus.Pending,
+                CreatedDate = now,
+                CreatedBy = userId,
+                OrderCode = "temp" // tạm để không bị null, sau sẽ cập nhật lại sau khi có BookingId
+            };
+            _dbContext.Bookings.Add(booking);
+            await _dbContext.SaveChangesAsync();
+
+            // Bước 2: Gán OrderCode
+            booking.OrderCode = $"user_{userId}_booking_{booking.BookingId}_{now.Ticks}";
+            booking.ModifiedDate = now;
+            booking.ModifiedBy = userId;
+            await _dbContext.SaveChangesAsync();
+
+            // Bước 3: Tạo transaction
+            var transaction = new PaymentTransaction
+            {
+                OrderCode = booking.OrderCode,
+                UserId = userId,
+                Amount = totalAmount,
+                PaymentStatus = PaymentStatus.Pending,
+                CreatedDate = now,
+                CreatedBy = userId
+            };
+            _dbContext.PaymentTransactions.Add(transaction);
+            await _dbContext.SaveChangesAsync();
+
+            // Bước 4: Tạo link thanh toán
+            var paymentModel = new PaymentInformationModel
+            {
+                UserId = userId,
+                Amount = totalAmount,
+                Name = $"Tour: {tour.TourName}",
+                OrderDescription = $"Thanh toán tour{tour.TourName} tổng tiền {totalAmount:N0} VND",
+                OrderType = "booking",
+                BookingId = booking.BookingId,
+                OrderCode = booking.OrderCode,
+            };
+
+            return CreatePaymentUrl(paymentModel, context);
         }
 
         public async Task HandlePaymentCallbackAsync(IQueryCollection query)
@@ -118,25 +211,41 @@ namespace TripWiseAPI.Services
                 }
             }
 
-            // Nếu là tour
-            //else if (status == "Success" && orderCode.Contains("tour", StringComparison.OrdinalIgnoreCase))
-            //{
-            //    var match = Regex.Match(orderCode, @"user_(\d+)_tour_(\d+)_");
+            // ✅ Nếu là booking, cập nhật BookingStatus theo PaymentStatus
+            if (orderCode.Contains("booking", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = Regex.Match(orderCode, @"user_(\d+)_booking_(\d+)_");
+                if (match.Success)
+                {
+                    var userId = int.Parse(match.Groups[1].Value);
+                    var bookingId = int.Parse(match.Groups[2].Value);
 
-            //    if (match.Success)
-            //    {
-            //        var userId = int.Parse(match.Groups[1].Value);
-            //        var tourId = int.Parse(match.Groups[2].Value);
+                    var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingId == bookingId);
+                    if (booking != null)
+                    {
+                        booking.ModifiedDate = TimeHelper.GetVietnamTime();
+                        booking.ModifiedBy = userId;
 
-            //        Console.WriteLine($"✅ Parsed Tour: userId={userId}, tourId={tourId}");
-            //        await _tourService.ConfirmBookingAsync(userId, tourId);
-            //    }
-            //    else
-            //    {
-            //        Console.WriteLine("❌ Không match được OrderCode tour.");
-            //    }
-            //}
-         
+                        booking.BookingStatus = transaction.PaymentStatus switch
+                        {
+                            PaymentStatus.Success => "Paid",     // hoặc "Confirmed"
+                            PaymentStatus.Canceled => PaymentStatus.Canceled,
+                            PaymentStatus.Failed => PaymentStatus.Failed,
+                            _ => booking.BookingStatus
+                        };
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
+            }
+
+
+        }
+        public static class PaymentStatus
+        {
+            public const string Pending = "Pending";
+            public const string Success = "Success";
+            public const string Failed = "Failed";
+            public const string Canceled = "Canceled";
         }
 
     }
