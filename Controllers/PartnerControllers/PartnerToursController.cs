@@ -184,7 +184,7 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(new { message = "Activity updated successfully" });
         }
 
-        //[HttpPost("add-activity/{itineraryId}")]
+        [HttpPost("add-activity/{itineraryId}")]
         //public async Task<IActionResult> AddActivity(int itineraryId,
         //[FromForm] ActivityDayDto request,
         //[FromForm] List<IFormFile>? imageFiles,

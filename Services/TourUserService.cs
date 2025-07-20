@@ -19,8 +19,6 @@ namespace TripWiseAPI.Services
         public async Task<List<PendingTourDto>> GetApprovedToursAsync()
         {
             return await _dbContext.Tours
-                .Include(t => t.TourItineraries)
-                .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
                 .Where(t => t.Status == TourStatuses.Approved && t.RemovedDate == null)
                 .Select(t => new PendingTourDto
                 {
@@ -30,12 +28,10 @@ namespace TripWiseAPI.Services
                     Location = t.Location,
                     Price = (decimal)t.Price,
                     Status = t.Status,
-                    ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
                     CreatedDate = t.CreatedDate
                 })
                 .ToListAsync();
         }
-
 
         public async Task<TourDetailDto?> GetApprovedTourDetailAsync(int tourId)
         {
