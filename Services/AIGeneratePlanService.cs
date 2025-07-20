@@ -265,12 +265,12 @@ namespace TripWiseAPI.Services
                 .Where(i => i.DayNumber.HasValue)
                 .GroupBy(i => i.DayNumber.Value)
                 .OrderBy(g => g.Key)
-                .Select(g => new ItineraryDto
+                .Select(g => new ItineraryDetailDto
                 {
                     DayNumber = g.Key,
                     Title = g.FirstOrDefault()?.ItineraryName,
                     DailyCost = g.SelectMany(i => i.TourAttractions).Sum(a => a.Price ?? 0),
-                    Activities = g.SelectMany(i => i.TourAttractions.Select(a => new ActivityDto
+                    Activities = g.SelectMany(i => i.TourAttractions.Select(a => new ActivityDetailDto
                     {
                         StartTime = a.StartTime,
                         EndTime = a.EndTime,
