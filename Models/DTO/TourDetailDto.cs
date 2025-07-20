@@ -6,6 +6,7 @@ namespace TripWiseAPI.Models.DTO
     {
         public string? TourName { get; set; }
         public string? Description { get; set; }
+        public string Location { get; set; }
         public DateTime? TravelDate { get; set; }
         public string? Days { get; set; }
         public string? Preferences { get; set; }
@@ -35,12 +36,6 @@ namespace TripWiseAPI.Models.DTO
         public decimal PricePerDay { get; set; }
         public string Location { get; set; }
         public string? Category { get; set; }
-        public List<string>? ImageUrls { get; set; } // ảnh từ URL
-        public List<IFormFile>? ImageFiles { get; set; } // ảnh từ File
-
-        public List<ItineraryDto>? Itineraries { get; set; }
-        public List<ActivityDto>? Attractions { get; set; }
-        public List<int> DeleteImageIds { get; set; } = new();
 
         public class ItineraryDto
     {
@@ -60,10 +55,7 @@ namespace TripWiseAPI.Models.DTO
         public string? PlaceDetail { get; set; }
         public string? Category { get; set; }
         public string? MapUrl { get; set; }
-        public int? ItineraryId { get; set; }
         public List<string>? ImageUrls { get; set; }
-        public List<IFormFile>? ImageFiles { get; set; }
-        public List<int>? DeleteImageIds { get; set; } // mới thêm
 
         }
         public class CreateTourDto
@@ -78,7 +70,6 @@ namespace TripWiseAPI.Models.DTO
         public string? Category { get; set; }
         public string TourNote { get; set; }
         public string TourInfo { get; set; }
-        public int? TourTypesID { get; set; }
         public string? Image { get; set; }
         public IFormFile? ImageFile { get; set; }
     }
@@ -104,7 +95,7 @@ namespace TripWiseAPI.Models.DTO
             public string? MapUrl { get; set; }
             public string? Image { get; set; }
             public IFormFile? ImageFile { get; set; }
-            public int ItineraryId { get; set; }
+
         }
         public class PendingTourDto
         {
@@ -116,7 +107,6 @@ namespace TripWiseAPI.Models.DTO
             public string Status { get; set; }
             public DateTime? CreatedDate { get; set; }
             public List<string> ImageUrls { get; set; } = new();
-
             public int? CreatedBy { get; set; }
         }
     }
