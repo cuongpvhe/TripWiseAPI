@@ -16,8 +16,8 @@ namespace TripWiseAPI.Services.PartnerServices
         //Task<bool> AddActivityAsync(int itineraryId, int userId, ActivityDayDto request, List<IFormFile>? imageFiles, List<string>? imageUrls);
         Task<bool> DeleteItineraryAsync(int itineraryId, int userId);
         Task<bool> DeleteActivityAsync(int activityId, int userId);
-        Task<bool> DeleteTourImageAsync(int imageId, int userId);
-        Task<bool> DeleteTourAttractionImageAsync(int imageId, int userId);
+        Task<bool> DeleteMultipleTourImagesAsync(List<int> imageIds, int userId);
+        Task<bool> DeleteMultipleTourAttractionImagesAsync(List<int> imageIds, int userId);
         Task<bool> SubmitTourAsync(int tourId, int userId);
         Task<TourDetailDto?> GetTourDetailAsync(int tourId, int userId);
         //Task<bool> UpdateTourAsync(int tourId, CreateFullTourDto request, int userId);

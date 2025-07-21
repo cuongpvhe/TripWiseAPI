@@ -94,9 +94,9 @@ namespace TripWiseAPI.Models.DTO
         public string? Category { get; set; }
         public string TourNote { get; set; }
         public string TourInfo { get; set; }
-        public string? Image { get; set; }
-        public IFormFile? ImageFile { get; set; }
-    }
+        public List<string>? Image { get; set; }
+        public List<IFormFile>? ImageFile { get; set; }
+    } 
     public class CreateItineraryDto
     {
         public int TourId { get; set; }
@@ -117,8 +117,8 @@ namespace TripWiseAPI.Models.DTO
             public string? PlaceDetail { get; set; }
             public string? Category { get; set; }
             public string? MapUrl { get; set; }
-            public string? Image { get; set; }
-            public IFormFile? ImageFile { get; set; }
+            public List<string>? Image { get; set; }
+            public List<IFormFile>? ImageFile { get; set; }
 
         }
         public class PendingTourDto

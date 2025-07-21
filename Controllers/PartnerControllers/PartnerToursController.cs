@@ -147,8 +147,8 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(new { message = "Tour updated successfully" });
         }
 
-        [HttpDelete("delete-tour-images/{imageId}")]
-        public async Task<IActionResult> DeleteTourImage(int imageId)
+        [HttpDelete("delete-multiple-images")]
+        public async Task<IActionResult> DeleteMultipleImages([FromBody] List<int> imageIds)
         {
             var userId = GetUserId();
 
@@ -160,12 +160,11 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             {
                 return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
             }
-
-            var result = await _tourService.DeleteTourImageAsync(imageId, partner.PartnerId);
-            if (!result) return NotFound("Image not found");
-
-            return Ok(new { message = "Image deleted successfully" });
+            var success = await _tourService.DeleteMultipleTourImagesAsync(imageIds, partner.PartnerId);
+            if (success) return Ok("Xoá ảnh thành công.");
+            return NotFound("Không tìm thấy ảnh nào để xoá.");
         }
+
         [HttpPut("update-itinerary/{itineraryId}")]
         public async Task<IActionResult> UpdateItinerary(int itineraryId, [FromBody] CreateItineraryDto request)
         {
@@ -275,9 +274,8 @@ namespace TripWiseAPI.Controllers.PartnerControllers
 
             return Ok(new { message = "Activity deleted successfully" });
         }
-
-        [HttpDelete("delete-activity-images/{imageId}")]
-        public async Task<IActionResult> DeleteAttractionImage(int imageId)
+        [HttpDelete("attraction/delete-multiple-images")]
+        public async Task<IActionResult> DeleteMultipleAttractionImages([FromBody] List<int> imageIds)
         {
             var userId = GetUserId();
 
@@ -289,12 +287,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             {
                 return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
             }
-
-            var result = await _tourService.DeleteTourAttractionImageAsync(imageId, partner.PartnerId);
-            if (!result) return NotFound("Image not found");
-
-            return Ok(new { message = "Attraction image deleted successfully" });
+            var result = await _tourService.DeleteMultipleTourAttractionImagesAsync(imageIds, partner.PartnerId);
+            return result ? Ok("Xoá thành công") : NotFound("Không tìm thấy ảnh cần xoá");
         }
+
 
 
         [HttpDelete("delete-or-draft-tour/{tourId}")]
