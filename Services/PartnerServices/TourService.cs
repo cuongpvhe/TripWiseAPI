@@ -49,18 +49,6 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<int> CreateTourAsync(CreateTourDto request, int partnerId)
         {
-
-            string? imageUrl = null;
-
-            if (request.ImageFile != null)
-            {
-                imageUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
-            }
-            else if (!string.IsNullOrEmpty(request.Image))
-            {
-                imageUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
-            }
-
             var tour = new Tour
             {
                 TourName = request.TourName,
@@ -81,32 +69,59 @@ namespace TripWiseAPI.Services.PartnerServices
 
             _dbContext.Tours.Add(tour);
             await _dbContext.SaveChangesAsync();
-            if (!string.IsNullOrEmpty(imageUrl))
+
+            // Tải và gán nhiều ảnh từ file
+            if (request.ImageFile != null && request.ImageFile.Any())
             {
-                var image = new Image
+                foreach (var file in request.ImageFile)
                 {
-                    ImageUrl = imageUrl,
-                    CreatedDate = TimeHelper.GetVietnamTime(),
-                    CreatedBy = partnerId
-                };
+                    var imageUrl = await _imageUploadService.UploadImageFromFileAsync(file);
+                    if (!string.IsNullOrEmpty(imageUrl))
+                    {
+                        await AddTourImageAsync(tour.TourId, imageUrl, partnerId);
+                    }
+                }
+            }
 
-                _dbContext.Images.Add(image);
-                await _dbContext.SaveChangesAsync(); 
-
-                var tourImage = new TourImage
+            // Tải và gán nhiều ảnh từ URL
+            if (request.Image != null && request.Image.Any())
+            {
+                foreach (var url in request.Image)
                 {
-                    TourId = tour.TourId,
-                    ImageId = image.ImageId,
-                    CreatedDate = TimeHelper.GetVietnamTime(),
-                    CreatedBy = partnerId
-                };
-
-                _dbContext.TourImages.Add(tourImage);
-                await _dbContext.SaveChangesAsync();
+                    var imageUrl = await _imageUploadService.UploadImageFromUrlAsync(url);
+                    if (!string.IsNullOrEmpty(imageUrl))
+                    {
+                        await AddTourImageAsync(tour.TourId, imageUrl, partnerId);
+                    }
+                }
             }
 
             return tour.TourId;
         }
+        private async Task AddTourImageAsync(int tourId, string imageUrl, int partnerId)
+        {
+            var image = new Image
+            {
+                ImageUrl = imageUrl,
+                CreatedDate = TimeHelper.GetVietnamTime(),
+                CreatedBy = partnerId
+            };
+
+            _dbContext.Images.Add(image);
+            await _dbContext.SaveChangesAsync();
+
+            var tourImage = new TourImage
+            {
+                TourId = tourId,
+                ImageId = image.ImageId,
+                CreatedDate = TimeHelper.GetVietnamTime(),
+                CreatedBy = partnerId
+            };
+
+            _dbContext.TourImages.Add(tourImage);
+            await _dbContext.SaveChangesAsync();
+        }
+
 
         public async Task<int> CreateItineraryAsync(int tourId, CreateItineraryDto request, int userId)
         {
@@ -126,18 +141,6 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<int> CreateActivityAsync(int itineraryId, ActivityDayDto request, int userId)
         {
-
-            string? imageUrl = null;
-
-            if (request.ImageFile != null)
-            {
-                imageUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
-            }
-            else if (!string.IsNullOrEmpty(request.Image))
-            {
-                imageUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
-            }
-
             var attraction = new TourAttraction
             {
                 TourAttractionsName = request.PlaceDetail,
@@ -145,10 +148,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 Price = request.EstimatedCost,
                 Localtion = request.Address,
                 Category = request.Category,
-                StartTime = string.IsNullOrEmpty(request.StartTime)? null: TimeSpan.Parse(request.StartTime),
-                EndTime = string.IsNullOrEmpty(request.EndTime)? null: TimeSpan.Parse(request.EndTime),
+                StartTime = string.IsNullOrEmpty(request.StartTime) ? null : TimeSpan.Parse(request.StartTime),
+                EndTime = string.IsNullOrEmpty(request.EndTime) ? null : TimeSpan.Parse(request.EndTime),
                 MapUrl = request.MapUrl,
-                ImageUrl = imageUrl,
                 CreatedBy = userId,
                 CreatedDate = TimeHelper.GetVietnamTime(),
                 ItineraryId = itineraryId
@@ -156,32 +158,53 @@ namespace TripWiseAPI.Services.PartnerServices
 
             _dbContext.TourAttractions.Add(attraction);
             await _dbContext.SaveChangesAsync();
-            if (!string.IsNullOrEmpty(imageUrl))
+
+            // Upload ảnh từ file
+            if (request.ImageFile != null)
             {
-                var image = new Image
+                foreach (var file in request.ImageFile)
                 {
-                    ImageUrl = imageUrl,
-                    CreatedDate = TimeHelper.GetVietnamTime(),
-                    CreatedBy = userId
-                };
-
-                _dbContext.Images.Add(image);
-                await _dbContext.SaveChangesAsync();
-
-                var tourAttractionImage = new TourAttractionImage
-                {
-                    TourAttractionId = attraction.TourAttractionsId,
-                    ImageId = image.ImageId,
-                    CreatedDate = TimeHelper.GetVietnamTime(),
-                    CreatedBy = userId
-                };
-
-                _dbContext.TourAttractionImages.Add(tourAttractionImage);
-                await _dbContext.SaveChangesAsync();
+                    var imageUrl = await _imageUploadService.UploadImageFromFileAsync(file);
+                    await AddTourAttractionImageAsync(attraction.TourAttractionsId, imageUrl, userId);
+                }
             }
+
+            // Upload ảnh từ URL
+            if (request.Image != null)
+            {
+                foreach (var url in request.Image)
+                {
+                    var imageUrl = await _imageUploadService.UploadImageFromUrlAsync(url);
+                    await AddTourAttractionImageAsync(attraction.TourAttractionsId, imageUrl, userId);
+                }
+            }
+
             return attraction.TourAttractionsId;
-       
         }
+        private async Task AddTourAttractionImageAsync(int attractionId, string imageUrl, int userId)
+        {
+            var image = new Image
+            {
+                ImageUrl = imageUrl,
+                CreatedDate = TimeHelper.GetVietnamTime(),
+                CreatedBy = userId
+            };
+
+            _dbContext.Images.Add(image);
+            await _dbContext.SaveChangesAsync();
+
+            var tourAttractionImage = new TourAttractionImage
+            {
+                TourAttractionId = attractionId,
+                ImageId = image.ImageId,
+                CreatedDate = TimeHelper.GetVietnamTime(),
+                CreatedBy = userId
+            };
+
+            _dbContext.TourAttractionImages.Add(tourAttractionImage);
+            await _dbContext.SaveChangesAsync();
+        }
+
 
         public async Task<bool> SubmitTourAsync(int tourId, int partnerId)
         {
@@ -323,49 +346,62 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
-        public async Task<bool> DeleteTourImageAsync(int imageId, int userId)
+        public async Task<bool> DeleteMultipleTourImagesAsync(List<int> imageIds, int userId)
         {
-            var tourImage = await _dbContext.TourImages
-    .Include(ti => ti.Image)
-    .FirstOrDefaultAsync(ti => ti.Image.ImageId == imageId && ti.Tour.PartnerId == userId);
+            var tourImages = await _dbContext.TourImages
+                .Include(ti => ti.Image)
+                .Where(ti => imageIds.Contains(ti.Image.ImageId) && ti.Tour.PartnerId == userId)
+                .ToListAsync();
 
-
-            if (tourImage == null)
+            if (tourImages == null || !tourImages.Any())
             {
-                Console.WriteLine($"Không tìm thấy TourImage với ID: {imageId}");
+                Console.WriteLine("Không tìm thấy ảnh nào để xoá.");
                 return false;
             }
 
-            tourImage.RemovedDate = TimeHelper.GetVietnamTime();
-            tourImage.RemovedBy = userId;
+            foreach (var tourImage in tourImages)
+            {
+                tourImage.RemovedDate = TimeHelper.GetVietnamTime();
+                tourImage.RemovedBy = userId;
 
-            var publicId = _imageUploadService.GetPublicIdFromUrl(tourImage.Image.ImageUrl);
-            await _imageUploadService.DeleteImageAsync(publicId);
+                var publicId = _imageUploadService.GetPublicIdFromUrl(tourImage.Image.ImageUrl);
+                await _imageUploadService.DeleteImageAsync(publicId);
 
-            _dbContext.Images.Remove(tourImage.Image);
-            _dbContext.TourImages.Remove(tourImage);
+                _dbContext.Images.Remove(tourImage.Image);
+                _dbContext.TourImages.Remove(tourImage);
+            }
 
             await _dbContext.SaveChangesAsync();
             return true;
         }
 
-
-        public async Task<bool> DeleteTourAttractionImageAsync(int imageId, int userId)
+        public async Task<bool> DeleteMultipleTourAttractionImagesAsync(List<int> imageIds, int userId)
         {
-            var attractionImage = await _dbContext.TourAttractionImages
-                .Include(ai => ai.Image)
-                .FirstOrDefaultAsync(ai => ai.Image.ImageId == imageId);
-            if (attractionImage == null) return false;
-            attractionImage.RemovedDate = TimeHelper.GetVietnamTime();
-            attractionImage.RemovedBy = userId;
-            var publicId = _imageUploadService.GetPublicIdFromUrl(attractionImage.Image.ImageUrl);
-            await _imageUploadService.DeleteImageAsync(publicId);
+            if (imageIds == null || imageIds.Count == 0) return false;
 
-            _dbContext.Images.Remove(attractionImage.Image);
-            _dbContext.TourAttractionImages.Remove(attractionImage);
+            var attractionImages = await _dbContext.TourAttractionImages
+                .Include(ai => ai.Image)
+                .Where(ai => imageIds.Contains(ai.Image.ImageId))
+                .ToListAsync();
+
+            if (attractionImages.Count == 0) return false;
+
+            foreach (var attractionImage in attractionImages)
+            {
+                attractionImage.RemovedDate = TimeHelper.GetVietnamTime();
+                attractionImage.RemovedBy = userId;
+
+                var publicId = _imageUploadService.GetPublicIdFromUrl(attractionImage.Image.ImageUrl);
+                await _imageUploadService.DeleteImageAsync(publicId);
+
+                _dbContext.Images.Remove(attractionImage.Image);
+                _dbContext.TourAttractionImages.Remove(attractionImage);
+            }
+
             await _dbContext.SaveChangesAsync();
             return true;
         }
+
 
         public async Task<bool> UpdateItineraryAsync(int itineraryId, int userId, CreateItineraryDto request)
         {
