@@ -17,7 +17,9 @@ namespace TripWiseAPI.Services.AdminServices
         }
         public async Task<List<PendingTourDto>> GetPendingToursAsync()
         {
+         
             var tours = await _dbContext.Tours
+                .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
                 .Where(t => t.Status == TourStatuses.PendingApproval && t.RemovedDate == null)
                 .Select(t => new PendingTourDto
                 {
@@ -25,8 +27,10 @@ namespace TripWiseAPI.Services.AdminServices
                     TourName = t.TourName,
                     Description = t.Description,
                     Location = t.Location,
+                    Price = (decimal)t.Price,
+                    Status = t.Status,
                     CreatedDate = t.CreatedDate,
-                    CreatedBy = t.CreatedBy
+                    ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList()
                 })
                 .ToListAsync();
 
@@ -60,17 +64,59 @@ namespace TripWiseAPI.Services.AdminServices
         {
             var tour = await _dbContext.Tours
                 .Include(t => t.TourItineraries)
+                .Include(t => t.TourImages)
+                    .ThenInclude(ti => ti.Image)
                 .FirstOrDefaultAsync(t => t.TourId == tourId && t.RemovedDate == null);
 
             if (tour == null) return null;
+            var itineraryDtos = new List<ItineraryDetailDto>();
 
-            // Lấy tất cả ItineraryId của tour
-            var itineraryIds = tour.TourItineraries.Select(i => i.ItineraryId).ToList();
+            foreach (var itinerary in tour.TourItineraries.OrderBy(i => i.DayNumber))
+            {
+                var attractions = await _dbContext.TourAttractions
+                    .Where(a => a.ItineraryId == itinerary.ItineraryId)
+                    .Include(a => a.TourAttractionImages)
+                        .ThenInclude(ai => ai.Image)
+                    .ToListAsync();
 
-            // Lấy tất cả TourAttractions theo danh sách ItineraryId
-            var allAttractions = await _dbContext.TourAttractions
-                .Where(a => itineraryIds.Contains(a.ItineraryId ?? 0))
-                .ToListAsync();
+                itineraryDtos.Add(new ItineraryDetailDto
+                {
+                    ItineraryId = itinerary.ItineraryId,
+                    DayNumber = itinerary.DayNumber,
+                    Title = itinerary.ItineraryName,
+                    DailyCost = attractions.Sum(x => x.Price ?? 0),
+                    Activities = attractions.Select(a => new ActivityDetailDto
+                    {
+                        AttractionId = a.TourAttractionsId,
+                        StartTime = a.StartTime ?? TimeSpan.Zero,
+                        EndTime = a.EndTime ?? TimeSpan.Zero,
+                        Description = a.TourAttractionsName,
+                        Address = a.Localtion,
+                        EstimatedCost = a.Price,
+                        PlaceDetail = a.Description,
+                        MapUrl = a.MapUrl,
+                        ImageUrls = a.TourAttractionImages
+                            .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
+                            .Select(ai => ai.Image.ImageUrl)
+                            .ToList(),
+                        ImageIds = a.TourAttractionImages
+                            .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
+                            .Select(ai => ai.Image.ImageId.ToString())
+                            .ToList()
+                    }).ToList()
+                });
+            }
+
+            var imageUrls = tour.TourImages
+                .Where(ti => ti.Image != null && ti.Image.RemovedDate == null)
+                .Select(ti => ti.Image.ImageUrl)
+                .Where(url => !string.IsNullOrEmpty(url))
+                .ToList();
+
+            var imageIds = tour.TourImages
+                .Where(ti => ti.Image != null && ti.Image.RemovedDate == null)
+                .Select(ti => ti.Image.ImageId.ToString())
+                .ToList();
 
             async Task<string?> GetUserNameById(int? id)
             {
@@ -80,47 +126,25 @@ namespace TripWiseAPI.Services.AdminServices
                     .Select(u => u.UserName)
                     .FirstOrDefaultAsync();
             }
-
             var dto = new TourDetailDto
             {
+                TourId = tour.TourId,
                 TourName = tour.TourName,
                 Description = tour.Description,
                 TravelDate = tour.CreatedDate,
                 Days = tour.Duration,
+                Location = tour.Location,
                 Preferences = tour.Category,
                 Budget = null,
                 TotalEstimatedCost = tour.Price,
+                PricePerDay = tour.PricePerDay,
                 TourInfo = tour.TourInfo,
                 TourNote = tour.TourNote,
-                Itinerary = tour.TourItineraries
-                    .GroupBy(i => i.DayNumber)
-                    .Select(g =>
-                    {
-                        var firstItinerary = g.FirstOrDefault();
-                        var itineraryIdList = g.Select(x => x.ItineraryId).ToList();
-                        var activities = allAttractions
-                            .Where(a => a.ItineraryId != null && itineraryIdList.Contains(a.ItineraryId.Value))
-                            .Select(a => new ActivityDetailDto
-                            {
-                                StartTime = a.StartTime,
-                                EndTime = a.EndTime,
-                                Description = a.TourAttractionsName,
-                                Address = a.Localtion,
-                                EstimatedCost = a.Price,
-                                PlaceDetail = a.Description,
-                                MapUrl = a.MapUrl,
-                                ImageUrls = new List<string> { a.ImageUrl }
-
-                            }).ToList();
-
-                        return new ItineraryDetailDto
-                        {
-                            DayNumber = g.Key,
-                            Title = firstItinerary?.ItineraryName,
-                            DailyCost = activities.Sum(x => x.EstimatedCost ?? 0),
-                            Activities = activities
-                        };
-                    }).ToList(),
+                Itinerary = itineraryDtos,
+                Status = tour.Status,
+                RejectReason = tour.RejectReason,
+                ImageUrls = imageUrls,
+                ImageIds = imageIds,
                 CreatedDate = tour.CreatedDate,
                 CreatedBy = tour.CreatedBy,
                 CreatedByName = await GetUserNameById(tour.CreatedBy),
@@ -131,7 +155,5 @@ namespace TripWiseAPI.Services.AdminServices
 
             return dto;
         }
-
-
     }
 }
