@@ -73,8 +73,50 @@ namespace TripWiseAPI.Services
                     user.Email,
                     "Chào mừng đến với TripWise!",
                     $"Xin chào {user.UserName}, cảm ơn bạn đã đăng ký TripWise!"));
-            }
 
+                // Gán gói Trial hoặc Free
+                string? trialPlanName = await _appSettingsService.GetValueAsync("DefaultTrialPlanName");
+                string? freePlanName = await _appSettingsService.GetValueAsync("FreePlan");
+                int trialDuration = await _appSettingsService.GetIntValueAsync("TrialDurationInDays", 90);
+
+                Plan? planToAssign = null;
+                DateTime? endDate = null;
+
+                if (!string.IsNullOrEmpty(trialPlanName))
+                {
+                    planToAssign = await _context.Plans
+                        .FirstOrDefaultAsync(p => p.PlanName == trialPlanName && p.RemovedDate == null);
+
+                    if (planToAssign != null)
+                    {
+                        endDate = TimeHelper.GetVietnamTime().AddDays(trialDuration);
+                    }
+                }
+
+                // Nếu không có Trial thì dùng gói Free
+                if (planToAssign == null && !string.IsNullOrEmpty(freePlanName))
+                {
+                    planToAssign = await _context.Plans
+                        .FirstOrDefaultAsync(p => p.PlanName == freePlanName && p.RemovedDate == null);
+                }
+
+                if (planToAssign != null)
+                {
+                    var userPlan = new UserPlan
+                    {
+                        UserId = user.UserId,
+                        PlanId = planToAssign.PlanId,
+                        StartDate = TimeHelper.GetVietnamTime(),
+                        EndDate = endDate,
+                        CreatedDate = TimeHelper.GetVietnamTime(),
+                        IsActive = true,
+                        RequestInDays = planToAssign.MaxRequests ?? 0
+                    };
+
+                    await _context.UserPlans.AddAsync(userPlan);
+                    await _context.SaveChangesAsync();
+                }
+            }
             var accessToken = JwtHelper.GenerateJwtToken(_config, user);
             var refreshToken = JwtHelper.GenerateRefreshToken();
 

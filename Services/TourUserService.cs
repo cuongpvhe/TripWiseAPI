@@ -38,12 +38,14 @@ namespace TripWiseAPI.Services
         }
 
 
+        
         public async Task<TourDetailDto?> GetApprovedTourDetailAsync(int tourId)
         {
             var tour = await _dbContext.Tours
                 .Include(t => t.TourItineraries)
-                .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
-                .FirstOrDefaultAsync(t => t.TourId == tourId && t.Status == TourStatuses.Approved && t.RemovedDate == null);
+                .Include(t => t.TourImages)
+                    .ThenInclude(ti => ti.Image)
+                .FirstOrDefaultAsync(t => t.TourId == tourId && t.RemovedDate == null);
 
             if (tour == null) return null;
 
@@ -53,6 +55,8 @@ namespace TripWiseAPI.Services
             {
                 var attractions = await _dbContext.TourAttractions
                     .Where(a => a.ItineraryId == itinerary.ItineraryId)
+                    .Include(a => a.TourAttractionImages)
+                        .ThenInclude(ai => ai.Image)
                     .ToListAsync();
 
                 itineraryDtos.Add(new ItineraryDetailDto
@@ -88,18 +92,20 @@ namespace TripWiseAPI.Services
                 .Select(ti => ti.Image.ImageUrl)
                 .Where(url => !string.IsNullOrEmpty(url))
                 .ToList();
+
             var imageIds = tour.TourImages
                 .Where(ti => ti.Image != null && ti.Image.RemovedDate == null)
                 .Select(ti => ti.Image.ImageId.ToString())
                 .ToList();
-            return new TourDetailDto
+
+            var dto = new TourDetailDto
             {
                 TourId = tour.TourId,
                 TourName = tour.TourName,
                 Description = tour.Description,
-                Location = tour.Location,
                 TravelDate = tour.CreatedDate,
                 Days = tour.Duration,
+                Location = tour.Location,
                 Preferences = tour.Category,
                 Budget = null,
                 TotalEstimatedCost = tour.Price,
@@ -112,6 +118,8 @@ namespace TripWiseAPI.Services
                 ImageUrls = imageUrls,
                 ImageIds = imageIds
             };
+
+            return dto;
         }
         public async Task<List<BookedTourDto>> GetSuccessfulBookedToursAsync(int userId)
         {
