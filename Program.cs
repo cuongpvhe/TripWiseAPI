@@ -82,8 +82,6 @@ namespace TripWiseAPI
             builder.Services.AddHttpClient<WeatherService>();
             builder.Services.AddHttpClient<IGoogleMapsPlaceService, GoogleMapsPlaceService>();
 
-
-
             builder.Services.AddScoped<IAIGeneratePlanService, AIGeneratePlanService>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
@@ -100,6 +98,8 @@ namespace TripWiseAPI
             builder.Services.AddScoped<ITourService, TourService>();
             builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
             builder.Services.AddScoped<ITourUserService, TourUserService>();
+            builder.Services.AddScoped<IReportService, ReportService>();
+            builder.Services.AddScoped<ExcelExportService>();
 
 
             builder.Services.AddSwaggerGen(c =>
