@@ -189,13 +189,7 @@ namespace TripWiseAPI.Services
             };
         }
 
-        public async Task<ItineraryChunkResponse> GenerateChunkAsync(
-    TravelRequest baseRequest,
-    DateTime startDate,
-    int chunkSize,
-    int chunkIndex,
-    string relatedKnowledge,
-    List<string> previousAddresses)
+        public async Task<ItineraryChunkResponse> GenerateChunkAsync(TravelRequest baseRequest,DateTime startDate,int chunkSize,int chunkIndex,string relatedKnowledge,List<string> previousAddresses)
         {
             var chunkRequest = new TravelRequest
             {

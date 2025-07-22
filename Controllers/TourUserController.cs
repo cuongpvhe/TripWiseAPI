@@ -14,6 +14,13 @@ namespace TripWiseAPI.Controllers
         {
             _tourUserService = tourUserService;
         }
+        private int? GetUserId()
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+                return userId;
+            return null;
+        }
         // GET: api/public/tours/approved
         [HttpGet("approved")]
         public async Task<IActionResult> GetApprovedTours()
@@ -30,6 +37,16 @@ namespace TripWiseAPI.Controllers
             if (detail == null)
                 return NotFound("Không tìm thấy tour.");
             return Ok(detail);
+        }
+        [HttpGet("booked-tours")]
+        public async Task<IActionResult> GetBookedTours()
+        {
+            var userId = GetUserId();
+            if (userId == null)
+                return Unauthorized("Bạn chưa đăng nhập.");
+
+            var result = await _tourUserService.GetSuccessfulBookedToursAsync(userId.Value);
+            return Ok(result);
         }
     }
 }

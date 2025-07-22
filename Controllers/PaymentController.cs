@@ -66,7 +66,16 @@ namespace TripWiseAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        [HttpGet("payment-history")]
+        public async Task<IActionResult> PaymentHistory([FromQuery] string? status)
+        {
+            var userId = GetUserId(); // Lấy từ token hoặc session
+            if (userId == null)
+                return Unauthorized("Bạn chưa đăng nhập.");
 
+            var result = await _vnPayService.GetPaymentHistoryAsync(userId.Value, status);
+            return Ok(result);
+        }
 
         [HttpGet("callback")]
         public async Task<IActionResult> PaymentCallback()

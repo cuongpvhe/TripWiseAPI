@@ -10,8 +10,8 @@ namespace TripWiseAPI.Services.PartnerServices
     public class ImageUploadService : IImageUploadService
     {
         private readonly Cloudinary _cloudinary;
-
-        public ImageUploadService(IConfiguration configuration)
+        private readonly ILogger<ImageUploadService> _logger;
+        public ImageUploadService(IConfiguration configuration, ILogger<ImageUploadService> logger)
         {
             var cloudName = configuration["Cloudinary:CloudName"];
             var apiKey = configuration["Cloudinary:ApiKey"];
@@ -19,6 +19,7 @@ namespace TripWiseAPI.Services.PartnerServices
 
             var account = new Account(cloudName, apiKey, apiSecret);
             _cloudinary = new Cloudinary(account);
+            _logger = logger;
         }
 
         public async Task<string> UploadImageFromUrlAsync(string imageUrl)
@@ -81,9 +82,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 var publicIdWithExt = string.Join("/", segments.Skip(startIndex));
                 var publicId = Path.Combine(Path.GetDirectoryName(publicIdWithExt) ?? "", Path.GetFileNameWithoutExtension(publicIdWithExt))
                                  .Replace("\\", "/"); // để tránh dấu \\ trên Windows
-
+                _logger.LogInformation("Extracted publicId: {PublicId} from URL: {Url}", publicId, imageUrl);
                 return publicId;
-            }
+            }   
             catch
             {
                 return string.Empty;

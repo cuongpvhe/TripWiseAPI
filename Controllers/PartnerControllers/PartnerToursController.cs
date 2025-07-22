@@ -51,8 +51,17 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         [HttpPost("{tourId}/create-itinerary")]
     public async Task<IActionResult> CreateItinerary(int tourId, [FromBody] CreateItineraryDto request)
     {
-        var userId = GetUserId();
-        var data = await _tourService.CreateItineraryAsync(tourId, request, userId.Value);
+            var userId = GetUserId();
+
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+            var data = await _tourService.CreateItineraryAsync(tourId, request, partner.PartnerId);
         return Ok(new { message = "Tạo lịch trình thành công", data });
     }
 
@@ -79,7 +88,16 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         public async Task<IActionResult> SubmitTour(int tourId)
         {
             var userId = GetUserId();
-            var success = await _tourService.SubmitTourAsync(tourId, userId.Value);
+
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+            var success = await _tourService.SubmitTourAsync(tourId, partner.PartnerId);
             if (!success) return NotFound("Tour not found or access denied.");
             return Ok("Tour submitted.");
         }
@@ -113,32 +131,55 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         [FromForm] List<string>? imageUrls)
         {
             var userId = GetUserId();
-            if (userId == null) return Unauthorized();
 
-            var result = await _tourService.UpdateTourAsync(tourId, request, userId.Value, imageFiles, imageUrls);
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+
+            var result = await _tourService.UpdateTourAsync(tourId, request, partner.PartnerId, imageFiles, imageUrls);
             if (!result) return NotFound("Tour not found");
 
             return Ok(new { message = "Tour updated successfully" });
         }
 
-        [HttpDelete("delete-tour-images/{imageId}")]
-        public async Task<IActionResult> DeleteTourImage(int imageId)
+        [HttpDelete("delete-multiple-images")]
+        public async Task<IActionResult> DeleteMultipleImages([FromBody] List<int> imageIds)
         {
             var userId = GetUserId();
-            if (userId == null) return Unauthorized();
 
-            var result = await _tourService.DeleteTourImageAsync(imageId, userId.Value);
-            if (!result) return NotFound("Image not found");
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
 
-            return Ok(new { message = "Image deleted successfully" });
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+            var success = await _tourService.DeleteMultipleTourImagesAsync(imageIds, partner.PartnerId);
+            if (success) return Ok("Xoá ảnh thành công.");
+            return NotFound("Không tìm thấy ảnh nào để xoá.");
         }
+
         [HttpPut("update-itinerary/{itineraryId}")]
         public async Task<IActionResult> UpdateItinerary(int itineraryId, [FromBody] CreateItineraryDto request)
         {
             var userId = GetUserId();
-            if (userId == null) return Unauthorized();
 
-            var result = await _tourService.UpdateItineraryAsync(itineraryId, userId.Value, request);
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+
+            var result = await _tourService.UpdateItineraryAsync(itineraryId, partner.PartnerId, request);
             if (!result) return NotFound("Itinerary not found");
 
             return Ok(new { message = "Itinerary updated successfully" });
@@ -160,9 +201,17 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         public async Task<IActionResult> DeleteItinerary(int itineraryId)
         {
             var userId = GetUserId();
-            if (userId == null) return Unauthorized();
 
-            var result = await _tourService.DeleteItineraryAsync(userId.Value, itineraryId);
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+
+            var result = await _tourService.DeleteItineraryAsync(partner.PartnerId, itineraryId);
             if (!result) return NotFound("Itinerary not found");
 
             return Ok(new { message = "Itinerary deleted successfully" });
@@ -176,9 +225,17 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         [FromForm] List<string>? imageUrls)
         {
             var userId = GetUserId();
-            if (userId == null) return Unauthorized();
 
-            var result = await _tourService.UpdateActivityAsync(activityId, userId.Value, request, imageFiles, imageUrls);
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+
+            var result = await _tourService.UpdateActivityAsync(activityId, partner.PartnerId, request, imageFiles, imageUrls);
             if (!result) return NotFound("Activity not found");
 
             return Ok(new { message = "Activity updated successfully" });
@@ -203,32 +260,53 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         public async Task<IActionResult> DeleteActivity(int activityId)
         {
             var userId = GetUserId();
-            if (userId == null) return Unauthorized();
 
-            var result = await _tourService.DeleteActivityAsync(userId.Value, activityId);
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+            var result = await _tourService.DeleteActivityAsync(partner.PartnerId, activityId);
             if (!result) return NotFound("Activity not found");
 
             return Ok(new { message = "Activity deleted successfully" });
         }
-
-        [HttpDelete("delete-activity-images/{imageId}")]
-        public async Task<IActionResult> DeleteAttractionImage(int imageId)
+        [HttpDelete("attraction/delete-multiple-images")]
+        public async Task<IActionResult> DeleteMultipleAttractionImages([FromBody] List<int> imageIds)
         {
             var userId = GetUserId();
-            if (userId == null) return Unauthorized();
 
-            var result = await _tourService.DeleteTourAttractionImageAsync(imageId, userId.Value);
-            if (!result) return NotFound("Image not found");
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
 
-            return Ok(new { message = "Attraction image deleted successfully" });
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+            var result = await _tourService.DeleteMultipleTourAttractionImagesAsync(imageIds, partner.PartnerId);
+            return result ? Ok("Xoá thành công") : NotFound("Không tìm thấy ảnh cần xoá");
         }
+
 
 
         [HttpDelete("delete-or-draft-tour/{tourId}")]
         public async Task<IActionResult> DeleteOrDraftTour(int tourId, [FromQuery] string action)
         {
             var userId = GetUserId();
-            var result = await _tourService.DeleteOrDraftTourAsync(tourId, action, userId.Value);
+
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+            var result = await _tourService.DeleteOrDraftTourAsync(tourId, action, partner.PartnerId);
             if (!result) return BadRequest("Invalid action or tour not found.");
             return Ok($"Tour {action} successful.");
         }

@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TripWiseAPI.Services;
-using TripWiseAPI.Model;
+using Microsoft.EntityFrameworkCore;
 using System.Globalization;
-using TripWiseAPI.Models;
 using System.Security.Claims;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
+using TripWiseAPI.Model;
+using TripWiseAPI.Models;
+using TripWiseAPI.Services;
+using TripWiseAPI.Services.PartnerServices;
+using TripWiseAPI.Utils;
 
 namespace SimpleChatboxAI.Controllers
 {
@@ -21,9 +23,9 @@ namespace SimpleChatboxAI.Controllers
         private readonly WeatherService _weatherService;
         private readonly IAIGeneratePlanService _iAIGeneratePlanService;
         private readonly IPlanService _iplanService;
+        private readonly ITourService _tourService;
         public AIGeneratePlanController(
-            VectorSearchService vectorSearchService,
-            IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService, IAIGeneratePlanService iAIGeneratePlanService, IPlanService iplanService)
+            VectorSearchService vectorSearchService,IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService, IAIGeneratePlanService iAIGeneratePlanService, IPlanService iplanService, ITourService tourService)
         {
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
@@ -31,7 +33,7 @@ namespace SimpleChatboxAI.Controllers
             _weatherService = weatherService;
             _iAIGeneratePlanService = iAIGeneratePlanService;
             _iplanService = iplanService;
-
+            _tourService = tourService;
         }
         private int? GetUserId()
         {
@@ -72,6 +74,7 @@ namespace SimpleChatboxAI.Controllers
 
             try
             {
+                // Vector search để hỗ trợ sinh lịch trình
                 string relatedKnowledge = await _vectorSearchService.RetrieveRelevantJsonEntries(
                     request.Destination, 12,
                     request.GroupType ?? "", request.DiningStyle ?? "", request.Preferences ?? "");
@@ -94,6 +97,7 @@ namespace SimpleChatboxAI.Controllers
 
                 var itinerary = await _aiService.GenerateItineraryAsync(chunkRequest, relatedKnowledge);
 
+                // Kiểm tra giới hạn kế hoạch theo plan
                 var validationResult = await _iplanService.ValidateAndUpdateUserPlanAsync(UserId.Value, true);
                 if (!validationResult.IsValid)
                 {
@@ -106,6 +110,7 @@ namespace SimpleChatboxAI.Controllers
                     });
                 }
 
+                // Gắn thời tiết vào từng ngày
                 DateTime startDate = request.TravelDate;
                 for (int i = 0; i < itinerary.Itinerary.Count; i++)
                 {
@@ -116,6 +121,7 @@ namespace SimpleChatboxAI.Controllers
                     day.TemperatureCelsius = weather?.temperature ?? 0;
                 }
 
+                // Địa điểm đã dùng
                 var usedPlaces = itinerary.Itinerary
                     .SelectMany(day => day.Activities)
                     .Select(act => act.Address?.Trim())
@@ -123,6 +129,16 @@ namespace SimpleChatboxAI.Controllers
                     .Distinct()
                     .ToList();
 
+                // Gọi service filter tour có sẵn
+                var relatedTours = await _tourService.GetToursByLocationAsync(request.Destination, 4);
+                var relatedTourDtos = relatedTours.Select(TourMapper.ToRelatedDto).ToList();
+                string? relatedTourMessage = null;
+                if (!relatedTourDtos.Any())
+                {
+                    relatedTourMessage = $"Hiện chưa có tour sẵn nào cho điểm đến “{request.Destination}”.";
+                }
+
+                // Chuẩn bị response
                 var response = new ItineraryResponse
                 {
                     Destination = request.Destination,
@@ -142,14 +158,18 @@ namespace SimpleChatboxAI.Controllers
                     PreviousAddresses = usedPlaces
                 };
 
+                // Lưu kế hoạch
                 int generatedId = await _iAIGeneratePlanService.SaveGeneratedPlanAsync(UserId.Value, request, response);
 
+                // Trả về kết quả
                 return Ok(new
                 {
                     success = true,
                     convertedFromUSD = request.BudgetVND,
                     id = generatedId,
-                    data = response
+                    data = response,
+                    relatedTours = relatedTourDtos, // danh sách tour liên quan
+                    relatedTourMessage = relatedTourMessage
                 });
             }
             catch (Exception ex)
