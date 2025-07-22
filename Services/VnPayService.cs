@@ -7,6 +7,7 @@ using System.Net;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using TripWiseAPI.Models;
+using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Utils;
 
 namespace TripWiseAPI.Services
@@ -89,7 +90,32 @@ namespace TripWiseAPI.Services
 
             return CreatePaymentUrl(paymentModel, context);
         }
+        public async Task<List<PaymentTransactionDto>> GetPaymentHistoryAsync(int userId, string? status)
+        {
+            var query = _dbContext.PaymentTransactions
+                .Where(p => p.UserId == userId);
 
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(p => p.PaymentStatus == status);
+            }
+
+            var result = await query
+                .OrderByDescending(p => p.PaymentTime ?? p.CreatedDate)
+                .Select(p => new PaymentTransactionDto
+                {
+                    TransactionId = p.TransactionId,
+                    OrderCode = p.OrderCode,
+                    Amount = p.Amount,
+                    PaymentStatus = p.PaymentStatus,
+                    BankCode = p.BankCode,
+                    PaymentTime = p.PaymentTime,
+                    CreatedDate = p.CreatedDate
+                })
+                .ToListAsync();
+
+            return result;
+        }
         public async Task<string> CreateBookingAndPayAsync(BuyTourRequest request, int userId, HttpContext context)
         {
             var tour = await _dbContext.Tours
@@ -231,7 +257,7 @@ namespace TripWiseAPI.Services
 
                         booking.BookingStatus = transaction.PaymentStatus switch
                         {
-                            PaymentStatus.Success => "Paid",     // hoặc "Confirmed"
+                            PaymentStatus.Success => PaymentStatus.Success,     // hoặc "Confirmed"
                             PaymentStatus.Canceled => PaymentStatus.Canceled,
                             PaymentStatus.Failed => PaymentStatus.Failed,
                             _ => booking.BookingStatus

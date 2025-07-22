@@ -4,6 +4,7 @@ using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Models;
 using Microsoft.EntityFrameworkCore;
+using static TripWiseAPI.Services.VnPayService;
 
 namespace TripWiseAPI.Services
 {
@@ -111,6 +112,24 @@ namespace TripWiseAPI.Services
                 ImageUrls = imageUrls,
                 ImageIds = imageIds
             };
+        }
+        public async Task<List<BookedTourDto>> GetSuccessfulBookedToursAsync(int userId)
+        {
+            return await _dbContext.Bookings
+                .Where(b => b.UserId == userId && b.BookingStatus == "Success")
+                .Include(b => b.Tour)
+                .Select(b => new BookedTourDto
+                {
+                    BookingId = b.BookingId,
+                    TourId = b.TourId,
+                    TourName = b.Tour.TourName,
+                    Quantity = b.Quantity,
+                    TotalAmount = b.TotalAmount,
+                    BookingStatus = b.BookingStatus,
+                    CreatedDate = b.CreatedDate
+                })
+                .OrderByDescending(b => b.CreatedDate)
+                .ToListAsync();
         }
     }
 }
