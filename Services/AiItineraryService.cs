@@ -350,7 +350,7 @@ namespace TripWiseAPI.Services
         },
                 generationConfig = new
                 {
-                    maxOutputTokens = 4096,
+                    maxOutputTokens = 20000,
                     temperature = 0.7
                 }
             };
