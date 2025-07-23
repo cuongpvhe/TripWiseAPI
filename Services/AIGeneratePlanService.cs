@@ -76,6 +76,75 @@ namespace TripWiseAPI.Services
             return updatedResponse;
         }
 
+        public async Task<ItineraryResponse?> UpdateItineraryChunkAsync(int generatePlanId, int userId, string userMessage, int startDay, int chunkSize)
+        {
+            var existingPlan = await _dbContext.GenerateTravelPlans
+                .FirstOrDefaultAsync(p => p.Id == generatePlanId && p.UserId == userId);
+
+            if (existingPlan == null) return null;
+
+            var oldRequest = JsonSerializer.Deserialize<TravelRequest>(existingPlan.MessageRequest);
+            var oldResponse = JsonSerializer.Deserialize<ItineraryResponse>(existingPlan.MessageResponse);
+
+            if (oldRequest == null || oldResponse == null)
+                throw new InvalidOperationException("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
+
+            // Trích xuất phần lịch trình cần update
+            var partialResponse = new ItineraryResponse
+            {
+                Destination = oldRequest.Destination,
+                Days = chunkSize,
+                Preferences = oldRequest.Preferences,
+                TravelDate = oldRequest.TravelDate.AddDays(startDay - 1),
+                Transportation = oldRequest.Transportation,
+                DiningStyle = oldRequest.DiningStyle,
+                GroupType = oldRequest.GroupType,
+                Accommodation = oldRequest.Accommodation,
+                TotalEstimatedCost = 0,
+                Budget = oldRequest.BudgetVND,
+                SuggestedAccommodation = oldResponse.SuggestedAccommodation,
+                HasMore = false,
+                Itinerary = oldResponse.Itinerary
+                    .Where(d => d.DayNumber >= startDay && d.DayNumber < startDay + chunkSize)
+                    .ToList()
+            };
+
+            // Gọi AI update một phần
+            var newChunk = await _aiService.UpdateItineraryAsync(oldRequest, partialResponse, userMessage);
+
+            // Merge phần update vào full lịch trình
+            foreach (var updatedDay in newChunk.Itinerary)
+            {
+                var index = oldResponse.Itinerary.FindIndex(d => d.DayNumber == updatedDay.DayNumber);
+                if (index != -1)
+                    oldResponse.Itinerary[index] = updatedDay;
+            }
+
+            // Cập nhật lại chi phí tổng
+            oldResponse.TotalEstimatedCost = oldResponse.Itinerary.Sum(d => d.DailyCost);
+
+            // Gọi weather cho từng ngày
+            DateTime startDate = oldRequest.TravelDate;
+            for (int i = 0; i < oldResponse.Itinerary.Count; i++)
+            {
+                var weather = await _weatherService.GetDailyWeatherAsync(oldRequest.Destination, startDate.AddDays(i));
+                oldResponse.Itinerary[i].WeatherDescription = weather?.description ?? "Không có dữ liệu";
+                oldResponse.Itinerary[i].TemperatureCelsius = weather?.temperature ?? 0;
+            }
+
+            // Lưu đè lại
+            existingPlan.MessageResponse = JsonSerializer.Serialize(oldResponse, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                WriteIndented = true
+            });
+            existingPlan.ResponseTime = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync();
+
+            return oldResponse;
+        }
+
 
         public async Task<int> SaveGeneratedPlanAsync(int? userId, TravelRequest request, ItineraryResponse response)
         {
@@ -102,6 +171,34 @@ namespace TripWiseAPI.Services
 
             return entity.Id;
         }
+
+        public async Task SaveChunkToPlanAsync(int planId, List<ItineraryDay> newDays)
+        {
+            var plan = await _dbContext.GenerateTravelPlans.FindAsync(planId);
+            if (plan == null)
+                throw new Exception("Không tìm thấy kế hoạch với ID đã cho");
+
+            // Parse response cũ từ JSON
+            var response = JsonSerializer.Deserialize<ItineraryResponse>(plan.MessageResponse);
+
+            if (response == null)
+                throw new Exception("Không thể đọc dữ liệu lịch trình hiện tại");
+
+            // Nối thêm các ngày mới
+            response.Itinerary.AddRange(newDays);
+
+            // Cập nhật response
+            plan.MessageResponse = JsonSerializer.Serialize(response, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                WriteIndented = true
+            });
+
+            plan.ResponseTime = TimeHelper.GetVietnamTime();
+
+            await _dbContext.SaveChangesAsync();
+        }
+
 
         public async Task<object> SaveTourFromGeneratedAsync(int generatePlanId, int? userId)
         {

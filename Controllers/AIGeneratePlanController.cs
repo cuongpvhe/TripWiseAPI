@@ -135,7 +135,7 @@ namespace SimpleChatboxAI.Controllers
                 string? relatedTourMessage = null;
                 if (!relatedTourDtos.Any())
                 {
-                    relatedTourMessage = $"Hiện chưa có tour sẵn nào cho điểm đến “{request.Destination}”.";
+                    relatedTourMessage = $"Hiện chưa có tour sẵn nào cho điểm đến {request.Destination}.";
                 }
 
                 // Chuẩn bị response
@@ -225,6 +225,8 @@ namespace SimpleChatboxAI.Controllers
                     }
                 }
 
+                await _iAIGeneratePlanService.SaveChunkToPlanAsync(request.PlanId, result.Itinerary);
+
                 // Trích xuất địa điểm mới để gửi về client
                 var newUsedPlaces = result.Itinerary
                     .SelectMany(day => day.Activities)
@@ -283,6 +285,34 @@ namespace SimpleChatboxAI.Controllers
                 });
             }
         }
+
+        [HttpPost("UpdateItineraryChunk/{generatePlanId}")]
+        public async Task<IActionResult> UpdateItineraryChunk(int generatePlanId, [FromBody] UpdateChunkRequest request)
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized();
+
+            try
+            {
+                var updated = await _iAIGeneratePlanService.UpdateItineraryChunkAsync(
+                    generatePlanId, userId, request.UserMessage, request.StartDay, request.ChunkSize);
+
+                if (updated == null)
+                    return NotFound("Không tìm thấy lịch trình cần cập nhật.");
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Đã cập nhật một phần lịch trình thành công.",
+                    data = updated
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
         [HttpPost("SaveTourFromGenerated/{generatePlanId}")]
         public async Task<IActionResult> SaveTourFromGenerated(int generatePlanId)
         {
