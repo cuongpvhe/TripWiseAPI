@@ -108,4 +108,12 @@ namespace TripWiseAPI.Model
         public int TotalEstimatedCost { get; set; }
     }
 
+    public class UpdateChunkRequest
+    {
+        public string UserMessage { get; set; } = string.Empty;
+        public int StartDay { get; set; } = 1;
+        public int ChunkSize { get; set; } = 2;
+    }
+
+
 }

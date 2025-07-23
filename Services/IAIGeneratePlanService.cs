@@ -15,5 +15,6 @@ namespace TripWiseAPI.Services
         Task<bool> DeleteTourAsync(int tourId, int? userId);
         Task<List<object>> GetHistoryByUserAsync(int userId);
         Task<object?> GetHistoryDetailByIdAsync(int id, int userId);
+        Task<ItineraryResponse?> UpdateItineraryChunkAsync(int generatePlanId, int userId, string userMessage, int startDay, int chunkSize);
     }
 }

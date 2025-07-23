@@ -285,6 +285,34 @@ namespace SimpleChatboxAI.Controllers
                 });
             }
         }
+
+        [HttpPost("UpdateItineraryChunk/{generatePlanId}")]
+        public async Task<IActionResult> UpdateItineraryChunk(int generatePlanId, [FromBody] UpdateChunkRequest request)
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized();
+
+            try
+            {
+                var updated = await _iAIGeneratePlanService.UpdateItineraryChunkAsync(
+                    generatePlanId, userId, request.UserMessage, request.StartDay, request.ChunkSize);
+
+                if (updated == null)
+                    return NotFound("Không tìm thấy lịch trình cần cập nhật.");
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Đã cập nhật một phần lịch trình thành công.",
+                    data = updated
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
         [HttpPost("SaveTourFromGenerated/{generatePlanId}")]
         public async Task<IActionResult> SaveTourFromGenerated(int generatePlanId)
         {
