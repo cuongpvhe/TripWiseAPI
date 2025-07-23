@@ -164,12 +164,31 @@ namespace TripWiseAPI.Services
                 int dayNumber = day.GetProperty("DayNumber").GetInt32();
                 string title = day.GetProperty("Title").GetString();
 
-                // Tạo itinerary cho mỗi ngày
+                // ✅ Trích xuất thông tin thời tiết nếu có
+                string weatherDescription = day.TryGetProperty("WeatherDescription", out var wd) ? wd.GetString() ?? "" : "";
+                double? temperatureCelsius = day.TryGetProperty("TemperatureCelsius", out var temp) && temp.ValueKind == JsonValueKind.Number
+                    ? temp.GetDouble()
+                    : (double?)null;
+                string weatherNote = day.TryGetProperty("WeatherNote", out var wn) ? wn.GetString() ?? "" : "";
+
+                // ✅ Tạo mô tả thời tiết nếu có
+                string weatherInfo = "";
+                if (!string.IsNullOrEmpty(weatherDescription) || temperatureCelsius.HasValue || !string.IsNullOrEmpty(weatherNote))
+                {
+                    weatherInfo = $"Thời tiết: {weatherDescription}";
+                    if (temperatureCelsius.HasValue)
+                        weatherInfo += $", {temperatureCelsius.Value}°C";
+                    if (!string.IsNullOrEmpty(weatherNote))
+                        weatherInfo += $" - {weatherNote}";
+                }
+
+                // ✅ Tạo itinerary cho mỗi ngày
                 var itinerary = new TourItinerary
                 {
                     TourId = tour.TourId,
                     DayNumber = dayNumber,
                     ItineraryName = title,
+                    Description = weatherInfo,
                     CreatedBy = userId,
                     CreatedDate = TimeHelper.GetVietnamTime()
                 };
@@ -269,13 +288,14 @@ namespace TripWiseAPI.Services
                 {
                     DayNumber = g.Key,
                     Title = g.FirstOrDefault()?.ItineraryName,
+                    Description = g.FirstOrDefault()?.Description,
                     DailyCost = g.SelectMany(i => i.TourAttractions).Sum(a => a.Price ?? 0),
                     Activities = g.SelectMany(i => i.TourAttractions.Select(a => new ActivityDetailDto
                     {
                         StartTime = a.StartTime,
                         EndTime = a.EndTime,
                         Category = a.Category,
-                        PlaceDetail = a.TourAttractionsName,
+                        Description = a.TourAttractionsName,
                         Address = a.Localtion,
                         EstimatedCost = a.Price ?? 0,
                         MapUrl = a.MapUrl,

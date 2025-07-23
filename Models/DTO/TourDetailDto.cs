@@ -51,6 +51,7 @@ namespace TripWiseAPI.Models.DTO
             public int ItineraryId { get; set; }
             public int? DayNumber { get; set; }
             public string? Title { get; set; }
+            public string? Description { get; set; }
             public decimal? DailyCost { get; set; } // nếu bạn tính từng ngày
             public List<ActivityDetailDto> Activities { get; set; } = new();
         }
@@ -71,15 +72,15 @@ namespace TripWiseAPI.Models.DTO
         }
         public class ActivityDto
     {
-        public TimeSpan? StartTime { get; set; }
-        public TimeSpan? EndTime { get; set; }
-        public string? Description { get; set; }
-        public string? Address { get; set; }
-        public decimal? EstimatedCost { get; set; }
-        public string? PlaceDetail { get; set; }
-        public string? Category { get; set; }
-        public string? MapUrl { get; set; }
-        public List<string>? ImageUrls { get; set; }
+            public String? StartTime { get; set; }
+            public String? EndTime { get; set; }
+            public string? Description { get; set; }
+            public decimal? EstimatedCost { get; set; }
+            public string? Transportation { get; set; }
+            public string? Address { get; set; }
+            public string? PlaceDetail { get; set; }
+            public string? Category { get; set; }
+            public string? MapUrl { get; set; }
 
         }
         public class CreateTourDto

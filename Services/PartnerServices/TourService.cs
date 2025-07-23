@@ -416,7 +416,7 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
-        public async Task<bool> UpdateActivityAsync(int activityId, int userId, ActivityDayDto request, List<IFormFile>? imageFiles, List<string>? imageUrls)
+        public async Task<bool> UpdateActivityAsync(int activityId, int userId, ActivityDto request, List<IFormFile>? imageFiles, List<string>? imageUrls)
         {
             var activity = await _dbContext.TourAttractions.FindAsync(activityId);
             if (activity == null) return false;

@@ -15,6 +15,48 @@ namespace TripWiseAPI.Services.AdminServices
         {
             _dbContext = dbContext;
         }
+        public async Task<List<PendingTourDto>> GetToursAsync()
+        {
+
+            var tours = await _dbContext.Tours
+                .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
+                .Where(t => t.Status == TourStatuses.Approved && t.RemovedDate == null)
+                .Select(t => new PendingTourDto
+                {
+                    TourId = t.TourId,
+                    TourName = t.TourName,
+                    Description = t.Description,
+                    Location = t.Location,
+                    Price = (decimal)t.Price,
+                    Status = t.Status,
+                    CreatedDate = t.CreatedDate,
+                    ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList()
+                })
+                .ToListAsync();
+
+            return tours;
+        }
+        public async Task<List<PendingTourDto>> GetRejectToursAsync()
+        {
+
+            var tours = await _dbContext.Tours
+                .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
+                .Where(t => t.Status == TourStatuses.Rejected && t.RemovedDate == null)
+                .Select(t => new PendingTourDto
+                {
+                    TourId = t.TourId,
+                    TourName = t.TourName,
+                    Description = t.Description,
+                    Location = t.Location,
+                    Price = (decimal)t.Price,
+                    Status = t.Status,
+                    CreatedDate = t.CreatedDate,
+                    ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList()
+                })
+                .ToListAsync();
+
+            return tours;
+        }
         public async Task<List<PendingTourDto>> GetPendingToursAsync()
         {
          
@@ -47,7 +89,17 @@ namespace TripWiseAPI.Services.AdminServices
             await _dbContext.SaveChangesAsync();
             return true;
         }
+        public async Task<bool> PendingTourAsync(int tourId, int adminId)
+        {
+            var tour = await _dbContext.Tours.FindAsync(tourId);
+            if (tour == null) return false;
 
+            tour.Status = TourStatuses.PendingApproval;
+            tour.ModifiedDate = TimeHelper.GetVietnamTime();
+            tour.ModifiedBy = adminId;
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
         public async Task<bool> RejectTourAsync(int tourId, string reason, int adminId)
         {
             var tour = await _dbContext.Tours.FindAsync(tourId);
