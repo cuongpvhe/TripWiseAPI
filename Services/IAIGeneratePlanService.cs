@@ -9,6 +9,7 @@ namespace TripWiseAPI.Services
         Task<ItineraryResponse?> UpdateItineraryAsync(int generatePlanId, int userId, string userMessage);
         Task<int> SaveGeneratedPlanAsync(int? userId, TravelRequest request, ItineraryResponse response);
         Task<object?> SaveTourFromGeneratedAsync(int generatePlanId, int? userId);
+        Task SaveChunkToPlanAsync(int planId, List<ItineraryDay> newDays);
         Task<List<object>> GetToursByUserIdAsync(int userId);
         Task<TourDetailDto?> GetTourDetailByIdAsync(int tourId);
         Task<bool> DeleteTourAsync(int tourId, int? userId);

@@ -103,6 +103,34 @@ namespace TripWiseAPI.Services
             return entity.Id;
         }
 
+        public async Task SaveChunkToPlanAsync(int planId, List<ItineraryDay> newDays)
+        {
+            var plan = await _dbContext.GenerateTravelPlans.FindAsync(planId);
+            if (plan == null)
+                throw new Exception("Không tìm thấy kế hoạch với ID đã cho");
+
+            // Parse response cũ từ JSON
+            var response = JsonSerializer.Deserialize<ItineraryResponse>(plan.MessageResponse);
+
+            if (response == null)
+                throw new Exception("Không thể đọc dữ liệu lịch trình hiện tại");
+
+            // Nối thêm các ngày mới
+            response.Itinerary.AddRange(newDays);
+
+            // Cập nhật response
+            plan.MessageResponse = JsonSerializer.Serialize(response, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                WriteIndented = true
+            });
+
+            plan.ResponseTime = TimeHelper.GetVietnamTime();
+
+            await _dbContext.SaveChangesAsync();
+        }
+
+
         public async Task<object> SaveTourFromGeneratedAsync(int generatePlanId, int? userId)
         {
             var generatePlan = await _dbContext.GenerateTravelPlans

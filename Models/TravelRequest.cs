@@ -36,6 +36,7 @@ namespace TripWiseAPI.Model
         public int ChunkIndex { get; set; }      // ví dụ: 0, 1, 2
         public string RelatedKnowledge { get; set; } = "";
         public List<string> UsedPlaces { get; set; } = new();
+        public int PlanId { get; set; }
     }
 
     public class ChatUpdateRequest

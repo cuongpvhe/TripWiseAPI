@@ -135,7 +135,7 @@ namespace SimpleChatboxAI.Controllers
                 string? relatedTourMessage = null;
                 if (!relatedTourDtos.Any())
                 {
-                    relatedTourMessage = $"Hiện chưa có tour sẵn nào cho điểm đến “{request.Destination}”.";
+                    relatedTourMessage = $"Hiện chưa có tour sẵn nào cho điểm đến {request.Destination}.";
                 }
 
                 // Chuẩn bị response
@@ -224,6 +224,8 @@ namespace SimpleChatboxAI.Controllers
                         day.TemperatureCelsius = 0;
                     }
                 }
+
+                await _iAIGeneratePlanService.SaveChunkToPlanAsync(request.PlanId, result.Itinerary);
 
                 // Trích xuất địa điểm mới để gửi về client
                 var newUsedPlaces = result.Itinerary
