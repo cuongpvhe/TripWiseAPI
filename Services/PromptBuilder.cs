@@ -41,6 +41,8 @@ namespace TripWiseAPI.Services
                 - Sáng (07:00–10:30), trưa (11:00–13:00), chiều (14:30–17:00), tối (18:00–21:00)
                 - Ưu tiên các hoạt động ăn uống, tham quan đặc sắc, nghỉ ngơi hợp lý
                 - Có thể kèm mẹo hữu ích cho du khách như: "nên đến sớm để tránh đông", "nên đặt bàn trước"
+                - Không được lặp lại hoạt động trong cùng một ngày
+                - Cho khách hàng biết thời điểm nên đến từng địa điểm (sáng/chiều/tối) hoặc giờ cụ thể để có trải nghiệm tốt nhất
 
                 === RÀNG BUỘC BẮT BUỘC ===
                 - Mỗi hoạt động phải có các trường:
@@ -49,7 +51,7 @@ namespace TripWiseAPI.Services
                   - `"description"`: mô tả ngắn gọn hoạt động
                   - `"estimatedCost"`: số nguyên, đơn vị VNĐ, không có ký hiệu hoặc dấu phẩy
                   - `"transportation"`: ghi rõ phương tiện (VD: "Grab", "Taxi", "Đi bộ", "Xe máy")
-                  - `"address"`: phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng")
+                  - `"address"`: phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng"), tham khảo những bài viết du lịch uy tín liên quan đến {{request.Destination}}
                   - `"placeDetail"`: mô tả sinh động, giải thích lý do nên đến
                   - `"mapUrl"`: link đúng định dạng Google Maps
                   - `"image"`: nếu có thumbnail thì dùng, nếu không thì để chuỗi rỗng `""`
@@ -61,7 +63,7 @@ namespace TripWiseAPI.Services
 
                 === NGUỒN ĐỊA ĐIỂM ===
                 - Ưu tiên địa điểm có trong danh sách `relatedKnowledge` nếu phù hợp logic chuyến đi
-                - Nếu thiếu, có thể đề xuất địa điểm thật, nổi tiếng, được đánh giá cao trên Google Maps
+                - Nếu thiếu, có thể đề xuất địa điểm thật, nổi tiếng, được đánh giá cao trên Google Maps, tham khảo những bài viết du lịch uy tín liên quan đến {{request.Destination}}
                 - Không chấp nhận địa điểm mơ hồ, chung chung, không có địa chỉ cụ thể
                 {{exclusionNote}}
 
@@ -127,6 +129,7 @@ namespace TripWiseAPI.Services
         - Không viết lại toàn bộ lịch trình nếu không có yêu cầu cụ thể.
         - Nếu món ăn, địa điểm hoặc yêu cầu không có trong dữ liệu gốc, hãy **chủ động đề xuất một địa điểm phù hợp, thực tế và phổ biến trong khu vực** (Google Maps).
         - **Nếu không chắc vị trí thay đổi ở đâu, hãy chèn vào thời điểm hợp lý nhất dựa trên ngữ cảnh.**
+        - Nếu không có thay đổi nào được yêu cầu rõ ràng hoặc hợp lý để chèn, hãy giữ nguyên toàn bộ lịch trình gốc.
 
         ### Yêu cầu định dạng dữ liệu:
         - Mỗi ngày (chỉ những ngày có thay đổi) cần bao gồm:
