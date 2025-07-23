@@ -25,7 +25,7 @@ namespace TripWiseAPI.Services.PartnerServices
         {
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image) 
-                .Where(t => t.RemovedDate == null);
+                .Where(t => t.RemovedDate == null && t.TourTypesId == 2);
 
             if (!string.IsNullOrEmpty(status))
             {
