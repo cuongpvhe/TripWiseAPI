@@ -78,13 +78,14 @@ namespace TripWiseAPI
             builder.Services.AddScoped<VectorSearchService>();
             builder.Services.AddHttpClient<IWikimediaImageService, WikimediaImageService>();
             builder.Services.AddHttpClient<WeatherService>();
-
+            builder.Services.AddScoped<FirebaseLogService>();
 
 
             builder.Services.AddScoped<IAIGeneratePlanService, AIGeneratePlanService>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<IPlanService, PlanService>();
             builder.Services.AddScoped<IReviewService, ReviewService>();
+			builder.Services.AddScoped<IBlogService, BlogService>();
 			builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
