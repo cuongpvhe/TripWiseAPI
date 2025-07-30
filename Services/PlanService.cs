@@ -2,15 +2,26 @@
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.APIModel;
 using TripWiseAPI.Models.DTO;
+using TripWiseAPI.Models.LogModel;
 using TripWiseAPI.Services.AdminServices;
 using TripWiseAPI.Utils;
+
 
 namespace TripWiseAPI.Services
 {
     public class PlanService : IPlanService
     {
         private readonly TripWiseDBContext _dbContext;
-        private readonly IAppSettingsService _appSettingsService;
+		private readonly FirebaseLogService _logService;
+
+		public PlanService(TripWiseDBContext dbContext, FirebaseLogService logService)
+		{
+			_dbContext = dbContext;
+			_logService = logService;
+		}
+
+		public async Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId)
+       private readonly IAppSettingsService _appSettingsService;
 
         public PlanService(TripWiseDBContext dbContext, IAppSettingsService appSettingsService)
         {
@@ -105,6 +116,11 @@ namespace TripWiseAPI.Services
                     };
                 }
 
+                userPlan.RequestInDays--;
+                userPlan.ModifiedDate = DateTime.UtcNow;
+                _dbContext.UserPlans.Update(userPlan);
+                await _dbContext.SaveChangesAsync();
+
                 if (isSuccess)
                 {
                     userPlan.RequestInDays--;
@@ -124,7 +140,10 @@ namespace TripWiseAPI.Services
                 
             }
 
-            return new PlanValidationResult { IsValid = true };
+				await _logService.LogAsync(userId, "UsePlan", $"Người dùng đã sử dụng 1 lượt từ gói '{planName}'. Lượt còn lại: {userPlan.RequestInDays}", 200, createdDate: DateTime.UtcNow, createdBy: userId);
+			}
+
+			return new PlanValidationResult { IsValid = true };
         }
 
 
@@ -182,8 +201,11 @@ namespace TripWiseAPI.Services
 
             await _dbContext.UserPlans.AddAsync(newUserPlan);
             await _dbContext.SaveChangesAsync();
+		
+		
+			await _logService.LogAsync(userId, "UpgradePlan", $"Người dùng đã nâng cấp lên gói '{newPlan.PlanName}'. Lượt: {newUserPlan.RequestInDays}", 200, modifiedDate: DateTime.UtcNow, modifiedBy: userId);
 
-            return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
+			return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
         }
        
 

@@ -2,59 +2,30 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Drawing.Text;
-using System.Reflection.Metadata;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
-using TripWiseAPI.Utils;
-using static System.Reflection.Metadata.BlobBuilder;
+using TripWiseAPI.Services; // Thêm namespace của service
+
 namespace TripWiseAPI.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
 	public class BlogController : ControllerBase
 	{
-		private IConfiguration _configuration;
-		private readonly TripWiseDBContext _context;
+		private readonly IBlogService _blogService; // Thay thế DbContext và IConfiguration bằng service
 
-		public BlogController(TripWiseDBContext context, IConfiguration configuration)
+		public BlogController(IBlogService blogService) // Inject service
 		{
-			_context = context ?? throw new ArgumentNullException(nameof(context));
-			_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+			_blogService = blogService ?? throw new ArgumentNullException(nameof(blogService));
 		}
 
 		[HttpGet("GetBlogs")]
 		public async Task<ActionResult<IEnumerable<BlogDto>>> GetBlogs()
 		{
-			var blogs = await _context.Blogs
-				.Include(b => b.BlogImages)
-					.ThenInclude(bi => bi.Image)
-				.Where(b => b.RemovedDate == null)
-				.Select(b => new BlogDto
-				{
-					BlogID = b.BlogId,
-					BlogName = b.BlogName,
-					BlogContent = b.BlogContent,
-					CreatedDate = b.CreatedDate,
-					CreatedBy = b.CreatedBy,
-					UserName = _context.Users
-						.Where(u => u.UserId == b.CreatedBy)
-						.Select(u => u.UserName)
-						.FirstOrDefault(),
-					ModifiedDate = b.ModifiedDate,
-					ModifiedBy = b.ModifiedBy,
-					BlogImages = b.BlogImages.Select(img => new BlogImageDto
-					{
-						BlogImageID = img.BlogImageId,
-						ImageID = img.ImageId,
-						ImageURL = img.Image.ImageUrl,
-						ImageAlt = img.Image.ImageAlt
-					}).ToList()
-				})
-				.ToListAsync();
-			if (blogs == null)
+			var blogs = await _blogService.GetBlogsAsync();
+			if (blogs == null || !blogs.Any())
 			{
-				return NotFound(new { message = "Không có bài blog nào" });
+				return NotFound(new { message = "Không có bài blog nào." });
 			}
 			return Ok(new
 			{
@@ -67,40 +38,14 @@ namespace TripWiseAPI.Controllers
 		[HttpGet("GetBlogsDeleted")]
 		public async Task<ActionResult<IEnumerable<BlogDto>>> GetBlogsDelete()
 		{
-			var blogs = await _context.Blogs
-				.Include(b => b.BlogImages)
-				.ThenInclude(bi => bi.Image)
-				.Where(ba => ba.RemovedDate != null)
-				.Select(b => new BlogDto
-				{
-					BlogID = b.BlogId,
-					BlogName = b.BlogName,
-					BlogContent = b.BlogContent,
-					CreatedDate = b.CreatedDate,
-					CreatedBy = b.CreatedBy,
-					UserName = _context.Users
-						.Where(u => u.UserId == b.RemovedBy)
-						.Select(u => u.UserName)
-						.FirstOrDefault(),
-					RemovedDate = b.ModifiedDate,
-					RemovedBy = b.RemovedBy,
-					BlogImages = b.BlogImages.Select(img => new BlogImageDto
-					{
-						BlogImageID = img.BlogImageId,
-						ImageID = img.ImageId,
-						ImageURL = img.Image.ImageUrl,
-						ImageAlt = img.Image.ImageAlt
-					}).ToList()
-				})
-				.ToListAsync();
-
-			if (blogs == null)
+			var blogs = await _blogService.GetBlogsDeletedAsync();
+			if (blogs == null || !blogs.Any())
 			{
-				return NotFound(new { message = "Không có bài blog nào" });
+				return NotFound(new { message = "Không có bài blog nào." });
 			}
 			return Ok(new
 			{
-				message = "Lấy danh sách blog thành công.",
+				message = "Lấy danh sách blog đã xóa thành công.", // Sửa message cho rõ ràng
 				data = blogs
 			});
 		}
@@ -108,36 +53,18 @@ namespace TripWiseAPI.Controllers
 		[HttpGet("GetBlogById/{id}")]
 		public async Task<ActionResult<BlogDto>> GetBlog(int id)
 		{
-			var blogs = await _context.Blogs
-				.Include(b => b.BlogImages).ThenInclude(url => url.Image)
-				.Where(b => b.BlogId == id && b.RemovedDate == null)
-				.Select(b => new BlogDto
-				{
-					BlogID = b.BlogId,
-					BlogName = b.BlogName,
-					BlogContent = b.BlogContent,
-					CreatedDate = b.CreatedDate,
-					CreatedBy = b.CreatedBy,
-					ModifiedDate = b.ModifiedDate,
-					ModifiedBy = b.ModifiedBy,
-					BlogImages = b.BlogImages.Select(img => new BlogImageDto
-					{
-						BlogImageID = img.BlogImageId,
-						ImageID = img.ImageId,
-						ImageURL = img.Image.ImageUrl,
-						ImageAlt = img.Image.ImageAlt
-					}).ToList()
-				}).FirstOrDefaultAsync();
-			if (blogs == null)
+			var blog = await _blogService.GetBlogByIdAsync(id);
+			if (blog == null)
 			{
-				return NotFound(new { message = "Không tìm thấy blog ." });
+				return NotFound(new { message = "Không tìm thấy blog." });
 			}
 			return Ok(new
 			{
-				message = "Lấy danh sách blog thành công.",
-				data = blogs
+				message = "Lấy thông tin blog thành công.", // Sửa message cho rõ ràng
+				data = blog
 			});
 		}
+
 		[Authorize]
 		[HttpPost("CreateBlog")]
 		public async Task<IActionResult> CreateBlog([FromForm] CreateBlogDto dto)
@@ -157,109 +84,7 @@ namespace TripWiseAPI.Controllers
 				});
 			}
 
-			var blog = new Blog
-			{
-				BlogName = dto.BlogName,
-				BlogContent = dto.BlogContent,
-				CreatedDate = DateTime.Now,
-				CreatedBy = userId,
-				BlogImages = new List<BlogImage>()
-			};
-
-			var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-			if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-			List<Image> addedImages = new();
-
-			// 1. Xử lý ảnh upload từ máy
-			if (dto.Images != null)
-			{
-				foreach (var imageFile in dto.Images)
-				{
-					if (imageFile != null && imageFile.Length > 0)
-					{
-						var uniqueFileName = Guid.NewGuid() + Path.GetExtension(imageFile.FileName);
-						var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-						using var fileStream = new FileStream(filePath, FileMode.Create);
-						await imageFile.CopyToAsync(fileStream);
-
-						string relativeUrl = $"/uploads/{uniqueFileName}";
-
-						var image = new Image
-						{
-							ImageUrl = relativeUrl, // Đảm bảo không bị null
-							CreatedDate = DateTime.Now,
-							CreatedBy = userId
-						};
-
-						_context.Images.Add(image);
-						await _context.SaveChangesAsync();
-
-						blog.BlogImages.Add(new BlogImage
-						{
-							ImageId = image.ImageId,
-							CreatedDate = DateTime.Now,
-							CreatedBy = userId
-						});
-
-						addedImages.Add(image);
-					}
-				}
-			}
-
-			// 2. Xử lý các URL ảnh từ client
-			if (dto.ImageUrls != null)
-			{
-				foreach (var url in dto.ImageUrls)
-				{
-					if (!string.IsNullOrWhiteSpace(url))
-					{
-						var image = new Image
-						{
-							ImageUrl = url.Trim(), // Đảm bảo không null
-							CreatedDate = DateTime.Now,
-							CreatedBy = userId
-						};
-
-						_context.Images.Add(image);
-						await _context.SaveChangesAsync();
-
-						blog.BlogImages.Add(new BlogImage
-						{
-							ImageId = image.ImageId,
-							CreatedDate = DateTime.Now,
-							CreatedBy = userId
-						});
-
-						addedImages.Add(image);
-					}
-				}
-			}
-
-			_context.Blogs.Add(blog);
-			await _context.SaveChangesAsync();
-
-			var result = new BlogDto
-			{
-				BlogID = blog.BlogId,
-				BlogName = blog.BlogName,
-				BlogContent = blog.BlogContent,
-				UserName = _context.Users
-						.Where(u => u.UserId == blog.CreatedBy)
-						.Select(u => u.UserName)
-						.FirstOrDefault(),
-				BlogImages = blog.BlogImages.Select(bi =>
-				{
-					var img = addedImages.FirstOrDefault(i => i.ImageId == bi.ImageId);
-					return new BlogImageDto
-					{
-						BlogImageID = bi.BlogImageId,
-						ImageID = bi.ImageId,
-						ImageURL = img?.ImageUrl
-					};
-				}).ToList()
-			};
+			var result = await _blogService.CreateBlogAsync(dto, userId);
 
 			return Ok(new
 			{
@@ -269,7 +94,6 @@ namespace TripWiseAPI.Controllers
 		}
 
 
-
 		[Authorize]
 		[HttpPut("UpdateBlog/{id}")]
 		public async Task<IActionResult> UpdateBlog(int id, [FromForm] CreateBlogDto dto)
@@ -277,122 +101,12 @@ namespace TripWiseAPI.Controllers
 			var userIdClaim = User.FindFirst("UserId")?.Value;
 			int? userId = int.TryParse(userIdClaim, out int parsedId) ? parsedId : null;
 
-			var blog = await _context.Blogs
-				.Include(b => b.BlogImages)
-				.ThenInclude(bi => bi.Image)
-				.FirstOrDefaultAsync(b => b.BlogId == id);
+			var result = await _blogService.UpdateBlogAsync(id, dto, userId);
 
-			if (blog == null)
+			if (result == null)
 			{
 				return NotFound(new { message = "Không tìm thấy blog cần cập nhật." });
 			}
-
-			// Cập nhật thông tin blog
-			blog.BlogName = dto.BlogName;
-			blog.BlogContent = dto.BlogContent;
-			blog.ModifiedDate = DateTime.Now;
-			blog.ModifiedBy = userId;
-
-			// Xóa các liên kết ảnh cũ
-			_context.BlogImages.RemoveRange(blog.BlogImages);
-			blog.BlogImages = new List<BlogImage>();
-
-			var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-			if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-			List<Image> addedImages = new();
-
-			// Xử lý ảnh upload
-			if (dto.Images != null)
-			{
-				foreach (var imageFile in dto.Images)
-				{
-					if (imageFile != null && imageFile.Length > 0)
-					{
-						var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
-						var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-						using var fileStream = new FileStream(filePath, FileMode.Create);
-						await imageFile.CopyToAsync(fileStream);
-
-						string relativeUrl = $"/uploads/{uniqueFileName}";
-
-						var image = new Image
-						{
-							ImageUrl = relativeUrl,
-							CreatedDate = DateTime.Now,
-							CreatedBy = userId
-						};
-
-						_context.Images.Add(image);
-						await _context.SaveChangesAsync();
-
-						var blogImage = new BlogImage
-						{
-							ImageId = image.ImageId,
-							CreatedDate = DateTime.Now,
-							CreatedBy = userId
-						};
-
-						blog.BlogImages.Add(blogImage);
-						addedImages.Add(image);
-					}
-				}
-			}
-
-			// Xử lý các URL ảnh từ client
-			if (dto.ImageUrls != null)
-			{
-				foreach (var url in dto.ImageUrls)
-				{
-					if (!string.IsNullOrWhiteSpace(url))
-					{
-						var image = new Image
-						{
-							ImageUrl = url.Trim(),
-							CreatedDate = DateTime.Now,
-							CreatedBy = userId
-						};
-
-						_context.Images.Add(image);
-						await _context.SaveChangesAsync();
-
-						var blogImage = new BlogImage
-						{
-							ImageId = image.ImageId,
-							CreatedDate = DateTime.Now,
-							CreatedBy = userId
-						};
-
-						blog.BlogImages.Add(blogImage);
-						addedImages.Add(image);
-					}
-				}
-			}
-
-			await _context.SaveChangesAsync();
-
-			// Tạo DTO kết quả trả về
-			var result = new BlogDto
-			{
-				BlogID = blog.BlogId,
-				BlogName = blog.BlogName,
-				BlogContent = blog.BlogContent,
-				UserName = _context.Users
-						.Where(u => u.UserId == blog.ModifiedBy)
-						.Select(u => u.UserName)
-						.FirstOrDefault(),
-				BlogImages = blog.BlogImages.Select(bi =>
-				{
-					var img = addedImages.FirstOrDefault(i => i.ImageId == bi.ImageId) ?? bi.Image;
-					return new BlogImageDto
-					{
-						BlogImageID = bi.BlogImageId,
-						ImageID = bi.ImageId,
-						ImageURL = img?.ImageUrl
-					};
-				}).ToList()
-			};
 
 			return Ok(new
 			{
@@ -408,21 +122,12 @@ namespace TripWiseAPI.Controllers
 			var userIdClaim = User.FindFirst("UserId")?.Value;
 			int? userId = int.TryParse(userIdClaim, out int parsedId) ? parsedId : null;
 
-			var blog = await _context.Blogs
-				.Include(b => b.BlogImages)
-				.ThenInclude(bi => bi.Image)
-				.FirstOrDefaultAsync(b => b.BlogId == id);
+			var success = await _blogService.DeleteBlogAsync(id, userId);
 
-			if (blog == null)
+			if (!success)
 			{
 				return NotFound(new { message = "Không tìm thấy blog để xoá." });
 			}
-
-			blog.RemovedDate = DateTime.Now;
-			blog.RemovedBy = userId;
-			blog.RemovedReason = "Xóa bài blog " + blog.BlogName;
-
-			await _context.SaveChangesAsync();
 
 			return Ok(new
 			{
