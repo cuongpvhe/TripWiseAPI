@@ -3,6 +3,9 @@ using TripWiseAPI.Models;
 using TripWiseAPI.Models.APIModel;
 using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Models.LogModel;
+using TripWiseAPI.Services.AdminServices;
+using TripWiseAPI.Utils;
+
 
 namespace TripWiseAPI.Services
 {
@@ -18,6 +21,15 @@ namespace TripWiseAPI.Services
 		}
 
 		public async Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId)
+       private readonly IAppSettingsService _appSettingsService;
+
+        public PlanService(TripWiseDBContext dbContext, IAppSettingsService appSettingsService)
+        {
+            _dbContext = dbContext;
+            _appSettingsService = appSettingsService;
+        }
+
+        public async Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId, bool isSuccess)
         {
             var userPlan = await _dbContext.UserPlans
                 .Include(up => up.Plan)
@@ -32,27 +44,67 @@ namespace TripWiseAPI.Services
                 };
             }
 
-            var planName = userPlan.Plan.PlanName;
-            if (planName == "Free")
+            var freePlanId = await _appSettingsService.GetIntValueAsync("FreePlanId", -1);
+            // ✅ Nếu đang trong thời gian Trial (EndDate còn hiệu lực), thì dùng không giới hạn
+            if (userPlan.EndDate != null && userPlan.EndDate > TimeHelper.GetVietnamTime())
             {
-                var nowVN = DateTime.UtcNow.AddHours(7);
-                var startOfDayUtc = nowVN.Date.AddHours(-7);
-                var endOfDayUtc = nowVN.Date.AddDays(1).AddHours(-7);
+                if (isSuccess)
+                {
+                    var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+                    if (user != null)
+                    {
+                        user.RequestChatbot = (user.RequestChatbot ?? 0) + 1;
+                        _dbContext.Users.Update(user);
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
 
+                return new PlanValidationResult { IsValid = true };
+            }
+            if (userPlan.PlanId == freePlanId)
+            {
+                var nowVN = TimeHelper.GetVietnamTime().AddHours(7);
+                var startOfDayUtc = nowVN.Date.AddHours(-7);
+
+                // Lấy số ngày cuối cùng đã reset
+                if (userPlan.ModifiedDate == null || userPlan.ModifiedDate.Value < startOfDayUtc)
+                {
+                    // Nếu đã sang ngày mới thì reset lượt theo MaxRequests
+                    userPlan.RequestInDays = userPlan.Plan.MaxRequests ?? 0;
+                    userPlan.ModifiedDate = TimeHelper.GetVietnamTime();
+
+                    _dbContext.UserPlans.Update(userPlan);
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                // Kiểm tra số lượt đã dùng trong ngày
                 int usageToday = await _dbContext.GenerateTravelPlans
                     .CountAsync(x => x.UserId == userId &&
                                      x.ResponseTime >= startOfDayUtc &&
-                                     x.ResponseTime < endOfDayUtc);
+                                     x.ResponseTime < startOfDayUtc.AddDays(1));
 
-                if (usageToday >= 3)
+                if (usageToday >= userPlan.RequestInDays)
                 {
                     return new PlanValidationResult
                     {
                         IsValid = false,
-                        ErrorMessage = "Bạn đã hết 3 lượt miễn phí trong ngày hôm nay."
+                        ErrorMessage = $"Bạn đã hết {userPlan.RequestInDays} lượt miễn phí trong ngày hôm nay."
                     };
                 }
+
+                if (isSuccess)
+                {
+                    var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+                    if (user != null)
+                    {
+                        userPlan.RequestInDays--;
+                        user.RequestChatbot = (user.RequestChatbot ?? 0) + 1;
+                        _dbContext.Users.Update(user);
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
             }
+
             else
             {
                 if (userPlan.RequestInDays <= 0)
@@ -68,6 +120,25 @@ namespace TripWiseAPI.Services
                 userPlan.ModifiedDate = DateTime.UtcNow;
                 _dbContext.UserPlans.Update(userPlan);
                 await _dbContext.SaveChangesAsync();
+
+                if (isSuccess)
+                {
+                    userPlan.RequestInDays--;
+                    userPlan.ModifiedDate = TimeHelper.GetVietnamTime();
+                    _dbContext.UserPlans.Update(userPlan);
+
+                    var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+                    if (user != null)
+                    {
+                        user.RequestChatbot = (user.RequestChatbot ?? 0) + 1;
+                        _dbContext.Users.Update(user);
+                    }
+
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                
+            }
 
 				await _logService.LogAsync(userId, "UsePlan", $"Người dùng đã sử dụng 1 lượt từ gói '{planName}'. Lượt còn lại: {userPlan.RequestInDays}", 200, createdDate: DateTime.UtcNow, createdBy: userId);
 			}
@@ -112,18 +183,20 @@ namespace TripWiseAPI.Services
                 }
 
                 currentPlan.IsActive = false;
-                currentPlan.ModifiedDate = DateTime.UtcNow;
+                currentPlan.ModifiedDate = TimeHelper.GetVietnamTime();
+                currentPlan.EndDate = TimeHelper.GetVietnamTime();
             }
 
             // Tạo gói mới (cộng thêm lượt còn lại nếu có)
+
             var newUserPlan = new UserPlan
             {
                 UserId = userId,
                 PlanId = newPlan.PlanId,
-                StartDate = DateTime.UtcNow,
+                StartDate = TimeHelper.GetVietnamTime(),
                 IsActive = true,
-                CreatedDate = DateTime.UtcNow,
-                RequestInDays = GetInitialRequestForPlan(newPlan.PlanName) + remainingRequests
+                CreatedDate = TimeHelper.GetVietnamTime(),
+                RequestInDays = (newPlan.MaxRequests ?? 0) + remainingRequests
             };
 
             await _dbContext.UserPlans.AddAsync(newUserPlan);
@@ -134,29 +207,184 @@ namespace TripWiseAPI.Services
 
 			return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
         }
-        private int GetInitialRequestForPlan(string planName)
-        {
-            return planName switch
-            {
-                "Basic" => 10,
-                "Standard" => 30,
-                "Premium" => 50,
-                _ => 0
-            };
-        }
+       
 
         public async Task<List<PlanDto>> GetAvailablePlansAsync()
         {
             return await _dbContext.Plans
-                .Where(p => p.PlanName != "Free" && p.RemovedDate == null)
+                .Where(p => p.RemovedDate == null)
                 .Select(p => new PlanDto
                 {
                     PlanId = p.PlanId,
                     PlanName = p.PlanName,
                     Price = p.Price,
-                    Description = p.Description
+                    Description = p.Description,
+                    MaxRequests = p.MaxRequests,
+                    CreatedDate = p.CreatedDate,
                 })
                 .ToListAsync();
+        }
+        public async Task<PlanUserDto?> GetCurrentPlanByUserIdAsync(int userId)
+        {
+            var userPlan = await _dbContext.UserPlans
+                .Include(up => up.Plan)
+                .FirstOrDefaultAsync(up => up.UserId == userId && up.IsActive == true);
+
+            if (userPlan?.Plan == null)
+                return null;
+
+            var plan = userPlan.Plan;
+
+            return new PlanUserDto
+            {
+                PlanId = plan.PlanId,
+                PlanName = plan.PlanName,
+                Price = plan.Price,
+                Description = plan.Description,
+                MaxRequests = plan.MaxRequests,
+                CreatedDate = plan.CreatedDate,
+                EndDate = userPlan.EndDate 
+            };
+        }
+        public async Task<List<PlanUserDto>> GetPurchasedPlansAsync(int userId)
+        {
+            // Lấy danh sách tên gói Free và Trial từ AppSettings
+            string? freePlanName = await _appSettingsService.GetValueAsync("FreePlan");
+            string? trialPlanName = await _appSettingsService.GetValueAsync("DefaultTrialPlanName");
+
+            var plans = await _dbContext.UserPlans
+                .Include(up => up.Plan)
+                .Where(up => up.UserId == userId
+                             && up.Plan != null
+                             && up.Plan.RemovedDate == null
+                             && up.IsActive == false 
+                             && up.Plan.PlanName != freePlanName
+                             && up.Plan.PlanName != trialPlanName)
+                .OrderByDescending(up => up.CreatedDate)
+                .Select(up => new PlanUserDto
+                {
+                    PlanId = up.Plan.PlanId,
+                    PlanName = up.Plan.PlanName,
+                    Price = up.Plan.Price,
+                    Description = up.Plan.Description,
+                    CreatedDate = up.CreatedDate,
+                    EndDate = up.EndDate
+                })
+                .ToListAsync();
+
+            return plans;
+        }
+
+        public async Task<int> GetRemainingRequestsAsync(int userId)
+        {
+            var userPlan = await _dbContext.UserPlans
+                .FirstOrDefaultAsync(p => p.UserId == userId && p.IsActive == true);
+
+            if (userPlan == null)
+                throw new Exception("Không tìm thấy gói sử dụng hiện tại.");
+
+            return userPlan.RequestInDays ?? 0;
+        }
+        
+        public async Task<int> GetRemainingTrialDaysAsync(int userId)
+        {
+            var userPlan = await _dbContext.UserPlans
+                .Where(up => up.UserId == userId && up.IsActive == true && up.EndDate != null)
+                .OrderByDescending(up => up.StartDate)
+                .FirstOrDefaultAsync();
+
+            if (userPlan == null || userPlan.EndDate == null)
+                return 0;
+
+            var today = TimeHelper.GetVietnamTime().Date;
+            var endDate = userPlan.EndDate.Value.Date;
+
+            return (endDate < today) ? 0 : (endDate - today).Days;
+        }
+
+        public async Task<ApiResponse<int>> GetRemainingTrialDaysResponseAsync(int userId)
+        {
+            int daysLeft = await GetRemainingTrialDaysAsync(userId);
+            return new ApiResponse<int>(200, "Số ngày dùng thử còn lại", daysLeft);
+        }
+        public async Task<PlanDto> CreateAsync(PlanCreateDto dto, int createdBy)
+        {
+            var plan = new Plan
+            {
+                PlanName = dto.PlanName,
+                Price = dto.Price,
+                Description = dto.Description,
+                MaxRequests = dto.MaxRequests,
+                CreatedDate = TimeHelper.GetVietnamTime(),
+                CreatedBy = createdBy,
+            };
+
+            await _dbContext.Plans.AddAsync(plan);
+            await _dbContext.SaveChangesAsync();
+
+            return new PlanDto
+            {
+                PlanId = plan.PlanId,
+                PlanName = plan.PlanName,
+                Price = plan.Price,
+                Description = plan.Description,
+                MaxRequests = plan.MaxRequests,
+                CreatedDate = plan.CreatedDate
+            };
+        }
+
+        public async Task<bool> UpdateAsync(int id, PlanUpdateDto dto, int modifiedBy)
+        {
+            var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
+            if (plan == null) return false;
+
+            plan.PlanName = dto.PlanName;
+            plan.Price = dto.Price;
+            plan.Description = dto.Description;
+            plan.MaxRequests = dto.MaxRequests;
+            plan.ModifiedDate = TimeHelper.GetVietnamTime();
+            plan.ModifiedBy = modifiedBy;
+            _dbContext.Plans.Update(plan);
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
+            if (plan == null) return false;
+
+            plan.RemovedDate = TimeHelper.GetVietnamTime();
+            _dbContext.Plans.Update(plan);
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+        public async Task<PlanDto?> GetPlanDetailAsync(int id)
+        {
+            var p = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
+            if (p == null) return null;
+            async Task<string?> GetUserNameById(int? id)
+            {
+                if (!id.HasValue) return null;
+                return await _dbContext.Users
+                    .Where(u => u.UserId == id)
+                    .Select(u => u.UserName)
+                    .FirstOrDefaultAsync();
+            }
+            return new PlanDto
+            {
+                PlanId = p.PlanId,
+                PlanName = p.PlanName,
+                Price = p.Price,
+                Description = p.Description,
+                MaxRequests = p.MaxRequests,
+                CreatedDate = p.CreatedDate,
+                CreatedBy = p.CreatedBy,
+                CreatedByName = await GetUserNameById(p.CreatedBy),
+                ModifiedDate = p.ModifiedDate,
+                ModifiedBy = p.ModifiedBy,
+                ModifiedByName = await GetUserNameById(p.ModifiedBy)
+            };
         }
     }
 }

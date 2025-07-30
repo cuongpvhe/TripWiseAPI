@@ -1,8 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Text;
 using System.Text.Json;
 using TripWiseAPI.Model;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
+using TripWiseAPI.Utils;
+using static TripWiseAPI.Models.DTO.UpdateTourDto;
 
 namespace TripWiseAPI.Services
 {
@@ -73,6 +76,75 @@ namespace TripWiseAPI.Services
             return updatedResponse;
         }
 
+        public async Task<ItineraryResponse?> UpdateItineraryChunkAsync(int generatePlanId, int userId, string userMessage, int startDay, int chunkSize)
+        {
+            var existingPlan = await _dbContext.GenerateTravelPlans
+                .FirstOrDefaultAsync(p => p.Id == generatePlanId && p.UserId == userId);
+
+            if (existingPlan == null) return null;
+
+            var oldRequest = JsonSerializer.Deserialize<TravelRequest>(existingPlan.MessageRequest);
+            var oldResponse = JsonSerializer.Deserialize<ItineraryResponse>(existingPlan.MessageResponse);
+
+            if (oldRequest == null || oldResponse == null)
+                throw new InvalidOperationException("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
+
+            // Trích xuất phần lịch trình cần update
+            var partialResponse = new ItineraryResponse
+            {
+                Destination = oldRequest.Destination,
+                Days = chunkSize,
+                Preferences = oldRequest.Preferences,
+                TravelDate = oldRequest.TravelDate.AddDays(startDay - 1),
+                Transportation = oldRequest.Transportation,
+                DiningStyle = oldRequest.DiningStyle,
+                GroupType = oldRequest.GroupType,
+                Accommodation = oldRequest.Accommodation,
+                TotalEstimatedCost = 0,
+                Budget = oldRequest.BudgetVND,
+                SuggestedAccommodation = oldResponse.SuggestedAccommodation,
+                HasMore = false,
+                Itinerary = oldResponse.Itinerary
+                    .Where(d => d.DayNumber >= startDay && d.DayNumber < startDay + chunkSize)
+                    .ToList()
+            };
+
+            // Gọi AI update một phần
+            var newChunk = await _aiService.UpdateItineraryAsync(oldRequest, partialResponse, userMessage);
+
+            // Merge phần update vào full lịch trình
+            foreach (var updatedDay in newChunk.Itinerary)
+            {
+                var index = oldResponse.Itinerary.FindIndex(d => d.DayNumber == updatedDay.DayNumber);
+                if (index != -1)
+                    oldResponse.Itinerary[index] = updatedDay;
+            }
+
+            // Cập nhật lại chi phí tổng
+            oldResponse.TotalEstimatedCost = oldResponse.Itinerary.Sum(d => d.DailyCost);
+
+            // Gọi weather cho từng ngày
+            DateTime startDate = oldRequest.TravelDate;
+            for (int i = 0; i < oldResponse.Itinerary.Count; i++)
+            {
+                var weather = await _weatherService.GetDailyWeatherAsync(oldRequest.Destination, startDate.AddDays(i));
+                oldResponse.Itinerary[i].WeatherDescription = weather?.description ?? "Không có dữ liệu";
+                oldResponse.Itinerary[i].TemperatureCelsius = weather?.temperature ?? 0;
+            }
+
+            // Lưu đè lại
+            existingPlan.MessageResponse = JsonSerializer.Serialize(oldResponse, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                WriteIndented = true
+            });
+            existingPlan.ResponseTime = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync();
+
+            return oldResponse;
+        }
+
 
         public async Task<int> SaveGeneratedPlanAsync(int? userId, TravelRequest request, ItineraryResponse response)
         {
@@ -91,14 +163,42 @@ namespace TripWiseAPI.Services
                     Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                     WriteIndented = true
                 }),
-                ResponseTime = DateTime.UtcNow
-            };
+                ResponseTime = TimeHelper.GetVietnamTime()
+        };
 
             _dbContext.GenerateTravelPlans.Add(entity);
             await _dbContext.SaveChangesAsync();
 
             return entity.Id;
         }
+
+        public async Task SaveChunkToPlanAsync(int planId, List<ItineraryDay> newDays)
+        {
+            var plan = await _dbContext.GenerateTravelPlans.FindAsync(planId);
+            if (plan == null)
+                throw new Exception("Không tìm thấy kế hoạch với ID đã cho");
+
+            // Parse response cũ từ JSON
+            var response = JsonSerializer.Deserialize<ItineraryResponse>(plan.MessageResponse);
+
+            if (response == null)
+                throw new Exception("Không thể đọc dữ liệu lịch trình hiện tại");
+
+            // Nối thêm các ngày mới
+            response.Itinerary.AddRange(newDays);
+
+            // Cập nhật response
+            plan.MessageResponse = JsonSerializer.Serialize(response, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                WriteIndented = true
+            });
+
+            plan.ResponseTime = TimeHelper.GetVietnamTime();
+
+            await _dbContext.SaveChangesAsync();
+        }
+
 
         public async Task<object> SaveTourFromGeneratedAsync(int generatePlanId, int? userId)
         {
@@ -122,32 +222,68 @@ namespace TripWiseAPI.Services
             int totalEstimatedCost = root.GetProperty("TotalEstimatedCost").GetInt32();
             string suggestedAccommodation = root.GetProperty("SuggestedAccommodation").GetString();
 
+            var descriptionBuilder = new StringBuilder($"Chuyến đi {destination}");
+
+            if (!string.IsNullOrWhiteSpace(groupType))
+                descriptionBuilder.Append($" cho {groupType}");
+
+            if (!string.IsNullOrWhiteSpace(preferences))
+                descriptionBuilder.Append($", ưu tiên {preferences}");
+
+            if (!string.IsNullOrWhiteSpace(transportation))
+                descriptionBuilder.Append($", di chuyển bằng {transportation}");
+
             var tour = new Tour
             {
-                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {groupType}",
-                Description = $"Chuyến đi {destination} cho {groupType}, ưu tiên {preferences}, di chuyển bằng {transportation}",
+                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType) ? "không rõ nhóm" : groupType)}",
+                Description = descriptionBuilder.ToString(),
                 Duration = days.ToString(),
                 Price = totalEstimatedCost,
                 Location = destination,
                 MaxGroupSize = 10,
-                Category = preferences,
-                TourInfo = $"Lưu trú: {accommodation}, Ăn uống: {diningStyle}",
-                TourNote = $"Gợi ý KS: {suggestedAccommodation}",
+                Category = string.IsNullOrWhiteSpace(preferences) ? "Không rõ" : preferences,
+                TourInfo = $"{accommodation}, Phong cách ăn uống: {diningStyle}",
+                TourNote = $"{suggestedAccommodation}",
                 TourTypesId = 1,
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = userId
             };
+
 
             _dbContext.Tours.Add(tour);
             await _dbContext.SaveChangesAsync();
 
-            var tourAttractions = new List<TourAttraction>();
             var tourItineraries = new List<TourItinerary>();
+            var tourAttractions = new List<TourAttraction>();
 
             foreach (var day in root.GetProperty("Itinerary").EnumerateArray())
             {
                 int dayNumber = day.GetProperty("DayNumber").GetInt32();
                 string title = day.GetProperty("Title").GetString();
+
+                // Tạo itinerary cho mỗi ngày
+                var itinerary = new TourItinerary
+                {
+                    TourId = tour.TourId,
+                    DayNumber = dayNumber,
+                    ItineraryName = title,
+                    CreatedBy = userId,
+                    CreatedDate = TimeHelper.GetVietnamTime()
+                };
+
+                tourItineraries.Add(itinerary);
+            }
+
+            // Lưu trước để lấy được ItineraryId
+            _dbContext.TourItineraries.AddRange(tourItineraries);
+            await _dbContext.SaveChangesAsync();
+
+            // Lặp lại để tạo attraction tương ứng theo Itinerary đã lưu
+            int index = 0;
+            foreach (var day in root.GetProperty("Itinerary").EnumerateArray())
+            {
+                var itinerary = tourItineraries[index];
+                index++;
 
                 foreach (var activity in day.GetProperty("Activities").EnumerateArray())
                 {
@@ -173,49 +309,18 @@ namespace TripWiseAPI.Services
                         EndTime = endtime,
                         MapUrl = mapUrl,
                         ImageUrl = imageUrl,
-                        CreatedDate = DateTime.UtcNow,
-                        CreatedBy = userId
+                        CreatedDate = TimeHelper.GetVietnamTime(),
+                        CreatedBy = userId,
+                        ItineraryId = itinerary.ItineraryId, // Gán ItineraryId cho attraction
                     };
 
                     tourAttractions.Add(attraction);
-
-                    tourItineraries.Add(new TourItinerary
-                    {
-                        ItineraryName = title,
-                        TourId = tour.TourId,
-                        DayNumber = dayNumber,
-                        Category = preferences,
-                        Description = placeDetail,
-                        StartTime = starttime,
-                        EndTime = endtime,
-                        CreatedDate = DateTime.UtcNow,
-                        TourAttractions = attraction,
-                        CreatedBy = userId
-                    });
                 }
             }
 
             _dbContext.TourAttractions.AddRange(tourAttractions);
             await _dbContext.SaveChangesAsync();
 
-            // Gán lại ID
-            foreach (var itineraryItem in tourItineraries)
-            {
-                var matchedAttraction = tourAttractions.FirstOrDefault(a =>
-                    a.TourAttractionsName == itineraryItem.TourAttractions.TourAttractionsName &&
-                    a.Price == itineraryItem.TourAttractions.Price &&
-                    a.Localtion == itineraryItem.TourAttractions.Localtion &&
-                    a.StartTime == itineraryItem.TourAttractions.StartTime);
-
-                if (matchedAttraction != null)
-                {
-                    itineraryItem.TourAttractionsId = matchedAttraction.TourAttractionsId;
-                    itineraryItem.TourAttractions = null;
-                }
-            }
-
-            _dbContext.TourItineraries.AddRange(tourItineraries);
-            await _dbContext.SaveChangesAsync();
 
             return new
             {
@@ -248,7 +353,7 @@ namespace TripWiseAPI.Services
             var tour = await _dbContext.Tours
                 .Where(t => t.TourId == tourId)
                 .Include(t => t.TourItineraries)
-                    .ThenInclude(i => i.TourAttractions)
+                .ThenInclude(i => i.TourAttractions)
                 .FirstOrDefaultAsync();
 
             if (tour == null) return null;
@@ -257,24 +362,23 @@ namespace TripWiseAPI.Services
                 .Where(i => i.DayNumber.HasValue)
                 .GroupBy(i => i.DayNumber.Value)
                 .OrderBy(g => g.Key)
-                .Select(g => new ItineraryDto
+                .Select(g => new ItineraryDetailDto
                 {
                     DayNumber = g.Key,
                     Title = g.FirstOrDefault()?.ItineraryName,
-                    DailyCost = g.Sum(x => x.TourAttractions?.Price ?? 0),
-                    Activities = g.Select(i => new ActivityDto
+                    DailyCost = g.SelectMany(i => i.TourAttractions).Sum(a => a.Price ?? 0),
+                    Activities = g.SelectMany(i => i.TourAttractions.Select(a => new ActivityDetailDto
                     {
-                        StartTime = i.StartTime,
-                        EndTime = i.EndTime,
-                        PlaceDetail = i.TourAttractions?.TourAttractionsName,
-                        Address = i.TourAttractions?.Localtion,
-                        EstimatedCost = i.TourAttractions?.Price ?? 0,
-                        Description = i.Description,
-                        MapUrl = i.TourAttractions?.MapUrl,
-                        Image = i.TourAttractions?.ImageUrl
-                    }).ToList()
-                })
-                .ToList();
+                        StartTime = a.StartTime,
+                        EndTime = a.EndTime,
+                        Category = a.Category,
+                        PlaceDetail = a.TourAttractionsName,
+                        Address = a.Localtion,
+                        EstimatedCost = a.Price ?? 0,
+                        MapUrl = a.MapUrl,
+                        ImageUrls = new List<string> { a.ImageUrl }
+                    })).ToList()
+                }).ToList();
 
             var dto = new TourDetailDto
             {
@@ -294,6 +398,7 @@ namespace TripWiseAPI.Services
         }
 
 
+
         public async Task<bool> DeleteTourAsync(int tourId, int? userId)
         {
             var tour = await _dbContext.Tours
@@ -302,24 +407,27 @@ namespace TripWiseAPI.Services
 
             if (tour == null) return false;
 
-            var attractionIds = tour.TourItineraries
-                .Where(i => i.TourAttractionsId != null)
-                .Select(i => i.TourAttractionsId!.Value)
-                .Distinct()
-                .ToList();
+            // Lấy danh sách ItineraryId từ TourItineraries
+            var itineraryIds = tour.TourItineraries.Select(i => i.ItineraryId).ToList();
 
-            _dbContext.TourItineraries.RemoveRange(tour.TourItineraries);
-
+            // Tìm tất cả các TourAttractions có ItineraryId trong danh sách
             var attractionsToDelete = await _dbContext.TourAttractions
-                .Where(a => attractionIds.Contains(a.TourAttractionsId))
+                .Where(a => a.ItineraryId != null && itineraryIds.Contains(a.ItineraryId.Value))
                 .ToListAsync();
 
+            // Xoá các attractions trước
             _dbContext.TourAttractions.RemoveRange(attractionsToDelete);
+
+            // Sau đó xoá các itinerary
+            _dbContext.TourItineraries.RemoveRange(tour.TourItineraries);
+
+            // Cuối cùng xoá tour
             _dbContext.Tours.Remove(tour);
 
             await _dbContext.SaveChangesAsync();
             return true;
         }
+
 
         public async Task<List<object>> GetHistoryByUserAsync(int userId)
         {

@@ -33,7 +33,12 @@ namespace TripWiseAPI.Models
         public int? ModifiedBy { get; set; }
         public int? RemovedBy { get; set; }
         public string? RemovedReason { get; set; }
+        public int? PartnerId { get; set; }
+        public string? Status { get; set; }
+        public string? RejectReason { get; set; }
+        public decimal PricePerDay { get; set; }
 
+        public virtual Partner? Partner { get; set; }
         public virtual TourType? TourTypes { get; set; }
         public virtual ICollection<Booking> Bookings { get; set; }
         public virtual ICollection<GenerateTravelPlan> GenerateTravelPlans { get; set; }

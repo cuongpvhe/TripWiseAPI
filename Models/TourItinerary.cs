@@ -5,11 +5,15 @@ namespace TripWiseAPI.Models
 {
     public partial class TourItinerary
     {
+        public TourItinerary()
+        {
+            TourAttractions = new HashSet<TourAttraction>();
+        }
+
         public int ItineraryId { get; set; }
         public string? ItineraryName { get; set; }
         public int TourId { get; set; }
         public int? DayNumber { get; set; }
-        public int? TourAttractionsId { get; set; }
         public TimeSpan? StartTime { get; set; }
         public TimeSpan? EndTime { get; set; }
         public string? Category { get; set; }
@@ -23,6 +27,6 @@ namespace TripWiseAPI.Models
         public string? RemovedReason { get; set; }
 
         public virtual Tour Tour { get; set; } = null!;
-        public virtual TourAttraction? TourAttractions { get; set; }
+        public virtual ICollection<TourAttraction> TourAttractions { get; set; }
     }
 }

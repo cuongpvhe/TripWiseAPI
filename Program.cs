@@ -7,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using TripWiseAPI.Models;
 using TripWiseAPI.Services;
+using TripWiseAPI.Services.AdminServices;
+using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Utils;
 
 namespace TripWiseAPI
@@ -20,7 +22,7 @@ namespace TripWiseAPI
             builder.Configuration
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .AddEnvironmentVariables()
-                .AddUserSecrets<Program>();
+                .AddUserSecrets<Program>(optional: true);
             // Add services to the container.
 
             builder.Services.AddDbContext<TripWiseDBContext>(options =>
@@ -68,7 +70,7 @@ namespace TripWiseAPI
                     options.ClientSecret = builder.Configuration["Google:ClientSecret"];
                 });
 
-
+            builder.Logging.AddConsole();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -79,15 +81,32 @@ namespace TripWiseAPI
             builder.Services.AddHttpClient<IWikimediaImageService, WikimediaImageService>();
             builder.Services.AddHttpClient<WeatherService>();
             builder.Services.AddScoped<FirebaseLogService>();
+            builder.Services.AddHttpClient<IGoogleMapsPlaceService, GoogleMapsPlaceService>();
 
 
             builder.Services.AddScoped<IAIGeneratePlanService, AIGeneratePlanService>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+            builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
             builder.Services.AddScoped<IPlanService, PlanService>();
+
             builder.Services.AddScoped<IReviewService, ReviewService>();
 			builder.Services.AddScoped<IBlogService, BlogService>();
 			builder.Services.AddSwaggerGen(c =>
-            {
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IPartnerService, PartnerService>();
+            builder.Services.AddScoped<IVnPayService, VnPayService>();
+            builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+            builder.Services.AddScoped<IPartnerService, PartnerService>();
+            builder.Services.AddScoped<IManageTourService, ManageTourService>();
+            builder.Services.AddScoped<ITourService, TourService>();
+            builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
+            builder.Services.AddScoped<ITourUserService, TourUserService>();
+            builder.Services.AddScoped<IReportService, ReportService>();
+            builder.Services.AddScoped<ExcelExportService>();
+
+
+            builder.Services.AddSwaggerGen(c =>
+         {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
 
                 // ⚠️ Cấu hình cho JWT Bearer

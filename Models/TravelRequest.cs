@@ -27,6 +27,18 @@ namespace TripWiseAPI.Model
         public int StartDayOffset { get; set; } = 0;
 
     }
+
+    public class ItineraryChunkRequest
+    {
+        public TravelRequest BaseRequest { get; set; } = default!;
+        public DateTime StartDate { get; set; }  // ngày bắt đầu chunk này
+        public int ChunkSize { get; set; }       // mặc định = 3
+        public int ChunkIndex { get; set; }      // ví dụ: 0, 1, 2
+        public string RelatedKnowledge { get; set; } = "";
+        public List<string> UsedPlaces { get; set; } = new();
+        public int PlanId { get; set; }
+    }
+
     public class ChatUpdateRequest
     {
         public string Message { get; set; }

@@ -8,7 +8,6 @@ namespace TripWiseAPI.Models
         public TourAttraction()
         {
             TourAttractionImages = new HashSet<TourAttractionImage>();
-            TourItineraries = new HashSet<TourItinerary>();
         }
 
         public int TourAttractionsId { get; set; }
@@ -27,8 +26,10 @@ namespace TripWiseAPI.Models
         public string? RemovedReason { get; set; }
         public string? MapUrl { get; set; }
         public string? ImageUrl { get; set; }
+        public int? ItineraryId { get; set; }
+        public string? Description { get; set; }
 
+        public virtual TourItinerary? Itinerary { get; set; }
         public virtual ICollection<TourAttractionImage> TourAttractionImages { get; set; }
-        public virtual ICollection<TourItinerary> TourItineraries { get; set; }
     }
 }
