@@ -80,9 +80,7 @@ namespace TripWiseAPI
             builder.Services.AddScoped<VectorSearchService>();
             builder.Services.AddHttpClient<IWikimediaImageService, WikimediaImageService>();
             builder.Services.AddHttpClient<WeatherService>();
-            builder.Services.AddScoped<FirebaseLogService>();
             builder.Services.AddHttpClient<IGoogleMapsPlaceService, GoogleMapsPlaceService>();
-
 
             builder.Services.AddScoped<IAIGeneratePlanService, AIGeneratePlanService>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
@@ -90,8 +88,7 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IPlanService, PlanService>();
 
             builder.Services.AddScoped<IReviewService, ReviewService>();
-			builder.Services.AddScoped<IBlogService, BlogService>();
-			builder.Services.AddSwaggerGen(c =>
+
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IPartnerService, PartnerService>();
             builder.Services.AddScoped<IVnPayService, VnPayService>();
@@ -106,7 +103,7 @@ namespace TripWiseAPI
 
 
             builder.Services.AddSwaggerGen(c =>
-         {
+            {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
 
                 // ⚠️ Cấu hình cho JWT Bearer
