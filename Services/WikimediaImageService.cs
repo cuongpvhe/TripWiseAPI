@@ -12,39 +12,18 @@ namespace TripWiseAPI.Services
             _httpClient = httpClient;
         }
 
-        public async Task<List<string>> SearchImageUrlsAsync(string keyword, string? description = null, string? placeDetail = null)
+        public async Task<List<string>> SearchImageUrlsAsync(string keyword)
         {
-            var searchKeyword = GenerateSearchKeyword(keyword, description, placeDetail);
-
-            var imageUrls = await SearchMediaSearchAsync(searchKeyword);
+            var imageUrls = await SearchMediaSearchAsync(keyword);
             if (imageUrls.Count > 0)
             {
-                Console.WriteLine($"[Wikimedia] MediaSearch returned {imageUrls.Count} result(s) for '{searchKeyword}'");
+                Console.WriteLine($"[Wikimedia] MediaSearch returned {imageUrls.Count} result(s) for '{keyword}'");
                 return imageUrls;
             }
 
-            var fallback = await SearchWikipediaAsync(searchKeyword);
-            Console.WriteLine($"[Wikimedia] Wikipedia fallback returned {fallback.Count} result(s) for '{searchKeyword}'");
+            var fallback = await SearchWikipediaAsync(keyword);
+            Console.WriteLine($"[Wikimedia] Wikipedia fallback returned {fallback.Count} result(s) for '{keyword}'");
             return fallback;
-        }
-
-        private string GenerateSearchKeyword(string keyword, string? description, string? placeDetail)
-        {
-            var stopWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-                "nhà", "hàng", "gần", "trên", "ở", "khu", "khu vực", "check", "checkin", "nổi",
-                "tiếng", "đẹp", "tham", "quan", "sao", "có", "view", "tại", "resort", "quán"
-            };
-
-            var baseText = string.Join(" ", new[] { placeDetail, description, keyword }.Where(s => !string.IsNullOrWhiteSpace(s))).ToLowerInvariant();
-            var cleaned = new string(baseText.Where(c => char.IsLetter(c) || char.IsWhiteSpace(c)).ToArray());
-
-            var keywords = cleaned
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Where(w => w.Length > 2 && !stopWords.Contains(w))
-                .Distinct()
-                .Take(5);
-
-            return string.Join(' ', keywords);
         }
 
         private async Task<List<string>> SearchMediaSearchAsync(string keyword)
@@ -54,16 +33,11 @@ namespace TripWiseAPI.Services
 
             try
             {
-                Console.WriteLine($"[Wikimedia] Requesting MediaSearch API: {url}");
-
                 var response = await _httpClient.GetAsync(url);
                 var json = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
-                {
-                    Console.WriteLine($"[Wikimedia] MediaSearch API failed: {response.StatusCode} - {json}");
                     return new();
-                }
 
                 using var doc = JsonDocument.Parse(json);
                 var result = new List<string>();
@@ -87,9 +61,8 @@ namespace TripWiseAPI.Services
 
                 return result;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[Wikimedia] MediaSearch exception: {ex.Message}");
                 return new();
             }
         }
@@ -101,16 +74,11 @@ namespace TripWiseAPI.Services
 
             try
             {
-                Console.WriteLine($"[Wikimedia] Wikipedia fallback URL: {url}");
-
                 var response = await _httpClient.GetAsync(url);
                 var json = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
-                {
-                    Console.WriteLine($"[Wikimedia] Wikipedia failed: {response.StatusCode} - {json}");
                     return new();
-                }
 
                 using var doc = JsonDocument.Parse(json);
                 var result = new List<string>();
@@ -134,9 +102,8 @@ namespace TripWiseAPI.Services
 
                 return result;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[Wikimedia] Wikipedia exception: {ex.Message}");
                 return new();
             }
         }
