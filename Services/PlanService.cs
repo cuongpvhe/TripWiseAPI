@@ -287,6 +287,15 @@ namespace TripWiseAPI.Services
         }
         public async Task<PlanDto> CreateAsync(PlanCreateDto dto, int createdBy)
         {
+            if (string.IsNullOrWhiteSpace(dto.PlanName))
+                throw new ArgumentException("PlanName không được để trống");
+
+            if (dto.Price < 0)
+                throw new ArgumentException("Price phải lớn hơn hoặc bằng 0");
+
+            if (dto.MaxRequests < 0)
+                throw new ArgumentException("MaxRequests phải lớn hơn 0");
+
             var plan = new Plan
             {
                 PlanName = dto.PlanName,
@@ -313,6 +322,15 @@ namespace TripWiseAPI.Services
 
         public async Task<bool> UpdateAsync(int id, PlanUpdateDto dto, int modifiedBy)
         {
+            if (string.IsNullOrWhiteSpace(dto.PlanName))
+                throw new ArgumentException("Tên gói không được để trống");
+
+            if (dto.Price < 0)
+                throw new ArgumentException("Giá tiền phải lớn hơn hoặc bằng 0");
+
+            if (dto.MaxRequests < 0)
+                throw new ArgumentException("Số lượng yêu cầu tối đa phải lớn hơn hoặc bằng 0");
+
             var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
             if (plan == null) return false;
 

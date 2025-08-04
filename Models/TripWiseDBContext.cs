@@ -43,11 +43,15 @@ namespace TripWiseAPI.Models
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            var builder = new ConfigurationBuilder()
-.SetBasePath(Directory.GetCurrentDirectory())
-.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-            IConfigurationRoot configuration = builder.Build();
-            optionsBuilder.UseSqlServer(configuration.GetConnectionString("DBContext"));
+            if (!optionsBuilder.IsConfigured)
+            {
+                var builder = new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+                IConfigurationRoot configuration = builder.Build();
+
+                optionsBuilder.UseSqlServer(configuration.GetConnectionString("DBContext"));
+            }
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -367,6 +371,12 @@ namespace TripWiseAPI.Models
                 entity.Property(e => e.PartnerId).HasColumnName("PartnerID");
 
                 entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
+
+                entity.Property(e => e.PriceAdult).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.PriceChild5To10).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.PriceChildUnder5).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.PricePerDay).HasColumnType("decimal(18, 0)");
 

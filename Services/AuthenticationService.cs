@@ -6,6 +6,8 @@ using TripWiseAPI.Models;
 using TripWiseAPI.Utils;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Services.AdminServices;
+using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 
 namespace TripWiseAPI.Services
 {
@@ -171,14 +173,36 @@ namespace TripWiseAPI.Services
         {
             var response = new SignupResponse { SignupRequestId = req.SignupRequestId };
 
-            if (await _context.Users.AnyAsync(u => u.Email == req.Email))
+            // Check email
+            if (string.IsNullOrWhiteSpace(req.Email))
+            {
+                response.InvalidFields.Add("email");
+            }
+            else if (!new EmailAddressAttribute().IsValid(req.Email))
+            {
+                response.InvalidFields.Add("email");
+            }
+            else if (await _context.Users.AnyAsync(u => u.Email == req.Email))
             {
                 response.InvalidFields.Add("email");
             }
 
-            if (await _context.Users.AnyAsync(u => u.UserName.ToLower() == req.Username.ToLower()))
+            // Check username
+            if (string.IsNullOrWhiteSpace(req.Username))
             {
                 response.InvalidFields.Add("username");
+            }
+            else if (await _context.Users.AnyAsync(u => u.UserName.ToLower() == req.Username.ToLower()))
+            {
+                response.InvalidFields.Add("username");
+            }
+            if (string.IsNullOrWhiteSpace(req.Password))
+            {
+                response.InvalidFields.Add("password");
+            }
+            else if (req.Password != req.ConfirmPassword)
+            {
+                response.InvalidFields.Add("confirmPassword");
             }
 
             if (response.InvalidFields.Any()) return response;
@@ -201,6 +225,8 @@ namespace TripWiseAPI.Services
 
         public async Task<ApiResponse<string>> VerifyOtpAsync(string enteredOtp, UserSignupData data)
         {
+            if (string.IsNullOrEmpty(enteredOtp))
+                return new ApiResponse<string>(400, "OTP không được để trống.");
             var otp = await _context.SignupOtps.FindAsync(data.SignupRequestId);
             if (otp == null)
                 return new ApiResponse<string>(401, ErrorMessage.InvalidRequestId);
@@ -211,14 +237,15 @@ namespace TripWiseAPI.Services
             if (otp.Otpstring != enteredOtp)
             {
                 otp.RequestAttemptsRemains--;
+
                 if (otp.RequestAttemptsRemains <= 0)
                 {
                     _context.SignupOtps.Remove(otp);
+                    await _context.SaveChangesAsync();
+                    return new ApiResponse<string>(400, "Bạn đã hết số lần thử OTP.");
                 }
-                else
-                {
-                    _context.SignupOtps.Update(otp);
-                }
+
+                _context.SignupOtps.Update(otp);
                 await _context.SaveChangesAsync();
                 return new ApiResponse<string>(400, $"OTP không đúng, còn lại {otp.RequestAttemptsRemains} lần thử.");
             }
@@ -296,6 +323,12 @@ namespace TripWiseAPI.Services
         }
         public async Task<ApiResponse<string>> SendForgotPasswordOtpAsync(ForgotPasswordRequest req)
         {
+            if (string.IsNullOrWhiteSpace(req.Email))
+                return new ApiResponse<string>(400, "Email không được để trống");
+
+            if (!Regex.IsMatch(req.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                return new ApiResponse<string>(400, "Email không đúng định dạng");
+
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
             if (user == null)
                 return new ApiResponse<string>(404, "Email chưa được đăng ký");
@@ -325,17 +358,24 @@ namespace TripWiseAPI.Services
         }
         public async Task<ApiResponse<string>> VerifyForgotPasswordOtpAsync(string enteredOtp, VerifyForgotOtpRequest req)
         {
-            var otp = await _context.SignupOtps.FindAsync(req.Email);
+            var otp = await _context.SignupOtps.FirstOrDefaultAsync(o => o.SignupRequestId == req.Email);
             if (otp == null)
                 return new ApiResponse<string>(401, ErrorMessage.InvalidRequestId);
 
-            if (otp.ExpiresAt < DateTime.Now)
+            var now = TimeHelper.GetVietnamTime();
+            if (otp.ExpiresAt < now)
+            {
+                _context.SignupOtps.Remove(otp);
+                await _context.SaveChangesAsync();
                 return new ApiResponse<string>(401, ErrorMessage.ExpiredOTP);
+            }
 
             if (otp.Otpstring != enteredOtp)
             {
-                otp.RequestAttemptsRemains--;
-                if (otp.RequestAttemptsRemains <= 0)
+                int remainingAttempts = otp.RequestAttemptsRemains - 1;
+                otp.RequestAttemptsRemains = remainingAttempts;
+
+                if (remainingAttempts <= 0)
                 {
                     _context.SignupOtps.Remove(otp);
                 }
@@ -343,18 +383,23 @@ namespace TripWiseAPI.Services
                 {
                     _context.SignupOtps.Update(otp);
                 }
+
                 await _context.SaveChangesAsync();
-                return new ApiResponse<string>(400, $"OTP không đúng, còn lại {otp.RequestAttemptsRemains} lần thử.");
+
+                return new ApiResponse<string>(400, $"OTP không đúng, còn lại {remainingAttempts} lần thử.");
             }
 
-            // OTP đúng → xóa
             _context.SignupOtps.Remove(otp);
             await _context.SaveChangesAsync();
-            return new ApiResponse<string>("OTP hợp lệ, bạn có thể đổi mật khẩu");
+            return new ApiResponse<string>(200, "OTP hợp lệ, bạn có thể đổi mật khẩu");
         }
 
         public async Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordRequest req)
         {
+            if (string.IsNullOrWhiteSpace(req.NewPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
+                return new ApiResponse<string>(400, "Mật khẩu không được để trống");
+
+        
             var user = await _context.Users.FirstOrDefaultAsync(x => x.Email == req.Email);
             if (user == null)
                 return new ApiResponse<string>(404, "Không tìm thấy tài khoản");
@@ -363,7 +408,8 @@ namespace TripWiseAPI.Services
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
-            return new ApiResponse<string>("Mật khẩu đã được cập nhật");
+            return new ApiResponse<string>(200, "Mật khẩu đã được cập nhật");
+
         }
 
 

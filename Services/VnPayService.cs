@@ -124,25 +124,34 @@ namespace TripWiseAPI.Services
             if (tour == null)
                 throw new Exception("Tour không tồn tại.");
 
-            if (tour.PricePerDay == null || tour.PricePerDay <= 0)
-                throw new Exception("Tour chưa có giá theo ngày hợp lệ.");
+            if (tour.PriceAdult == null || tour.PriceAdult <= 0)
+                throw new Exception("Tour chưa có giá người lớn hợp lệ.");
+
+            var totalPeople = request.NumAdults + request.NumChildren5To10 + request.NumChildrenUnder5;
+
+            if (tour.MaxGroupSize.HasValue && totalPeople > tour.MaxGroupSize.Value)
+                throw new Exception($"Tổng số người ({totalPeople}) vượt quá số lượng tối đa cho phép ({tour.MaxGroupSize}).");
 
             var now = TimeHelper.GetVietnamTime();
 
             // ✅ Tính tổng tiền
-            var totalAmount = (decimal)(tour.PricePerDay * request.NumberOfPeople * request.NumberOfDays);
+            var totalAmount = (decimal)(
+                request.NumAdults * tour.PriceAdult.Value +
+                request.NumChildren5To10 * (tour.PriceChild5To10 ?? 0) +
+                request.NumChildrenUnder5 * (tour.PriceChildUnder5 ?? 0)
+            );
 
             // Bước 1: Tạo booking
             var booking = new Booking
             {
                 UserId = userId,
                 TourId = request.TourId,
-                Quantity = request.NumberOfPeople,
+                Quantity = totalPeople,
                 TotalAmount = totalAmount,
                 BookingStatus = PaymentStatus.Pending,
                 CreatedDate = now,
                 CreatedBy = userId,
-                OrderCode = "temp" // Tạm thời, sẽ cập nhật lại
+                OrderCode = "temp" // Tạm, cập nhật sau
             };
             _dbContext.Bookings.Add(booking);
             await _dbContext.SaveChangesAsync();
@@ -172,7 +181,7 @@ namespace TripWiseAPI.Services
                 UserId = userId,
                 Amount = totalAmount,
                 Name = $"Tour: {tour.TourName}",
-                OrderDescription = $"Thanh toán tour {tour.TourName} cho {request.NumberOfPeople} người, {request.NumberOfDays} ngày. Tổng: {totalAmount:N0} VND",
+                OrderDescription = $"Thanh toán tour \"{tour.TourName}\" cho {request.NumAdults} người lớn, {request.NumChildren5To10} trẻ 5-10 tuổi, {request.NumChildrenUnder5} dưới 5 tuổi. Tổng tiền {totalAmount:N0} VND",
                 OrderType = "booking",
                 BookingId = booking.BookingId,
                 OrderCode = booking.OrderCode,

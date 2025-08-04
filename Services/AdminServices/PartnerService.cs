@@ -5,6 +5,7 @@ using TripWiseAPI.Utils;
 using System.Security.Cryptography;
 using System.Text;
 using TripWiseAPI.Models.DTO;
+using System.Text.RegularExpressions;
 
 public class PartnerService : IPartnerService
 {
@@ -57,9 +58,34 @@ public class PartnerService : IPartnerService
     }
     public async Task<bool> CreatePartnerAccountAsync(CreatePartnerAccountDto dto, int createdBy)
     {
+        // Validate đầu vào
+        if (string.IsNullOrWhiteSpace(dto.Email))
+            throw new ArgumentException("Email không được để trống");
+
+        if (!Regex.IsMatch(dto.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            throw new ArgumentException("Email không hợp lệ");
+
+        if (string.IsNullOrWhiteSpace(dto.Password))
+            throw new ArgumentException("Mật khẩu không được để trống");
+
+        if (string.IsNullOrWhiteSpace(dto.UserName))
+            throw new ArgumentException("Tên người dùng không được để trống");
+
+        if (string.IsNullOrWhiteSpace(dto.CompanyName))
+            throw new ArgumentException("Tên công ty không được để trống");
+
+        if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
+            throw new ArgumentException("Số điện thoại không được để trống");
+
+        if (!Regex.IsMatch(dto.PhoneNumber, @"^\d{9,15}$"))
+            throw new ArgumentException("Số điện thoại không hợp lệ");
+
         // Kiểm tra trùng email
         var exists = await _db.Users.AnyAsync(u => u.Email == dto.Email);
-        if (exists) return false;
+        if (exists)
+            throw new ArgumentException("Email đã tồn tại trong hệ thống");
+        // Kiểm tra trùng email
+       
 
         var user = new User
         {
@@ -94,6 +120,30 @@ public class PartnerService : IPartnerService
     }
     public async Task<bool> UpdateAsync(int partnerId, PartnerUpdatelDto dto, int modifiedBy)
     {
+        if (string.IsNullOrWhiteSpace(dto.Email))
+            throw new ArgumentException("Email không được để trống");
+
+        if (!Regex.IsMatch(dto.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            throw new ArgumentException("Email không hợp lệ");
+
+        if (string.IsNullOrWhiteSpace(dto.UserName))
+            throw new ArgumentException("Tên người dùng không được để trống");
+
+        if (string.IsNullOrWhiteSpace(dto.CompanyName))
+            throw new ArgumentException("Tên công ty không được để trống");
+
+        if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
+            throw new ArgumentException("Số điện thoại không được để trống");
+
+        if (!Regex.IsMatch(dto.PhoneNumber, @"^\d{9,11}$"))
+            throw new ArgumentException("Số điện thoại không hợp lệ");
+
+
+        // Kiểm tra email có bị trùng với user khác không
+        var emailExists = await _db.Users
+    .AnyAsync(u => u.Email == dto.Email && u.Partner != null && u.Partner.PartnerId != partnerId);
+        if (emailExists)
+            throw new ArgumentException("Email đã tồn tại trong hệ thống");
         var partner = await _db.Partners
             .Include(p => p.User)
             .FirstOrDefaultAsync(p => p.PartnerId == partnerId && p.RemovedDate == null);

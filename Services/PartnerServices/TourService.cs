@@ -49,6 +49,27 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<int> CreateTourAsync(CreateTourDto request, int partnerId)
         {
+            // Kiểm tra từng trường và báo lỗi tiếng Việt nếu không hợp lệ
+            if (string.IsNullOrWhiteSpace(request.TourName))
+                throw new ArgumentException("Tên tour không được để trống");
+            if (string.IsNullOrWhiteSpace(request.Description))
+                throw new ArgumentException("Mô tả tour không được để trống");
+            if (!int.TryParse(request.Duration, out int duration) || duration <= 0)
+                throw new ArgumentException("Thời lượng tour phải là số nguyên dương");
+            if (request.Price <= 0)
+                throw new ArgumentException("Giá tour phải lớn hơn 0");
+            if (string.IsNullOrWhiteSpace(request.Location))
+                throw new ArgumentException("Địa điểm không được để trống");
+            if (request.MaxGroupSize <= 0)
+                throw new ArgumentException("Số lượng nhóm tối đa phải lớn hơn 0");
+            if (string.IsNullOrWhiteSpace(request.Category))
+                throw new ArgumentException("Danh mục không được để trống");
+            if (string.IsNullOrWhiteSpace(request.TourNote))
+                throw new ArgumentException("Ghi chú tour không được để trống");
+            if (string.IsNullOrWhiteSpace(request.TourInfo))
+                throw new ArgumentException("Thông tin tour không được để trống");
+            if (request.PricePerDay <= 0)
+                throw new ArgumentException("Giá theo ngày phải lớn hơn 0");
             var tour = new Tour
             {
                 TourName = request.TourName,
@@ -125,6 +146,23 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<int> CreateItineraryAsync(int tourId, CreateItineraryDto request, int userId)
         {
+            // Validate dữ liệu
+
+            if (request == null)
+                throw new ArgumentNullException(nameof(request), "Dữ liệu hành trình không được để trống.");
+
+            if (string.IsNullOrWhiteSpace(request.Title))
+                throw new ArgumentException("Tiêu đề hành trình không được để trống.");
+
+            if (request.Title.Length > 200)
+                throw new ArgumentException("Tiêu đề hành trình không được vượt quá 200 ký tự.");
+
+            if (request.DayNumber != null && request.DayNumber <= 0)
+                throw new ArgumentException("Ngày trong hành trình phải lớn hơn 0.");
+            var tourExists = await _dbContext.Tours.AnyAsync(t => t.TourId == tourId);
+            if (!tourExists)
+                throw new ArgumentException("Tour không tồn tại.");
+            // Tạo đối tượng
             var itinerary = new TourItinerary
             {
                 TourId = tourId,
@@ -139,8 +177,35 @@ namespace TripWiseAPI.Services.PartnerServices
             return itinerary.ItineraryId;
         }
 
+
         public async Task<int> CreateActivityAsync(int itineraryId, ActivityDayDto request, int userId)
         {
+            // Validate dữ liệu
+            if (request == null)
+                throw new ArgumentNullException(nameof(request), "Dữ liệu hoạt động không được để trống.");
+
+            if (string.IsNullOrWhiteSpace(request.PlaceDetail))
+                throw new ArgumentException("Tên địa điểm không được để trống.");
+
+            if (request.EstimatedCost < 0)
+                throw new ArgumentException("Chi phí ước tính phải lớn hơn 0.");
+
+            if (!string.IsNullOrEmpty(request.StartTime) && !string.IsNullOrEmpty(request.EndTime))
+            {
+                if (!TimeSpan.TryParse(request.StartTime, out var startTime))
+                    throw new ArgumentException("StartTime không hợp lệ.");
+
+                if (!TimeSpan.TryParse(request.EndTime, out var endTime))
+                    throw new ArgumentException("EndTime không hợp lệ.");
+
+                if (endTime <= startTime)
+                    throw new ArgumentException("EndTime phải lớn hơn StartTime.");
+
+                var now = TimeHelper.GetVietnamTime().TimeOfDay;
+                if (startTime <= now)
+                    throw new ArgumentException("StartTime phải lớn hơn thời gian hiện tại.");
+            }
+
             var attraction = new TourAttraction
             {
                 TourAttractionsName = request.PlaceDetail,
@@ -303,6 +368,23 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<bool> UpdateTourAsync(int tourId, UpdateTourDto request, int userId, List<IFormFile>? imageFiles, List<string>? imageUrls)
         {
+            if (string.IsNullOrWhiteSpace(request.TourName))
+                throw new ArgumentException("TourName không được để trống.");
+
+            if (string.IsNullOrWhiteSpace(request.Description))
+                throw new ArgumentException("Description không được để trống.");
+
+            if (string.IsNullOrWhiteSpace(request.Location))
+                throw new ArgumentException("Location không được để trống.");
+
+            if (string.IsNullOrWhiteSpace(request.Duration) || !int.TryParse(request.Duration, out int durationInt))
+                throw new ArgumentException("Duration không hợp lệ. Vui lòng nhập số nguyên dương.");
+
+            if (durationInt <= 0)
+                throw new ArgumentException("Duration phải lớn hơn 0.");
+
+            if (request.Price < 0 || request.PricePerDay < 0)
+                throw new ArgumentException("Price và PricePerDay phải lớn hơn hoặc bằng 0.");
             var tour = await _dbContext.Tours
                 .Include(t => t.TourImages)
                 .ThenInclude(ti => ti.Image)
@@ -405,6 +487,12 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<bool> UpdateItineraryAsync(int itineraryId, int userId, CreateItineraryDto request)
         {
+            if (string.IsNullOrWhiteSpace(request.Title))
+                throw new ArgumentException("ItineraryName không được để trống.");
+
+            if (request.DayNumber <= 0)
+                throw new ArgumentException("DayNumber phải lớn hơn 0.");
+
             var itinerary = await _dbContext.TourItineraries.FindAsync(itineraryId);
             if (itinerary == null) return false;
 
@@ -418,6 +506,30 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<bool> UpdateActivityAsync(int activityId, int userId, ActivityDto request, List<IFormFile>? imageFiles, List<string>? imageUrls)
         {
+            if (string.IsNullOrWhiteSpace(request.PlaceDetail))
+                throw new ArgumentException("PlaceDetail không được để trống.");
+
+            if (string.IsNullOrWhiteSpace(request.Address))
+                throw new ArgumentException("Address không được để trống.");
+
+            if (request.EstimatedCost < 0)
+                throw new ArgumentException("EstimatedCost không được âm.");
+
+            if (!string.IsNullOrEmpty(request.StartTime) && !string.IsNullOrEmpty(request.EndTime))
+            {
+                if (!TimeSpan.TryParse(request.StartTime, out var startTime))
+                    throw new ArgumentException("StartTime không hợp lệ.");
+
+                if (!TimeSpan.TryParse(request.EndTime, out var endTime))
+                    throw new ArgumentException("EndTime không hợp lệ.");
+
+                if (endTime <= startTime)
+                    throw new ArgumentException("EndTime phải lớn hơn StartTime.");
+
+                var now = TimeHelper.GetVietnamTime().TimeOfDay;
+                if (startTime <= now)
+                    throw new ArgumentException("StartTime phải lớn hơn thời gian hiện tại.");
+            }
             var activity = await _dbContext.TourAttractions.FindAsync(activityId);
             if (activity == null) return false;
 
