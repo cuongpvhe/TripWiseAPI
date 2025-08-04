@@ -2,10 +2,8 @@
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.APIModel;
 using TripWiseAPI.Models.DTO;
-using TripWiseAPI.Models.LogModel;
 using TripWiseAPI.Services.AdminServices;
 using TripWiseAPI.Utils;
-
 
 namespace TripWiseAPI.Services
 {
@@ -108,11 +106,6 @@ namespace TripWiseAPI.Services
                     };
                 }
 
-                userPlan.RequestInDays--;
-                userPlan.ModifiedDate = DateTime.UtcNow;
-                _dbContext.UserPlans.Update(userPlan);
-                await _dbContext.SaveChangesAsync();
-
                 if (isSuccess)
                 {
                     userPlan.RequestInDays--;
@@ -131,8 +124,9 @@ namespace TripWiseAPI.Services
                 }
 
             }
-		
+
 			return new PlanValidationResult { IsValid = true };
+
         }
 
 
@@ -190,11 +184,8 @@ namespace TripWiseAPI.Services
 
             await _dbContext.UserPlans.AddAsync(newUserPlan);
             await _dbContext.SaveChangesAsync();
-		
-		
-			await _logService.LogAsync(userId, "UpgradePlan", $"Người dùng đã nâng cấp lên gói '{newPlan.PlanName}'. Lượt: {newUserPlan.RequestInDays}", 200, modifiedDate: DateTime.UtcNow, modifiedBy: userId);
 
-			return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
+            return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
         }
        
 

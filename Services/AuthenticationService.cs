@@ -5,9 +5,7 @@ using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Models;
 using TripWiseAPI.Utils;
 using Microsoft.EntityFrameworkCore;
-using TripWiseAPI.Models.LogModel;
 using TripWiseAPI.Services.AdminServices;
-
 
 namespace TripWiseAPI.Services
 {
@@ -27,7 +25,8 @@ namespace TripWiseAPI.Services
 
 
 
-		public async Task<(string accessToken, string refreshToken)> LoginAsync(LoginModel loginModel)
+
+        public async Task<(string accessToken, string refreshToken)> LoginAsync(LoginModel loginModel)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginModel.Email && u.IsActive);
             if (user == null || !PasswordHelper.VerifyPasswordBCrypt(loginModel.Password, user.PasswordHash))
@@ -47,10 +46,9 @@ namespace TripWiseAPI.Services
                 ExpiresAt = DateTime.Now.AddMonths(1)
             });			
 			await _logFireService.LogAsync(user.UserId, "Login", $"Người dùng {user.UserName} đăng nhập.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
-			await _context.SaveChangesAsync();            
+
 
             await _context.SaveChangesAsync();
-
             return (accessToken, refreshToken);
         }
 
@@ -198,9 +196,8 @@ namespace TripWiseAPI.Services
                 RequestAttemptsRemains = 3,
                 ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(10)
             };
-			
-			await _logFireService.LogAsync(0, "Signup_Request", $"Yêu cầu đăng ký tài khoản với email {req.Username}.", 200, createdDate: DateTime.UtcNow, createdBy: null);
-			await _context.SignupOtps.AddAsync(otp);
+
+            await _context.SignupOtps.AddAsync(otp);
             await _context.SaveChangesAsync();
 
             _ = Task.Run(() => EmailHelper.SendEmailMultiThread(req.Email, "Mã OTP", $"Mã OTP của bạn là <b>{otp.Otpstring}</b>"));
@@ -242,9 +239,8 @@ namespace TripWiseAPI.Services
                 RequestChatbot = 0,
                 IsActive = true
             };
-            
-			await _logFireService.LogAsync(user.UserId, "Signup_Complete", $"Người dùng {user.UserName} xác thực OTP và đăng ký thành công.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
-			await _context.Users.AddAsync(user);
+
+            await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
 
             string? trialPlanName = await _appSettingsService.GetValueAsync("DefaultTrialPlanName");
@@ -323,10 +319,8 @@ namespace TripWiseAPI.Services
                 RequestAttemptsRemains = 3,
                 ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(10)
             };
-		
-			await _logFireService.LogAsync(user.UserId, "ForgotPassword_OTP", $"Người dùng {user.UserName} yêu cầu OTP đặt lại mật khẩu.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
 
-			await _context.SignupOtps.AddAsync(otp);
+            await _context.SignupOtps.AddAsync(otp);
             await _context.SaveChangesAsync();
 
             _ = Task.Run(() =>
@@ -373,9 +367,7 @@ namespace TripWiseAPI.Services
 
             user.PasswordHash = PasswordHelper.HashPasswordBCrypt(req.NewPassword);
             _context.Users.Update(user);
-		
-			await _logFireService.LogAsync(user.UserId, "ResetPassword", $"Người dùng {user.UserName} đã đặt lại mật khẩu.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
-			await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
             return new ApiResponse<string>("Mật khẩu đã được cập nhật");
         }

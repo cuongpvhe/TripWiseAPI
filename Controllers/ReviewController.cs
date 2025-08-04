@@ -58,30 +58,7 @@ namespace TripWiseAPI.Controllers
 				return NotFound("Không tìm thấy đánh giá cho tour AI này.");
 			return Ok(reviews);
 		}
-		// PUT: api/Review/{reviewId}
-		[HttpPut("{reviewId}")]
-		public async Task<IActionResult> UpdateReview(int reviewId, [FromBody] UpdateReviewDto dto)
-		{
-			var userIdClaim = User.FindFirst("UserId")?.Value;
-			if (!int.TryParse(userIdClaim, out int userId))
-				return Unauthorized("Không xác định được người dùng.");
 
-			var result = await _reviewService.UpdateReviewAsync(userId, reviewId, dto);
-			return StatusCode(result.StatusCode, result);
-		}
-
-		// DELETE: api/Review/{reviewId}
-		[HttpDelete("{reviewId}")]
-		public async Task<IActionResult> DeleteReview(int reviewId)
-		{
-			var userIdClaim = User.FindFirst("UserId")?.Value;
-			if (!int.TryParse(userIdClaim, out int userId))
-				return Unauthorized("Không xác định được người dùng.");
-
-			var result = await _reviewService.DeleteReviewAsync(userId, reviewId);
-			return StatusCode(result.StatusCode, result);
-		}
-
-
+		
 	}
 }

@@ -53,6 +53,9 @@ namespace TripWiseAPI.Services
                   - `"transportation"`: ghi rõ phương tiện (VD: "Grab", "Taxi", "Đi bộ", "Xe máy")
                   - `"address"`: phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng"), tham khảo những bài viết du lịch uy tín liên quan đến {{request.Destination}}
                   - `"placeDetail"`: mô tả sinh động, giải thích lý do nên đến
+                  - "placeDetail" không được viết kiểu: “nơi lý tưởng để tham quan”, “rất nổi tiếng”, “được nhiều người yêu thích” nếu không có chi tiết cụ thể.
+                                  VD đúng: "Chợ Bến Thành – khu chợ nổi tiếng với hơn 100 năm lịch sử, nơi du khách có thể mua đặc sản và thử món bánh tráng trộn nổi tiếng."
+                                  VD sai: "Chợ nổi tiếng, có nhiều món ăn ngon, thích hợp để khám phá."
                   - `"mapUrl"`: link đúng định dạng Google Maps
                   - `"image"`: nếu có thumbnail thì dùng, nếu không thì để chuỗi rỗng `""`
 
@@ -63,8 +66,10 @@ namespace TripWiseAPI.Services
 
                 === NGUỒN ĐỊA ĐIỂM ===
                 - Ưu tiên địa điểm có trong danh sách `relatedKnowledge` nếu phù hợp logic chuyến đi
-                - Nếu thiếu, có thể đề xuất địa điểm thật, nổi tiếng, được đánh giá cao trên Google Maps, tham khảo những bài viết du lịch uy tín liên quan đến {{request.Destination}}
-                - Không chấp nhận địa điểm mơ hồ, chung chung, không có địa chỉ cụ thể
+                - Nếu cần mở rộng, chỉ lấy địa điểm:
+                  - Có thật, có địa chỉ, có trên Google Maps
+                  - Nằm trong bài viết/blog/review du lịch uy tín về {{request.Destination}}
+                - **Không được tự nghĩ ra hoặc phỏng đoán địa điểm không kiểm chứng**
                 {{exclusionNote}}
 
                 === OUTPUT FORMAT ===
