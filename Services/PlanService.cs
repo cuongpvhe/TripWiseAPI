@@ -10,14 +10,15 @@ namespace TripWiseAPI.Services
     public class PlanService : IPlanService
     {
         private readonly TripWiseDBContext _dbContext;
-        private readonly IAppSettingsService _appSettingsService;
-
-        public PlanService(TripWiseDBContext dbContext, IAppSettingsService appSettingsService)
-        {
-            _dbContext = dbContext;
-            _appSettingsService = appSettingsService;
-        }
-
+		private readonly FirebaseLogService _logService;
+		private readonly IAppSettingsService _appSettingsService;
+		public PlanService(TripWiseDBContext dbContext, FirebaseLogService logService, IAppSettingsService appSettingsService)
+		{
+			_dbContext = dbContext;
+			_logService = logService;
+			_appSettingsService = appSettingsService;
+		}
+          
         public async Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId, bool isSuccess)
         {
             var userPlan = await _dbContext.UserPlans
@@ -117,14 +118,15 @@ namespace TripWiseAPI.Services
                         user.RequestChatbot = (user.RequestChatbot ?? 0) + 1;
                         _dbContext.Users.Update(user);
                     }
+                    await _logService.LogAsync(userId, "UsePlan", $"Người dùng đã sử dụng 1 lượt từ gói '{userPlan.Plan.PlanName}'. Lượt còn lại: {userPlan.RequestInDays}", 200, createdDate: DateTime.UtcNow, createdBy: userId);
 
                     await _dbContext.SaveChangesAsync();
                 }
 
-                
             }
 
-            return new PlanValidationResult { IsValid = true };
+			return new PlanValidationResult { IsValid = true };
+
         }
 
 
