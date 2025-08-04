@@ -15,21 +15,17 @@ namespace TripWiseAPI.Services
     {
         private readonly TripWiseDBContext _context;
         private readonly IConfiguration _config;
+		private readonly IAppSettingsService _appSettingsService;
 		private readonly FirebaseLogService _logFireService;
-		public AuthenticationService(TripWiseDBContext context, IConfiguration config, FirebaseLogService logFireService)
+		public AuthenticationService(TripWiseDBContext context, IConfiguration config, FirebaseLogService logFireService, IAppSettingsService appSettingsService)
 		{
 			_context = context;
 			_config = config;
 			_logFireService = logFireService;
+			_appSettingsService = appSettingsService;
 		}
-        private readonly IAppSettingsService _appSettingsService;
 
-        public AuthenticationService(TripWiseDBContext context, IConfiguration config, IAppSettingsService appSettingsService)
-        {
-            _context = context;
-            _config = config;
-            _appSettingsService = appSettingsService;
-        }
+
 
 		public async Task<(string accessToken, string refreshToken)> LoginAsync(LoginModel loginModel)
         {
@@ -51,11 +47,7 @@ namespace TripWiseAPI.Services
                 ExpiresAt = DateTime.Now.AddMonths(1)
             });			
 			await _logFireService.LogAsync(user.UserId, "Login", $"Người dùng {user.UserName} đăng nhập.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
-			await _context.SaveChangesAsync();
-
-                CreatedAt = TimeHelper.GetVietnamTime(),
-                ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1)
-            });
+			await _context.SaveChangesAsync();            
 
             await _context.SaveChangesAsync();
 

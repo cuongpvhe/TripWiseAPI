@@ -91,7 +91,7 @@ namespace TripWiseAPI
 
             builder.Services.AddScoped<IReviewService, ReviewService>();
 			builder.Services.AddScoped<IBlogService, BlogService>();
-			builder.Services.AddSwaggerGen(c =>
+
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IPartnerService, PartnerService>();
             builder.Services.AddScoped<IVnPayService, VnPayService>();
