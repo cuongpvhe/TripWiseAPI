@@ -655,11 +655,28 @@ namespace TripWiseAPI.Services.PartnerServices
             await _dbContext.SaveChangesAsync();
             return true;
         }
+        public async Task<List<Tour>> GetToursByLocationAsync(string location, int maxResults = 4)
+        {
+            return await _dbContext.Tours
+                .Include(t => t.TourImages)
+                    .ThenInclude(ti => ti.Image)
+                .Where(t =>
+                    t.Location != null &&
+                    t.Location.ToLower().Contains(location.ToLower()) &&
+                    t.TourTypesId == 2 && 
+                    t.Status == "Approved" &&
+                    t.RemovedDate == null)
+                .OrderByDescending(t => t.CreatedDate)
+                .Take(maxResults)
+                .ToListAsync();
+        }
+
 
 
 
 
     }
+
     public static class TourStatuses
     {
         public const string Draft = "Draft";

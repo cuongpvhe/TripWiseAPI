@@ -12,7 +12,7 @@ namespace TripWiseAPI.Services
         private readonly string _apiKey;
         private readonly IPromptBuilder _promptBuilder;
         private readonly IJsonRepairService _repairService;
-        private readonly IWikimediaImageService _imageService;
+        private readonly IWikimediaImageService _WikimediaImageService;
         private const int MaxDaysPerChunk = 3;
         private readonly IGoogleMapsPlaceService _googleMapsPlaceService;
 
@@ -22,7 +22,7 @@ namespace TripWiseAPI.Services
             _apiKey = config["Gemini:ApiKey"];
             _promptBuilder = promptBuilder;
             _repairService = repairService;
-            _imageService = imageService;
+            _WikimediaImageService = imageService;
             _googleMapsPlaceService = googleMapsPlaceService;
             Console.OutputEncoding = Encoding.UTF8;
         }
@@ -55,15 +55,15 @@ namespace TripWiseAPI.Services
             var payload = new
             {
                 contents = new[] {
-                    new {
-                        parts = new[] {
-                            new { text = prompt }
-                        }
-                    }
-                },
+            new {
+                parts = new[] {
+                    new { text = prompt }
+                }
+            }
+        },
                 generationConfig = new
                 {
-                    maxOutputTokens = 20000,
+                    maxOutputTokens = 25000,
                     temperature = 0.7
                 }
             };
@@ -99,7 +99,16 @@ namespace TripWiseAPI.Services
 
             var imageUrlsUsed = new HashSet<string>();
             var allDays = new List<ItineraryDay>();
-            string fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
+
+            var fallbackImages = new[]
+            {
+        "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg",
+        "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
+        "https://www.ticgroup.vn/uploads/images/images/cat_ba.jpg",
+        "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
+        "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
+    };
+            var random = new Random();
 
             foreach (var d in parsed.Days)
             {
@@ -113,33 +122,45 @@ namespace TripWiseAPI.Services
                     }
                     else
                     {
-                        string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
-                            ? a.Address
-                            : !string.IsNullOrWhiteSpace(a.PlaceDetail)
-                                ? a.PlaceDetail
-                                : request.Destination;
-
                         try
                         {
-                            var (lat, lng, googleImage) = await _googleMapsPlaceService.GetPlaceInfoAsync(searchKeyword);
+                            var imageUrls = await _WikimediaImageService.SearchImageUrlsAsync(request.Destination);
+                            var selected = imageUrls.FirstOrDefault(url => !imageUrlsUsed.Contains(url));
 
-                            if (!string.IsNullOrWhiteSpace(googleImage) && !imageUrlsUsed.Contains(googleImage))
+                            if (!string.IsNullOrWhiteSpace(selected))
                             {
-                                imageUrl = googleImage;
+                                imageUrl = selected;
                                 imageUrlsUsed.Add(imageUrl);
-                                Console.WriteLine($"[Image] Google Maps image used: {imageUrl}");
+                                Console.WriteLine($"[Image] Wikimedia image used: {imageUrl}");
                             }
                             else
                             {
-                                Console.WriteLine($"[Image] Google Maps fallback for: {searchKeyword}");
+                                Console.WriteLine($"[Image] Wikimedia fallback used for: {request.Destination}");
                             }
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[Image] Google Maps error: {ex.Message}");
+                            Console.WriteLine($"[Image] Wikimedia error: {ex.Message}");
                         }
 
-                        imageUrl ??= fallbackImage;
+                        imageUrl ??= fallbackImages[random.Next(fallbackImages.Length)];
+
+                        /*
+                        // ======= Đã comment đoạn xử lý ảnh từ Google Maps =======
+                        var (lat, lng, googleImage) = await _googleMapsPlaceService.GetPlaceInfoAsync(searchKeyword);
+
+                        if (!string.IsNullOrWhiteSpace(googleImage) && !imageUrlsUsed.Contains(googleImage))
+                        {
+                            imageUrl = googleImage;
+                            imageUrlsUsed.Add(imageUrl);
+                            Console.WriteLine($"[Image] Google Maps image used: {imageUrl}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[Image] Google Maps fallback for: {searchKeyword}");
+                        }
+                        ==========================================================
+                        */
                     }
 
                     return new ItineraryActivity
@@ -189,6 +210,7 @@ namespace TripWiseAPI.Services
             };
         }
 
+
         public async Task<ItineraryChunkResponse> GenerateChunkAsync(
     TravelRequest baseRequest,
     DateTime startDate,
@@ -210,7 +232,6 @@ namespace TripWiseAPI.Services
                 Accommodation = baseRequest.Accommodation
             };
 
-            // Build prompt nhưng thêm vào thông tin địa điểm đã dùng
             string joinedPrevious = string.Join(", ", previousAddresses.Distinct());
             string prompt = _promptBuilder.Build(chunkRequest, baseRequest.BudgetVND.ToString("N0", CultureInfo.InvariantCulture), relatedKnowledge)
                            + $"\n\nLưu ý: Không lặp lại các địa điểm sau trong lịch trình tiếp theo: {joinedPrevious}.";
@@ -218,7 +239,6 @@ namespace TripWiseAPI.Services
             Console.WriteLine("===== PROMPT FOR CHUNK =====");
             Console.WriteLine(prompt);
 
-            // Gửi prompt đi
             var payload = new
             {
                 contents = new[] {
@@ -230,7 +250,7 @@ namespace TripWiseAPI.Services
         },
                 generationConfig = new
                 {
-                    maxOutputTokens = 20000,
+                    maxOutputTokens = 25000,
                     temperature = 0.7
                 }
             };
@@ -266,20 +286,52 @@ namespace TripWiseAPI.Services
 
             var allDays = new List<ItineraryDay>();
             var imageUrlsUsed = new HashSet<string>();
-            string fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
+            var random = new Random();
+
+            var fallbackImages = new[]
+            {
+        "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg",
+        "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
+        "https://www.ticgroup.vn/uploads/images/images/cat_ba.jpg",
+        "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
+        "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
+    };
+
+            List<string> wikimediaImages;
+            try
+            {
+                wikimediaImages = await _WikimediaImageService.SearchImageUrlsAsync(baseRequest.Destination);
+                Console.WriteLine($"[Image] Retrieved {wikimediaImages.Count} Wikimedia image(s) for {baseRequest.Destination}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Image] Wikimedia image search failed: {ex.Message}");
+                wikimediaImages = new List<string>();
+            }
 
             foreach (var d in parsed.Days)
             {
                 var activities = await Task.WhenAll(d.Activities.Select(async a =>
                 {
-                    string? imageUrl = null;
+                    string? imageUrl = a.Image;
 
-                    if (!string.IsNullOrWhiteSpace(a.Image))
+                    if (string.IsNullOrWhiteSpace(imageUrl))
                     {
-                        imageUrl = a.Image;
-                    }
-                    else
-                    {
+                        var availableImages = wikimediaImages.Where(url => !imageUrlsUsed.Contains(url)).ToList();
+                        if (availableImages.Any())
+                        {
+                            imageUrl = availableImages[random.Next(availableImages.Count)];
+                            imageUrlsUsed.Add(imageUrl);
+                            Console.WriteLine($"[Image] Wikimedia image used: {imageUrl}");
+                        }
+                        else
+                        {
+                            imageUrl = fallbackImages[random.Next(fallbackImages.Length)];
+                            Console.WriteLine("[Image] Fallback image used.");
+                        }
+
+                        /*
+                        // ======= Đã comment đoạn xử lý ảnh từ Google Maps =======
                         string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
                             ? a.Address
                             : a.PlaceDetail ?? baseRequest.Destination;
@@ -299,6 +351,8 @@ namespace TripWiseAPI.Services
                         }
 
                         imageUrl ??= fallbackImage;
+                        ==========================================================
+                        */
                     }
 
                     return new ItineraryActivity
@@ -341,7 +395,11 @@ namespace TripWiseAPI.Services
         }
 
 
-        public async Task<ItineraryResponse> UpdateItineraryAsync(TravelRequest originalRequest, ItineraryResponse originalResponse, string userInstruction)
+
+        public async Task<ItineraryResponse> UpdateItineraryAsync(
+    TravelRequest originalRequest,
+    ItineraryResponse originalResponse,
+    string userInstruction)
         {
             string prompt = _promptBuilder.BuildUpdatePrompt(originalRequest, originalResponse, userInstruction);
 
@@ -356,7 +414,7 @@ namespace TripWiseAPI.Services
         },
                 generationConfig = new
                 {
-                    maxOutputTokens = 4096,
+                    maxOutputTokens = 25000,
                     temperature = 0.7
                 }
             };
@@ -373,8 +431,8 @@ namespace TripWiseAPI.Services
                 .GetProperty("content").GetProperty("parts")[0]
                 .GetProperty("text").GetString();
 
-            Console.WriteLine("🧠 Prompt gửi lên:\n" + prompt);
-            Console.WriteLine("📨 Kết quả Gemini trả về:\n" + raw);
+            Console.WriteLine(" Prompt gửi lên:\n" + prompt);
+            Console.WriteLine(" Kết quả Gemini trả về:\n" + raw);
 
             string cleanedJson = ExtractJson(raw);
 
@@ -396,16 +454,36 @@ namespace TripWiseAPI.Services
 
             if (parsed.Days.Count == 0)
             {
-                Console.WriteLine("⚠️ Gemini không trả về bất kỳ ngày nào được cập nhật. Giữ nguyên lịch trình gốc.");
+                Console.WriteLine(" Gemini không trả về bất kỳ ngày nào được cập nhật. Giữ nguyên lịch trình gốc.");
                 return originalResponse;
             }
 
-            Console.WriteLine($"📋 Gemini trả về {parsed.Days.Count} ngày được cập nhật:");
+            Console.WriteLine($"Gemini trả về {parsed.Days.Count} ngày được cập nhật:");
             foreach (var d in parsed.Days)
                 Console.WriteLine($"- Ngày {d.DayNumber}: {d.Title} với {d.Activities.Count} hoạt động");
 
             var imageUrlsUsed = new HashSet<string>();
-            var fallbackImage = "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg";
+            var fallbackImages = new[]
+            {
+        "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg",
+        "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
+        "https://www.ticgroup.vn/uploads/images/images/cat_ba.jpg",
+        "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
+        "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
+    };
+            var random = new Random();
+
+            List<string> wikimediaImages;
+            try
+            {
+                wikimediaImages = await _WikimediaImageService.SearchImageUrlsAsync(originalRequest.Destination);
+                Console.WriteLine($"[Image] Wikimedia image pool size: {wikimediaImages.Count}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Image] Wikimedia fetch error: {ex.Message}");
+                wikimediaImages = new List<string>();
+            }
 
             var mergedDays = new List<ItineraryDay>();
 
@@ -421,14 +499,26 @@ namespace TripWiseAPI.Services
                 {
                     var updatedActivities = await Task.WhenAll(updatedDay.Activities.Select(async a =>
                     {
-                        string? imageUrl = null;
+                        string? imageUrl = a.Image;
 
-                        if (!string.IsNullOrWhiteSpace(a.Image))
+                        if (string.IsNullOrWhiteSpace(imageUrl))
                         {
-                            imageUrl = a.Image;
-                        }
-                        else
-                        {
+                            var availableImages = wikimediaImages.Where(url => !imageUrlsUsed.Contains(url)).ToList();
+
+                            if (availableImages.Any())
+                            {
+                                imageUrl = availableImages[random.Next(availableImages.Count)];
+                                imageUrlsUsed.Add(imageUrl);
+                                Console.WriteLine($"[Image] Wikimedia image used: {imageUrl}");
+                            }
+                            else
+                            {
+                                imageUrl = fallbackImages[random.Next(fallbackImages.Length)];
+                                Console.WriteLine("[Image] Fallback image used.");
+                            }
+
+                            /*
+                            // ======= xử lý ảnh từ Google Maps =======
                             string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
                                 ? a.Address
                                 : !string.IsNullOrWhiteSpace(a.PlaceDetail)
@@ -456,6 +546,8 @@ namespace TripWiseAPI.Services
                             }
 
                             imageUrl ??= fallbackImage;
+                            ==========================================================
+                            */
                         }
 
                         return new ItineraryActivity
@@ -503,6 +595,7 @@ namespace TripWiseAPI.Services
                 NextStartDate = null
             };
         }
+
 
 
         private string ExtractJson(string raw)

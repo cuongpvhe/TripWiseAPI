@@ -1,4 +1,5 @@
-﻿using TripWiseAPI.Models.DTO;
+﻿using TripWiseAPI.Models;
+using TripWiseAPI.Models.DTO;
 using static TripWiseAPI.Models.DTO.UpdateTourDto;
 
 namespace TripWiseAPI.Services.PartnerServices
@@ -12,6 +13,7 @@ namespace TripWiseAPI.Services.PartnerServices
         Task<bool> UpdateTourAsync(int tourId, UpdateTourDto request, int userId, List<IFormFile>? imageFiles, List<string>? imageUrls);
         Task<bool> UpdateItineraryAsync(int itineraryId, int userId, CreateItineraryDto request);
         Task<bool> UpdateActivityAsync(int activityId, int userId, ActivityDto request, List<IFormFile>? imageFiles, List<string>? imageUrls);
+        Task<List<Tour>> GetToursByLocationAsync(string location, int maxResults = 4);
         //Task<bool> AddItineraryAsync(int tourId, int userId, CreateItineraryDto request);
         //Task<bool> AddActivityAsync(int itineraryId, int userId, ActivityDayDto request, List<IFormFile>? imageFiles, List<string>? imageUrls);
         Task<bool> DeleteItineraryAsync(int itineraryId, int userId);
