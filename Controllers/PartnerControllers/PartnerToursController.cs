@@ -220,7 +220,7 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         [HttpPut("update-activity/{activityId}")]
         public async Task<IActionResult> UpdateActivity(
         int activityId,
-        [FromForm] ActivityDayDto request,
+        [FromForm] ActivityDto request,
         [FromForm] List<IFormFile>? imageFiles,
         [FromForm] List<string>? imageUrls)
         {
