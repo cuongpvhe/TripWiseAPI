@@ -235,7 +235,7 @@ namespace TripWiseAPI.Services
 
             var tour = new Tour
             {
-                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType))}",
+                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType) ? "không rõ nhóm" : groupType)}",
                 Description = descriptionBuilder.ToString(),
                 Duration = days.ToString(),
                 Price = totalEstimatedCost,
@@ -514,5 +514,20 @@ namespace TripWiseAPI.Services
                 })
             };
         }
+        public async Task<bool> DeleteGenerateTravelPlansAsync(int Id, int? userId)
+        {
+            var plans = await _dbContext.GenerateTravelPlans
+                .Where(p => p.Id == Id && p.UserId == userId)
+                .ToListAsync();
+
+            if (!plans.Any())
+                return false;
+
+            _dbContext.GenerateTravelPlans.RemoveRange(plans);
+            await _dbContext.SaveChangesAsync();
+
+            return true;
+        }
+
     }
 }

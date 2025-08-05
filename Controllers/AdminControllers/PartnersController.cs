@@ -99,5 +99,18 @@ namespace TripWiseAPI.Controllers.Admin
 
             return Ok(new { message = "Cập nhật thông tin thành công." });
         }
+        [HttpGet("partner/{partnerId}/reviews")]
+        public async Task<IActionResult> GetReviewsByPartner(int partnerId)
+        {
+            var result = await _partnerService.GetTourReviewsByPartnerAsync(partnerId);
+            return Ok(result);
+        }
+        [HttpGet("partner/{partnerId}/average-rating")]
+        public async Task<IActionResult> GetAverageRatingForPartner(int partnerId)
+        {
+            var avgRating = await _partnerService.GetAverageRatingByPartnerAsync(partnerId);
+            return Ok(new { PartnerId = partnerId, AverageRating = avgRating });
+        }
+
     }
 }

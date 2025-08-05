@@ -43,23 +43,24 @@ namespace TripWiseAPI.Models.DTO
         public string Location { get; set; }
         public string? Category { get; set; }
 
-        public class ItineraryDto
+    public class ItineraryDto
     {
         public int? DayNumber { get; set; }
         public string? Title { get; set; }
         public decimal? DailyCost { get; set; } // nếu bạn tính từng ngày
         public List<ActivityDto> Activities { get; set; } = new();
     }
-        public class ItineraryDetailDto
+    public class ItineraryDetailDto
         {
             public int ItineraryId { get; set; }
             public int? DayNumber { get; set; }
+            public string? Description { get; set; }
             public string? Title { get; set; }
             public string? Description { get; set; }
             public decimal? DailyCost { get; set; } // nếu bạn tính từng ngày
             public List<ActivityDetailDto> Activities { get; set; } = new();
         }
-        public class ActivityDetailDto
+    public class ActivityDetailDto
         {
             public int AttractionId { get; set; }
             public TimeSpan? StartTime { get; set; }
@@ -74,7 +75,7 @@ namespace TripWiseAPI.Models.DTO
             public List<string>? ImageUrls { get; set; }
 
         }
-        public class ActivityDto
+    public class ActivityDto
     {
             public String? StartTime { get; set; }
             public String? EndTime { get; set; }
@@ -87,7 +88,7 @@ namespace TripWiseAPI.Models.DTO
             public string? MapUrl { get; set; }
 
         }
-        public class CreateTourDto
+    public class CreateTourDto
     {
         public string TourName { get; set; }
         public string Description { get; set; }
@@ -113,7 +114,7 @@ namespace TripWiseAPI.Models.DTO
     }
 
     
-        public class ActivityDayDto
+    public class ActivityDayDto
         {
             public String? StartTime { get; set; }
             public String? EndTime { get; set; }
@@ -128,7 +129,7 @@ namespace TripWiseAPI.Models.DTO
             public List<IFormFile>? ImageFile { get; set; }
 
         }
-        public class PendingTourDto
+    public class PendingTourDto
         {
             public int TourId { get; set; }
             public string? TourName { get; set; }
@@ -138,7 +139,6 @@ namespace TripWiseAPI.Models.DTO
             public string Status { get; set; }
             public DateTime? CreatedDate { get; set; }
             public List<string> ImageUrls { get; set; } = new();
-            public int? CreatedBy { get; set; }
         }
     }
 }

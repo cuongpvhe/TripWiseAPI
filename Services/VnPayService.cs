@@ -100,22 +100,64 @@ namespace TripWiseAPI.Services
                 query = query.Where(p => p.PaymentStatus == status);
             }
 
-            var result = await query
+            var transactions = await query
                 .OrderByDescending(p => p.PaymentTime ?? p.CreatedDate)
-                .Select(p => new PaymentTransactionDto
-                {
-                    TransactionId = p.TransactionId,
-                    OrderCode = p.OrderCode,
-                    Amount = p.Amount,
-                    PaymentStatus = p.PaymentStatus,
-                    BankCode = p.BankCode,
-                    PaymentTime = p.PaymentTime,
-                    CreatedDate = p.CreatedDate
-                })
                 .ToListAsync();
+
+            var result = new List<PaymentTransactionDto>();
+
+            foreach (var transaction in transactions)
+            {
+                string? planName = null;
+                string? tourName = null;
+
+                if (!string.IsNullOrEmpty(transaction.OrderCode))
+                {
+                    if (transaction.OrderCode.Contains("plan"))
+                    {
+                        var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_plan_(\d+)_");
+                        if (match.Success)
+                        {
+                            int planId = int.Parse(match.Groups[2].Value);
+                            planName = await _dbContext.Plans
+                                .Where(p => p.PlanId == planId && p.RemovedDate == null)
+                                .Select(p => p.PlanName)
+                                .FirstOrDefaultAsync();
+                        }
+                    }
+                    else if (transaction.OrderCode.Contains("booking"))
+                    {
+                        var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_booking_(\d+)_");
+                        if (match.Success)
+                        {
+                            int bookingId = int.Parse(match.Groups[2].Value);
+                            var tourNameFromBooking = await _dbContext.Bookings
+                                .Where(b => b.BookingId == bookingId)
+                                .Select(b => b.Tour.TourName)
+                                .FirstOrDefaultAsync();
+
+                            tourName = tourNameFromBooking;
+                        }
+                    }
+                }
+
+                result.Add(new PaymentTransactionDto
+                {
+                    TransactionId = transaction.TransactionId,
+                    OrderCode = transaction.OrderCode,
+                    Amount = transaction.Amount,
+                    PaymentStatus = transaction.PaymentStatus,
+                    BankCode = transaction.BankCode,
+                    PaymentTime = transaction.PaymentTime,
+                    CreatedDate = transaction.CreatedDate,
+                    PlanName = planName,
+                    TourName = tourName
+                });
+            }
 
             return result;
         }
+
         public async Task<string> CreateBookingAndPayAsync(BuyTourRequest request, int userId, HttpContext context)
         {
             var tour = await _dbContext.Tours

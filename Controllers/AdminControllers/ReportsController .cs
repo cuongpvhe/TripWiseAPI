@@ -21,7 +21,12 @@ namespace TripWiseAPI.Controllers.AdminControllers
             _excelExportService = excelExportService;
             _env = env;
         }
-
+        [HttpGet("total-statistic")]
+        public async Task<IActionResult> GetAnnualAdminStats([FromQuery] int? year)
+        {
+            var data = await _reportService.GetAnnualAdminStatsAsync(year);
+            return Ok(data);
+        }
         [HttpGet("get-revenue-summary")]
         public async Task<IActionResult> GetRevenueSummary([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)
         {
@@ -144,6 +149,8 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 fileName);
         }
+
+        
 
     }
 

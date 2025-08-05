@@ -21,11 +21,11 @@ namespace TripWiseAPI.Services.PartnerServices
             _env = env;
             _imageUploadService = imageUploadService;
         }
-        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status)
+        public async Task<List<PendingTourDto>> GetToursByStatusAsync(int partnerId, string? status)
         {
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image) 
-                .Where(t => t.RemovedDate == null && t.TourTypesId == 2);
+                .Where(t => t.RemovedDate == null && t.TourTypesId == 2 && t.PartnerId == partnerId);
 
             if (!string.IsNullOrEmpty(status))
             {

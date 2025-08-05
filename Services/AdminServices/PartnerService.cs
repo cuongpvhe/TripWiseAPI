@@ -269,6 +269,67 @@ public class PartnerService : IPartnerService
         await _db.SaveChangesAsync();
         return true;
     }
+    public async Task<List<ReviewTourDto>> GetTourReviewsByPartnerAsync(int partnerId)
+    {
+        // Lấy danh sách review của các tour thường thuộc đối tác cụ thể
+        var reviews = await _db.Reviews
+            .Where(r => r.RemovedDate == null &&
+                        r.Tour.TourTypesId == 2 && // Tour thường
+                        r.Tour.PartnerId == partnerId)
+            .Select(r => new
+            {
+                r.ReviewId,
+                r.TourId,
+                r.Rating,
+                r.Comment,
+                r.CreatedBy,
+                r.CreatedDate,
+                PartnerId = r.Tour.PartnerId,
+                PartnerName = r.Tour.Partner.CompanyName
+            })
+            .ToListAsync();
+
+        // Lấy danh sách userId duy nhất
+        var createdByIds = reviews
+            .Select(r => r.CreatedBy)
+            .Where(id => id.HasValue)
+            .Distinct()
+            .ToList();
+
+        // Lấy user name
+        var userDict = await _db.Users
+            .Where(u => createdByIds.Contains(u.UserId))
+            .ToDictionaryAsync(u => u.UserId, u => u.UserName);
+
+        // Map dữ liệu
+        var result = reviews.Select(r => new ReviewTourDto
+        {
+            ReviewId = r.ReviewId,
+            TourId = r.TourId,
+            Rating = (int)r.Rating,
+            Comment = r.Comment,
+            CreatedBy = r.CreatedBy,
+            CreatedDate = r.CreatedDate,
+            UserName = r.CreatedBy.HasValue && userDict.ContainsKey(r.CreatedBy.Value)
+                ? userDict[r.CreatedBy.Value]
+                : null,
+            PartnerId = r.PartnerId,
+            PartnerName = r.PartnerName
+        }).ToList();
+
+        return result;
+    }
+    public async Task<double> GetAverageRatingByPartnerAsync(int partnerId)
+    {
+        var avg = await _db.Reviews
+            .Where(r => r.RemovedDate == null &&
+                        r.Tour.TourTypesId == 2 && // tour thường
+                        r.Tour.PartnerId == partnerId)
+            .Select(r => (double?)r.Rating)
+            .AverageAsync();
+
+        return Math.Round(avg ?? 0, 2); // nếu không có review thì trả về 0
+    }
 
 }
 

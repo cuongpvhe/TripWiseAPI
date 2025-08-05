@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
 using TripWiseAPI.Services.AdminServices;
 using TripWiseAPI.Services.PartnerServices;
@@ -21,6 +22,12 @@ namespace TripWiseAPI.Controllers.AdminControllers
             _manageTourService = manageTourService; 
         }
 
+        [HttpGet("all-tour")]
+        public async Task<IActionResult> GetAllTours([FromQuery] string? status)
+        { 
+            var tours = await _tourService.GetToursByStatusAsync(status);
+            return Ok(tours);
+        }
         [HttpGet("pending")]
         public async Task<IActionResult> GetPendingTours()
         {

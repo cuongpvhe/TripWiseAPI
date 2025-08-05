@@ -24,9 +24,21 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         [HttpGet]
         public async Task<IActionResult> GetAllTours([FromQuery] string? status)
         {
-            var tours = await _tourService.GetToursByStatusAsync(status);
+            var userId = GetUserId();
+
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+
+            var tours = await _tourService.GetToursByStatusAsync(partner.PartnerId, status);
             return Ok(tours);
         }
+
 
         [HttpPost("create-tour")]
         public async Task<IActionResult> CreateTour([FromForm] CreateTourDto request)

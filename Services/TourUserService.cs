@@ -17,12 +17,19 @@ namespace TripWiseAPI.Services
             _dbContext = dbContext;
         }
 
-        public async Task<List<PendingTourDto>> GetApprovedToursAsync()
+        public async Task<List<PendingTourDto>> GetApprovedToursAsync(int? partnerId = null)
         {
-            return await _dbContext.Tours
+            var query = _dbContext.Tours
                 .Include(t => t.TourItineraries)
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
-                .Where(t => t.Status == TourStatuses.Approved && t.RemovedDate == null)
+                .Where(t => t.Status == TourStatuses.Approved && t.RemovedDate == null);
+
+            if (partnerId.HasValue)
+            {
+                query = query.Where(t => t.PartnerId == partnerId.Value);
+            }
+
+            return await query
                 .Select(t => new PendingTourDto
                 {
                     TourId = t.TourId,
@@ -37,8 +44,6 @@ namespace TripWiseAPI.Services
                 .ToListAsync();
         }
 
-
-        
         public async Task<TourDetailDto?> GetApprovedTourDetailAsync(int tourId)
         {
             var tour = await _dbContext.Tours
@@ -141,5 +146,54 @@ namespace TripWiseAPI.Services
                 .OrderByDescending(b => b.CreatedDate)
                 .ToListAsync();
         }
+        public async Task<bool> AddToWishlistAsync(int userId, int tourId)
+        {
+            var exists = await _dbContext.Wishlists
+                .AnyAsync(w => w.UserId == userId && w.TourId == tourId);
+
+            if (exists) return false;
+
+            var wishlist = new Wishlist
+            {
+                UserId = userId,
+                TourId = tourId,
+                DateAdded = DateTime.UtcNow
+            };
+
+            _dbContext.Wishlists.Add(wishlist);
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RemoveFromWishlistAsync(int userId, int tourId)
+        {
+            var wishlist = await _dbContext.Wishlists
+                .FirstOrDefaultAsync(w => w.UserId == userId && w.TourId == tourId);
+
+            if (wishlist == null) return false;
+
+            _dbContext.Wishlists.Remove(wishlist);
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<PendingTourDto>> GetUserWishlistAsync(int userId)
+        {
+            return await _dbContext.Wishlists
+                .Where(w => w.UserId == userId && w.Tour.RemovedDate == null)
+                .Select(w => new PendingTourDto
+                {
+                    TourId = w.Tour.TourId,
+                    TourName = w.Tour.TourName,
+                    Description = w.Tour.Description,
+                    Location = w.Tour.Location,
+                    Price = (decimal)w.Tour.Price,
+                    Status = w.Tour.Status,
+                    ImageUrls = w.Tour.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
+                    CreatedDate = w.Tour.CreatedDate
+                })
+                .ToListAsync();
+        }
+
     }
 }

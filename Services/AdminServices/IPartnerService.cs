@@ -11,5 +11,7 @@ namespace TripWiseAPI.Services.AdminServices
         Task<PartnerDetailDto?> GetPartnerDetailAsync(int partnerId);
         Task<bool> DeleteAsync(int partnerId, int removedBy, string removedReason);
         Task<bool> SetActiveStatusAsync(int partnerId, int modifiedBy);
+        Task<List<ReviewTourDto>> GetTourReviewsByPartnerAsync(int partnerId);
+        Task<double> GetAverageRatingByPartnerAsync(int partnerId);
     }
 }
