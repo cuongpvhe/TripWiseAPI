@@ -368,6 +368,12 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
 
+                entity.Property(e => e.PriceAdult).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.PriceChild5To10).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.PriceChildUnder5).HasColumnType("decimal(18, 2)");
+
                 entity.Property(e => e.PricePerDay).HasColumnType("decimal(18, 0)");
 
                 entity.Property(e => e.RejectReason).HasMaxLength(500);

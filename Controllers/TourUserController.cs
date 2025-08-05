@@ -48,5 +48,6 @@ namespace TripWiseAPI.Controllers
             var result = await _tourUserService.GetSuccessfulBookedToursAsync(userId.Value);
             return Ok(result);
         }
+
     }
 }

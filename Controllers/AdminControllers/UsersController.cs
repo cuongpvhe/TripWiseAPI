@@ -57,7 +57,7 @@ namespace TripWiseAPI.Controllers.Admin
             if (removedBy == null)
                 return Unauthorized();
 
-            var result = await _service.DeleteAsync(id, removedBy.Value, removedReason);
+            var result = await _service.DeleteUserAsync(id, removedBy.Value, removedReason);
             if (!result)
                 return NotFound("Không tìm thấy người dùng.");
 
@@ -91,7 +91,7 @@ namespace TripWiseAPI.Controllers.Admin
             if (modifiedBy == null)
                 return Unauthorized();
 
-            var result = await _service.UpdateAsync(userId, dto, modifiedBy.Value);
+            var result = await _service.UpdateUserAsync(userId, dto, modifiedBy.Value);
             if (!result)
                 return NotFound("User not found or has been removed.");
 
