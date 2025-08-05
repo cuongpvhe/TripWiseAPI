@@ -15,6 +15,31 @@ namespace TripWiseAPI.Services.AdminServices
         {
             _dbContext = dbContext;
         }
+        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status)
+        {
+            var query = _dbContext.Tours
+                .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
+                .Where(t => t.RemovedDate == null && t.TourTypesId == 2);
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(t => t.Status == status);
+            }
+
+            return await query
+                .Select(t => new PendingTourDto
+                {
+                    TourId = t.TourId,
+                    TourName = t.TourName,
+                    Description = t.Description,
+                    Location = t.Location,
+                    Price = (decimal)t.Price,
+                    Status = t.Status,
+                    CreatedDate = t.CreatedDate,
+                    ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList()
+                })
+                .ToListAsync();
+        }
         public async Task<List<PendingTourDto>> GetPendingToursAsync()
         {
          

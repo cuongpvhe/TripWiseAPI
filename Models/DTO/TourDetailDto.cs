@@ -54,6 +54,7 @@ namespace TripWiseAPI.Models.DTO
         {
             public int ItineraryId { get; set; }
             public int? DayNumber { get; set; }
+            public string? Description { get; set; }
             public string? Title { get; set; }
             public decimal? DailyCost { get; set; } // nếu bạn tính từng ngày
             public List<ActivityDetailDto> Activities { get; set; } = new();
