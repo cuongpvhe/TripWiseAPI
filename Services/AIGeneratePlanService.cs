@@ -235,7 +235,7 @@ namespace TripWiseAPI.Services
 
             var tour = new Tour
             {
-                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType) ? "không rõ nhóm" : groupType)}",
+                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType))}",
                 Description = descriptionBuilder.ToString(),
                 Duration = days.ToString(),
                 Price = totalEstimatedCost,
@@ -245,7 +245,6 @@ namespace TripWiseAPI.Services
                 TourInfo = $"{accommodation}, Phong cách ăn uống: {diningStyle}",
                 TourNote = $"{suggestedAccommodation}",
                 TourTypesId = 1,
-                CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = userId
             };
 
