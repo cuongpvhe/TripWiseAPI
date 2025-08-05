@@ -330,6 +330,47 @@ namespace TripWiseAPI.Controllers.PartnerControllers
                 return userId;
             return null;
         }
+
+        [HttpPost("{tourId}/create-or-get")]
+        public async Task<IActionResult> GetOrCreateDraft(int tourId)
+        {
+            var userId = GetUserId(); // Lấy userId từ token hoặc context
+            var draft = await _tourService.GetOrCreateDraftAsync(tourId);
+            if (draft == null)
+                return NotFound("Không tìm thấy tour gốc hoặc không thể tạo bản nháp.");
+
+            return Ok(draft);
+        }
+
+        [HttpPost("{tourId}/cancel")]
+        public async Task<IActionResult> CancelDraft(int tourId)
+        {
+            var userId = GetUserId();
+            await _tourService.CancelDraftAsync(tourId, userId.Value);
+            return Ok(new { message = "Bản nháp đã được hủy." });
+        }
+
+        [HttpPost("{tourId}/submitdraft")]
+        public async Task<IActionResult> SubmitDraft(int tourId)
+        {
+            var userId = GetUserId();
+            await _tourService.SubmitDraftAsync(tourId, userId.Value);
+            return Ok(new { message = "Bản nháp đã được duyệt và cập nhật vào tour gốc." });
+        }
+
+        [HttpPost("{tourId}/send-to-admin")]
+        public async Task<IActionResult> SendToAdmin(int tourId)
+        {
+            var userId = GetUserId();
+            await _tourService.SendDraftToAdminAsync(tourId, userId.Value);
+            return Ok(new { message = "Bản nháp đã được gửi cho admin phê duyệt." });
+        }
+
+
+
+
+
+
     }
 
 }
