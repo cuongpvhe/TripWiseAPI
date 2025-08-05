@@ -123,6 +123,7 @@ namespace TripWiseAPI.Models.DTO
             public string Category { get; set; }
             public decimal Price { get; set; }
             public string Status { get; set; }
+            public int? TourTypesId { get; set; }
             public int? PartnerID { get; set; }
             public int? OriginalTourId { get; set; }
             public DateTime? CreatedDate { get; set; }
