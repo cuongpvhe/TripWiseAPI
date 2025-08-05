@@ -4,6 +4,7 @@
     {
         public int TransactionId { get; set; }
         public string? PlanName { get; set; }
+        public int? TourId { get; set; }
         public string? TourName { get; set; }
         public string OrderCode { get; set; }
         public decimal Amount { get; set; }

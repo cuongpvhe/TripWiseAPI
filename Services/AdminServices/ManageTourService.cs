@@ -30,6 +30,7 @@ namespace TripWiseAPI.Services.AdminServices
                 .Select(t => new PendingTourDto
                 {
                     TourId = t.TourId,
+                    StartTime = t.StartTime,
                     TourName = t.TourName,
                     Description = t.Description,
                     Location = t.Location,
@@ -49,6 +50,7 @@ namespace TripWiseAPI.Services.AdminServices
                 .Select(t => new PendingTourDto
                 {
                     TourId = t.TourId,
+                    StartTime = t.StartTime,
                     TourName = t.TourName,
                     Description = t.Description,
                     Location = t.Location,
@@ -70,6 +72,7 @@ namespace TripWiseAPI.Services.AdminServices
                 .Select(t => new PendingTourDto
                 {
                     TourId = t.TourId,
+                    StartTime = t.StartTime,
                     TourName = t.TourName,
                     Description = t.Description,
                     Location = t.Location,
@@ -91,6 +94,7 @@ namespace TripWiseAPI.Services.AdminServices
                 .Select(t => new PendingTourDto
                 {
                     TourId = t.TourId,
+                    StartTime = t.StartTime,
                     TourName = t.TourName,
                     Description = t.Description,
                     Location = t.Location,
@@ -162,27 +166,30 @@ namespace TripWiseAPI.Services.AdminServices
                     DayNumber = itinerary.DayNumber,
                     Title = itinerary.ItineraryName,
                     DailyCost = attractions.Sum(x => x.Price ?? 0),
-                    Activities = attractions.Select(a => new ActivityDetailDto
+                    Activities = attractions.Select(a =>
                     {
-                        AttractionId = a.TourAttractionsId,
-                        StartTime = a.StartTime ?? TimeSpan.Zero,
-                        EndTime = a.EndTime ?? TimeSpan.Zero,
-                        Description = a.TourAttractionsName,
-                        Address = a.Localtion,
-                        EstimatedCost = a.Price,
-                        PlaceDetail = a.Description,
-                        MapUrl = a.MapUrl,
-                        ImageUrls = a.TourAttractionImages
+                        var firstImage = a.TourAttractionImages
                             .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
-                            .Select(ai => ai.Image.ImageUrl)
-                            .ToList(),
-                        ImageIds = a.TourAttractionImages
-                            .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
-                            .Select(ai => ai.Image.ImageId.ToString())
-                            .ToList()
+                            .Select(ai => ai.Image)
+                            .FirstOrDefault();
+
+                        return new ActivityDetailDto
+                        {
+                            AttractionId = a.TourAttractionsId,
+                            StartTime = a.StartTime ?? TimeSpan.Zero,
+                            EndTime = a.EndTime ?? TimeSpan.Zero,
+                            Description = a.TourAttractionsName,
+                            Address = a.Localtion,
+                            EstimatedCost = a.Price,
+                            PlaceDetail = a.Description,
+                            MapUrl = a.MapUrl,
+                            ImageUrls = firstImage?.ImageUrl,  // chỉ lấy 1 ảnh duy nhất
+                            ImageIds = firstImage?.ImageId.ToString() // ID tương ứng
+                        };
                     }).ToList()
                 });
             }
+
 
             var imageUrls = tour.TourImages
                 .Where(ti => ti.Image != null && ti.Image.RemovedDate == null)
@@ -206,6 +213,7 @@ namespace TripWiseAPI.Services.AdminServices
             var dto = new TourDetailDto
             {
                 TourId = tour.TourId,
+                StartTime = tour.StartTime,
                 TourName = tour.TourName,
                 Description = tour.Description,
                 TravelDate = tour.CreatedDate,

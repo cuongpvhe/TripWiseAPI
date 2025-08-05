@@ -395,7 +395,7 @@ namespace TripWiseAPI.Services
                         Address = a.Localtion,
                         EstimatedCost = a.Price ?? 0,
                         MapUrl = a.MapUrl,
-                        ImageUrls = new List<string> { a.ImageUrl }
+                        ImageUrls =  a.ImageUrl
                     })).ToList()
                 }).ToList();
 

@@ -1,4 +1,7 @@
-﻿namespace TripWiseAPI.Models
+﻿using System;
+using System.Collections.Generic;
+
+namespace TripWiseAPI.Models
 {
     public partial class TourItinerary
     {

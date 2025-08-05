@@ -380,6 +380,8 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.RemovedReason).HasMaxLength(255);
 
+                entity.Property(e => e.StartTime).HasColumnType("datetime");
+
                 entity.Property(e => e.Status)
                     .HasMaxLength(50)
                     .HasDefaultValueSql("('Draft')");

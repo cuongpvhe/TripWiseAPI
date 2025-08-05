@@ -5,6 +5,7 @@ namespace TripWiseAPI.Models.DTO
     public class TourDetailDto
     {
         public int TourId { get; set; }
+        public DateTime? StartTime { get; set; }
         public string? TourName { get; set; }
         public string? Description { get; set; }
         public string Location { get; set; }
@@ -33,6 +34,7 @@ namespace TripWiseAPI.Models.DTO
 
     public class UpdateTourDto
     {
+        public DateTime? StartTime { get; set; }
         public string TourName { get; set; }
         public string Description { get; set; }
         public string Duration { get; set; }
@@ -47,7 +49,7 @@ namespace TripWiseAPI.Models.DTO
     {
         public int? DayNumber { get; set; }
         public string? Title { get; set; }
-        public decimal? DailyCost { get; set; } // nếu bạn tính từng ngày
+        public string? Description { get; set; }
         public List<ActivityDto> Activities { get; set; } = new();
     }
         public class ItineraryDetailDto
@@ -70,8 +72,8 @@ namespace TripWiseAPI.Models.DTO
             public string? PlaceDetail { get; set; }
             public string? Category { get; set; }
             public string? MapUrl { get; set; }
-            public List<string> ImageIds { get; set; }
-            public List<string>? ImageUrls { get; set; }
+            public string? ImageIds { get; set; }
+            public string? ImageUrls { get; set; }
 
         }
     public class ActivityDto
@@ -85,10 +87,13 @@ namespace TripWiseAPI.Models.DTO
             public string? PlaceDetail { get; set; }
             public string? Category { get; set; }
             public string? MapUrl { get; set; }
+            public string? ImageIds { get; set; }
+            public string? ImageUrls { get; set; }
 
         }
     public class CreateTourDto
     {
+        public DateTime? StartTime { get; set; }
         public string TourName { get; set; }
         public string Description { get; set; }
         public string Duration { get; set; }
@@ -103,8 +108,29 @@ namespace TripWiseAPI.Models.DTO
         public string TourInfo { get; set; }
         public List<string>? Image { get; set; }
         public List<IFormFile>? ImageFile { get; set; }
-    } 
-    public class CreateItineraryDto
+    }
+        public class TourDraftDto
+        {
+            public int TourId { get; set; }
+            public DateTime? StartTime { get; set; }
+            public string TourName { get; set; }
+            public string Description { get; set; }
+            public string Duration { get; set; }
+            public string Location { get; set; }
+            public string MaxGroupSize { get; set; }
+            public string? TourNote { get; set; }
+            public string? TourInfo { get; set; }
+            public string Category { get; set; }
+            public decimal Price { get; set; }
+            public string Status { get; set; }
+            public int? PartnerID { get; set; }
+            public int? OriginalTourId { get; set; }
+            public DateTime? CreatedDate { get; set; }
+            public int? CreatedBy { get; set; }
+            public List<string> TourImages { get; set; } = new();
+            public List<ItineraryDto> TourItineraries { get; set; } = new();
+        }
+        public class CreateItineraryDto
     {
         public int TourId { get; set; }
         public int? DayNumber { get; set; }
@@ -125,13 +151,14 @@ namespace TripWiseAPI.Models.DTO
             public string? PlaceDetail { get; set; }
             public string? Category { get; set; }
             public string? MapUrl { get; set; }
-            public List<string>? Image { get; set; }
-            public List<IFormFile>? ImageFile { get; set; }
+            public string? Image { get; set; }
+            public IFormFile? ImageFile { get; set; }
 
         }
     public class PendingTourDto
         {
             public int TourId { get; set; }
+            public DateTime? StartTime { get; set; }
             public string? TourName { get; set; }
             public string? Description { get; set; }
             public string? Location { get; set; }

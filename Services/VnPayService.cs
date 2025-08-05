@@ -110,7 +110,7 @@ namespace TripWiseAPI.Services
             {
                 string? planName = null;
                 string? tourName = null;
-
+                int? TourId = null;
                 if (!string.IsNullOrEmpty(transaction.OrderCode))
                 {
                     if (transaction.OrderCode.Contains("plan"))
@@ -125,20 +125,26 @@ namespace TripWiseAPI.Services
                                 .FirstOrDefaultAsync();
                         }
                     }
+                    
                     else if (transaction.OrderCode.Contains("booking"))
                     {
                         var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_booking_(\d+)_");
                         if (match.Success)
                         {
                             int bookingId = int.Parse(match.Groups[2].Value);
-                            var tourNameFromBooking = await _dbContext.Bookings
+                            var bookingInfo = await _dbContext.Bookings
                                 .Where(b => b.BookingId == bookingId)
-                                .Select(b => b.Tour.TourName)
+                                .Select(b => new { b.Tour.TourName, b.TourId })
                                 .FirstOrDefaultAsync();
 
-                            tourName = tourNameFromBooking;
+                            if (bookingInfo != null)
+                            {
+                                tourName = bookingInfo.TourName;
+                                TourId = bookingInfo.TourId; // <-- thêm dòng này
+                            }
                         }
                     }
+
                 }
 
                 result.Add(new PaymentTransactionDto
@@ -151,7 +157,8 @@ namespace TripWiseAPI.Services
                     PaymentTime = transaction.PaymentTime,
                     CreatedDate = transaction.CreatedDate,
                     PlanName = planName,
-                    TourName = tourName
+                    TourName = tourName,
+                    TourId = TourId
                 });
             }
 
