@@ -69,6 +69,8 @@ namespace TripWiseAPI.Services.PartnerServices
                 throw new ArgumentException("Ghi chú tour không được để trống");
             if (string.IsNullOrWhiteSpace(request.TourInfo))
                 throw new ArgumentException("Thông tin tour không được để trống");
+            if (!request.StartTime.HasValue)
+                throw new ArgumentException("Thời gian bắt đầu không được để trống");
             var tour = new Tour
             {
                 StartTime = request.StartTime,
@@ -747,6 +749,7 @@ namespace TripWiseAPI.Services.PartnerServices
                     Status = TourStatuses.Draft,
                     CreatedBy = originalTour.CreatedBy,
                     CreatedDate = TimeHelper.GetVietnamTime(),
+                    TourTypesId = originalTour.TourTypesId,
                     OriginalTourId = originalTour.TourId,
                     PartnerId = originalTour.PartnerId,
                     TourImages = new List<TourImage>(),
@@ -816,6 +819,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 Status = draftTour.Status,
                 PartnerID = draftTour.PartnerId,
                 OriginalTourId = draftTour.OriginalTourId,
+                TourTypesId = draftTour.TourTypesId,
                 CreatedDate = draftTour.CreatedDate,
                 CreatedBy = draftTour.CreatedBy,
                 TourImages = draftTour.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
