@@ -15,19 +15,7 @@ namespace TripWiseAPI.Controllers
 		public ReviewController(IReviewService reviewService)
 		{
 			_reviewService = reviewService;
-		}
-
-		// POST: api/Review/tour
-		[HttpPost("tour")]
-		public async Task<IActionResult> ReviewTour([FromBody] ReviewTourDto dto)
-		{
-			var userIdClaim = User.FindFirst("UserId")?.Value;
-			if (!int.TryParse(userIdClaim, out int userId))
-				return Unauthorized("Không xác định được người dùng.");
-
-			var result = await _reviewService.ReviewTourAsync(userId, dto);
-			return StatusCode(result.StatusCode,result);
-		}
+		}	
 
 		// POST: api/Review/tour-ai
 		[HttpPost("tour-ai")]
@@ -40,25 +28,41 @@ namespace TripWiseAPI.Controllers
 			var result = await _reviewService.ReviewTourAIAsync(userId, dto);
 			return StatusCode(result.StatusCode, result);
 		}
-		// GET: api/Review/tour/{tourId}
-		[HttpGet("tour/{tourId}")]
-		public async Task<IActionResult> GetReviewsForTour(int tourId)
-		{
-			var reviews = await _reviewService.GetReviewsForTourAsync(tourId);
-			if (reviews == null || !reviews.Any())
-				return NotFound("Không tìm thấy đánh giá cho tour này.");
-			return Ok(reviews);
-		}
+	
 		// GET: api/Review/tour-ai/{generateTravelPlanId}
-		[HttpGet("tour-ai/{tourId}")]
-		public async Task<IActionResult> GetReviewsForTourAI(int tourId)
+		[HttpGet("tour-ai")]
+		public async Task<IActionResult> GetReviewsForTourAI()
 		{
-			var reviews = await _reviewService.GetReviewsForTourAIAsync(tourId);
+			var reviews = await _reviewService.GetReviewsForTourAIAsync();
 			if (reviews == null || !reviews.Any())
 				return NotFound("Không tìm thấy đánh giá cho tour AI này.");
 			return Ok(reviews);
 		}
 
-		
+		[HttpGet("GetAVGReview")]
+		public async Task<IActionResult> GetAVGreview()
+		{
+			var result = await _reviewService.AVGRating();
+			return Ok(result);
+		}
+		[HttpPut("update review")]
+		public async Task<IActionResult> UpdateReview([FromBody] int reviewid)
+		{
+			var userIdClaim = User.FindFirst("UserId")?.Value;
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized("Không xác định được người dùng.");
+
+			var result = await _reviewService.UpdateReview(userId, reviewid);
+			return StatusCode(result.StatusCode, result);
+		}
+		[HttpDelete]
+		public async Task<IActionResult> Deletereview(int userid,int reviewid)
+		{
+			var userIdClaim = User.FindFirst("UserId")?.Value;
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized("Không xác định được người dùng.");
+			var result = await _reviewService.DeleteReview(userId, reviewid);
+			return StatusCode(result.StatusCode, result);
+		}
 	}
 }
