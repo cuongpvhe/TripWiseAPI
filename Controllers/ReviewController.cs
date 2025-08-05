@@ -45,16 +45,16 @@ namespace TripWiseAPI.Controllers
 			var result = await _reviewService.AVGRating();
 			return Ok(result);
 		}
-		[HttpPut("update review")]
-		public async Task<IActionResult> UpdateReview([FromBody] int reviewid)
-		{
-			var userIdClaim = User.FindFirst("UserId")?.Value;
-			if (!int.TryParse(userIdClaim, out int userId))
-				return Unauthorized("Không xác định được người dùng.");
+		//[HttpPut("update review")]
+		//public async Task<IActionResult> UpdateReview([FromBody] int reviewid)
+		//{
+		//	var userIdClaim = User.FindFirst("UserId")?.Value;
+		//	if (!int.TryParse(userIdClaim, out int userId))
+		//		return Unauthorized("Không xác định được người dùng.");
 
-			var result = await _reviewService.UpdateReview(userId, reviewid);
-			return StatusCode(result.StatusCode, result);
-		}
+		//	var result = await _reviewService.UpdateReview(userId, reviewid);
+		//	return StatusCode(result.StatusCode, result);
+		//}
 		[HttpDelete]
 		public async Task<IActionResult> Deletereview(int userid,int reviewid)
 		{

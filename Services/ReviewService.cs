@@ -58,29 +58,29 @@ public class ReviewService : IReviewService
 		return (avgRating ?? 0.0).ToString("0.0");
 	}
 
-	public async Task<ApiResponse<string>> UpdateReview(int userId, int id)
-	{
-		var review = _context.Reviews.Find(id);
-		if (review == null)
-		{
-			return new ApiResponse<string>(404, "Review not found.");
-		}
-		// Assuming we have a DTO for updating review	
-		var updateDto = new UpdateReviewDto
-		{
-			Rating = review.Rating ?? 0,
-			Comment = review.Comment
-		};
-		review.Rating = updateDto.Rating;
-		review.Comment = updateDto.Comment;
-		review.ModifiedBy = userId;
-		review.ModifiedDate = DateTime.UtcNow;
-		_context.Reviews.Update(review);
-		_context.SaveChanges();
+	//public async Task<ApiResponse<string>> UpdateReview(int userId, int id)
+	//{
+	//	var review = _context.Reviews.Find(id);
+	//	if (review == null)
+	//	{
+	//		return new ApiResponse<string>(404, "Review not found.");
+	//	}
+	//	// Assuming we have a DTO for updating review	
+	//	var updateDto = new UpdateReviewDto
+	//	{
+	//		Rating = review.Rating ?? 0,
+	//		Comment = review.Comment
+	//	};
+	//	review.Rating = updateDto.Rating;
+	//	review.Comment = updateDto.Comment;
+	//	review.ModifiedBy = userId;
+	//	review.ModifiedDate = DateTime.UtcNow;
+	//	_context.Reviews.Update(review);
+	//	_context.SaveChanges();
 
-		return new ApiResponse<string>(200, "Cập nhật đánh giá Tour AI thành công.");
+	//	return new ApiResponse<string>(200, "Cập nhật đánh giá Tour AI thành công.");
 
-	}
+	//}
 
 	public async Task<ApiResponse<string>> DeleteReview(int userId, int id)
 	{

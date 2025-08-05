@@ -50,17 +50,16 @@ namespace TripWiseAPI.Models.DTO
         public decimal? DailyCost { get; set; } // nếu bạn tính từng ngày
         public List<ActivityDto> Activities { get; set; } = new();
     }
-    public class ItineraryDetailDto
+        public class ItineraryDetailDto
         {
             public int ItineraryId { get; set; }
             public int? DayNumber { get; set; }
             public string? Description { get; set; }
             public string? Title { get; set; }
-            public string? Description { get; set; }
             public decimal? DailyCost { get; set; } // nếu bạn tính từng ngày
             public List<ActivityDetailDto> Activities { get; set; } = new();
         }
-    public class ActivityDetailDto
+        public class ActivityDetailDto
         {
             public int AttractionId { get; set; }
             public TimeSpan? StartTime { get; set; }
