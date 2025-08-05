@@ -235,7 +235,7 @@ namespace TripWiseAPI.Services
 
             var tour = new Tour
             {
-                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType))}",
+                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy}",
                 Description = descriptionBuilder.ToString(),
                 Duration = days.ToString(),
                 Price = totalEstimatedCost,
