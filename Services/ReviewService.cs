@@ -12,42 +12,15 @@ public class ReviewService : IReviewService
 		_context = context;
 	}
 
-	// ✅ Đánh giá tour thường
-	public async Task<ApiResponse<string>> ReviewTourAsync(int userId, ReviewTourDto dto)
-	{
-		if (dto.TourId == null)
-			return new ApiResponse<string>(400, "TourId là bắt buộc.");
-		if (dto.Rating < 1 || dto.Rating > 5)
-			return new ApiResponse<string>(400, "Rating phải nằm trong khoảng từ 1 đến 5 sao.");
-
-		var review = new Review
-		{
-			UserId = userId,
-			TourId = dto.TourId,
-			Rating = dto.Rating,
-			Comment = dto.Comment,
-			CreatedDate = DateTime.UtcNow,
-			CreatedBy = userId,
-		};
-
-		_context.Reviews.Add(review);
-		await _context.SaveChangesAsync();
-
-		return new ApiResponse<string>(200, "Đánh giá Tour thường thành công.");
-	}
-
-	// ✅ Đánh giá tour AI
 	public async Task<ApiResponse<string>> ReviewTourAIAsync(int userId, ReviewTourAIDto dto)
 	{
-		if (dto.TourId == null)
-			return new ApiResponse<string>(400, "TourId là bắt buộc.");
+
 		if (dto.Rating < 1 || dto.Rating > 5)
 			return new ApiResponse<string>(400, "Rating phải nằm trong khoảng từ 1 đến 5 sao.");
 
 		var review = new Review
 		{
 			UserId = userId,
-			TourId = dto.TourId, // TourId trỏ tới tour AI
 			Rating = dto.Rating,
 			Comment = dto.Comment,
 			CreatedDate = DateTime.UtcNow,
@@ -60,12 +33,10 @@ public class ReviewService : IReviewService
 		return new ApiResponse<string>(200, "Đánh giá Tour AI thành công.");
 	}
 
-	// ✅ Lấy danh sách đánh giá cho tour thường (TourTypesId = 2)
-	public async Task<IEnumerable<ReviewResponseDto>> GetReviewsForTourAsync(int tourId)
+	public async Task<IEnumerable<ReviewResponseDto>> GetReviewsForTourAIAsync()
 	{
 		var reviews = await _context.Reviews
-			.Where(r => r.TourId == tourId && r.Tour.TourTypesId == 2) // 1: Tour thường
-			.Include(r => r.User)
+			.Where(a=>a.RemovedDate==null )
 			.ToListAsync();
 
 		return reviews.Select(r => new ReviewResponseDto
@@ -75,24 +46,55 @@ public class ReviewService : IReviewService
 			Rating = r.Rating ?? 0,
 			Comment = r.Comment,
 			CreatedDate = r.CreatedDate
-		}).ToList();
+		 }).ToList();
+	}
+	public async Task<string> AVGRating()
+	{
+		double? avgRating = await _context.Reviews
+		.Select(r => (double?)r.Rating)
+		.AverageAsync();
+
+		// Nếu không có review thì trả về "0.0"
+		return (avgRating ?? 0.0).ToString("0.0");
 	}
 
-	// ✅ Lấy danh sách đánh giá cho tour AI (TourTypesId = 1)
-	public async Task<IEnumerable<ReviewResponseDto>> GetReviewsForTourAIAsync(int tourId)
+	public async Task<ApiResponse<string>> UpdateReview(int userId, int id)
 	{
-		var reviews = await _context.Reviews
-			.Where(r => r.TourId == tourId && r.Tour.TourTypesId == 1) // 2: Tour AI
-			.Include(r => r.User)
-			.ToListAsync();
-
-		return reviews.Select(r => new ReviewResponseDto
+		var review = _context.Reviews.Find(id);
+		if (review == null)
 		{
-			ReviewId = r.ReviewId,
-			UserName = r.User?.UserName ?? "Unknown",
-			Rating = r.Rating ?? 0,
-			Comment = r.Comment,
-			CreatedDate = r.CreatedDate
-		}).ToList();
+			return new ApiResponse<string>(404, "Review not found.");
+		}
+		// Assuming we have a DTO for updating review	
+		var updateDto = new UpdateReviewDto
+		{
+			Rating = review.Rating ?? 0,
+			Comment = review.Comment
+		};
+		review.Rating = updateDto.Rating;
+		review.Comment = updateDto.Comment;
+		review.ModifiedBy = userId;
+		review.ModifiedDate = DateTime.UtcNow;
+		_context.Reviews.Update(review);
+		_context.SaveChanges();
+
+		return new ApiResponse<string>(200, "Cập nhật đánh giá Tour AI thành công.");
+
+	}
+
+	public async Task<ApiResponse<string>> DeleteReview(int userId, int id)
+	{
+		var review = _context.Reviews.Find(id);
+		if (review == null)
+		{
+			return new ApiResponse<string>(404, "Review not found.");
+		}
+
+		review.RemovedDate = DateTime.UtcNow;
+		review.RemovedBy = userId;
+		_context.Reviews.Update(review);
+		_context.SaveChanges();
+		// Assuming we return a success message
+		return new ApiResponse<string>(200, "Xóa đánh giá Tour AI thành công.");
 	}
 }
