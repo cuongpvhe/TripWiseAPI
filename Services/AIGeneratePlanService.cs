@@ -494,5 +494,20 @@ namespace TripWiseAPI.Services
                 })
             };
         }
+        public async Task<bool> DeleteGenerateTravelPlansAsync(int Id, int? userId)
+        {
+            var plans = await _dbContext.GenerateTravelPlans
+                .Where(p => p.Id == Id && p.UserId == userId)
+                .ToListAsync();
+
+            if (!plans.Any())
+                return false;
+
+            _dbContext.GenerateTravelPlans.RemoveRange(plans);
+            await _dbContext.SaveChangesAsync();
+
+            return true;
+        }
+
     }
 }

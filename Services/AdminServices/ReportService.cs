@@ -1,5 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.Data;
+using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
 
 namespace TripWiseAPI.Services.AdminServices
@@ -7,10 +9,11 @@ namespace TripWiseAPI.Services.AdminServices
     public class ReportService : IReportService
     {
         private readonly IConfiguration _configuration;
-
-        public ReportService(IConfiguration configuration)
+        private readonly TripWiseDBContext _dbContext;
+        public ReportService(IConfiguration configuration, TripWiseDBContext dbContext)
         {
             _configuration = configuration;
+            _dbContext = dbContext;
         }
 
         public async Task<(List<RevenueDetailDto> Details, List<RevenueSummaryDto> Totals)> GetRevenueSummaryAsync(DateTime fromDate, DateTime toDate)
@@ -117,6 +120,36 @@ namespace TripWiseAPI.Services.AdminServices
 
             return result;
         }
+        public async Task<List<AnnualAdminStatDto>> GetAnnualAdminStatsAsync(int? year)
+        {
+            var result = new List<AnnualAdminStatDto>();
+
+            using var conn = new SqlConnection(_configuration.GetConnectionString("DBContext"));
+            using var command = new SqlCommand("sp_GetAnnualAdminStats", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            command.Parameters.AddWithValue("@Year", year ?? (object)DBNull.Value);
+
+            await conn.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new AnnualAdminStatDto
+                {
+                    Month = reader.GetInt32(reader.GetOrdinal("Month")),
+                    BookingRevenue = reader.GetDecimal(reader.GetOrdinal("BookingRevenue")),
+                    PlanRevenue = reader.GetDecimal(reader.GetOrdinal("PlanRevenue")),
+                    TotalBookings = reader.GetInt32(reader.GetOrdinal("TotalBookings")),
+                    TotalPlans = reader.GetInt32(reader.GetOrdinal("TotalPlans"))
+                });
+            }
+
+            return result;
+        }
+       
 
     }
 

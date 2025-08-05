@@ -366,7 +366,15 @@ namespace SimpleChatboxAI.Controllers
 
             return Ok(result);
         }
-
+        [HttpDelete("DeleteGenerateTravelPlan/{id}")]
+        public async Task<IActionResult> DeleteGenerateTravelPlan(int id)
+        {
+            var userId = GetUserId();
+            var result = await _iAIGeneratePlanService.DeleteGenerateTravelPlansAsync(id, userId);
+            if (!result)
+                return NotFound(new { success = false, message = "❌ Không tìm thấy tour hoặc không có quyền xoá." });
+            return Ok(new { success = true, message = "✅ Tour đã được xoá thành công." });
+        }
 
         [HttpDelete("DeleteTour/{id}")]
         public async Task<IActionResult> DeleteTour(int id)

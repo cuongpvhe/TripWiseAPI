@@ -39,4 +39,13 @@
         public decimal TotalRevenue { get; set; }
     }
 
+    public class AnnualAdminStatDto
+    {
+        public int Month { get; set; }
+        public decimal BookingRevenue { get; set; }
+        public decimal PlanRevenue { get; set; }
+        public int TotalBookings { get; set; }
+        public int TotalPlans { get; set; }
+    }
+
 }

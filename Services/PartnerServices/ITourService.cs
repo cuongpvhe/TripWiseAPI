@@ -6,7 +6,7 @@ namespace TripWiseAPI.Services.PartnerServices
 {
     public interface ITourService
     {
-        Task<List<PendingTourDto>> GetToursByStatusAsync(string? status);
+        Task<List<PendingTourDto>> GetToursByStatusAsync(int partnerId, string? status);
         Task<int> CreateTourAsync(CreateTourDto request, int userId);
         Task<int> CreateItineraryAsync(int tourId, CreateItineraryDto request, int userId);
         Task<int> CreateActivityAsync(int itineraryId, ActivityDayDto request, int userId);

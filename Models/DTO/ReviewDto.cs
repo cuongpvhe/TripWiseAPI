@@ -2,13 +2,18 @@
 {
 	public class ReviewTourDto
 	{
-		public int? TourId { get; set; } // Tour AI
+        public int ReviewId { get; set; }
+        public string? UserName { get; set; }
+        public int? TourId { get; set; } // Tour AI
 		public int? UserId { get; set; } // User who is reviewing the tour
 		public int Rating { get; set; }
 		public string? Comment { get; set; }
 		public int? CreatedBy { get; set; }
 		public DateTime? CreatedDate { get; set; }
-	}
+        // Thông tin đối tác
+        public int? PartnerId { get; set; }
+        public string? PartnerName { get; set; }
+    }
 	public class ReviewTourAIDto
 	{
 		public int? TourId { get; set; } // Tour AI
@@ -24,7 +29,9 @@
 		public string? UserName { get; set; }
 		public int Rating { get; set; }
 		public string? Comment { get; set; }
-		public DateTime? CreatedDate { get; set; }
+        public int? CreatedBy { get; set; }
+        public DateTime? CreatedDate { get; set; }
 	}
+
 
 }
