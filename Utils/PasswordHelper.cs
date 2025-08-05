@@ -10,6 +10,8 @@ namespace TripWiseAPI.Utils
         }
         public static bool VerifyPasswordBCrypt(string password, string hashedPassword)
         {
+            if (string.IsNullOrEmpty(password) || string.IsNullOrEmpty(hashedPassword))
+                return false;
             return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
         }
     }

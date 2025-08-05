@@ -235,7 +235,7 @@ namespace TripWiseAPI.Services
 
             var tour = new Tour
             {
-                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType) ? "không rõ nhóm" : groupType)}",
+                TourName = $"Tour {destination} - {travelDate:dd/MM/yyyy} - {(string.IsNullOrWhiteSpace(groupType))}",
                 Description = descriptionBuilder.ToString(),
                 Duration = days.ToString(),
                 Price = totalEstimatedCost,
@@ -476,6 +476,9 @@ namespace TripWiseAPI.Services
                     Day = day.DayNumber,
                     day.Title,
                     day.DailyCost,
+                    day.WeatherDescription,
+                    day.TemperatureCelsius,
+                    day.WeatherNote,
                     Activities = day.Activities.Select(act => new
                     {
                         act.StartTime,
