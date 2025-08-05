@@ -6,7 +6,7 @@ namespace TripWiseAPI.Services
 {
     public interface ITourUserService
     {
-        Task<List<PendingTourDto>> GetApprovedToursAsync(int? partnerId = null);
+        Task<List<PendingTourDto>> GetApprovedToursAsync();
         Task<TourDetailDto?> GetApprovedTourDetailAsync(int tourId);
         Task<List<BookedTourDto>> GetSuccessfulBookedToursAsync(int userId);
         Task<bool> AddToWishlistAsync(int userId, int tourId);

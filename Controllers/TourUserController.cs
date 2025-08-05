@@ -22,10 +22,10 @@ namespace TripWiseAPI.Controllers
             return null;
         }
         // GET: api/public/tours/approved
-        [HttpGet("approved-tours")]
-        public async Task<IActionResult> GetApprovedTours([FromQuery] int? partnerId)
+        [HttpGet("approved")]
+        public async Task<IActionResult> GetApprovedTours()
         {
-            var tours = await _tourUserService.GetApprovedToursAsync(partnerId);
+            var tours = await _tourUserService.GetApprovedToursAsync();
             return Ok(tours);
         }
 

@@ -17,19 +17,12 @@ namespace TripWiseAPI.Services
             _dbContext = dbContext;
         }
 
-        public async Task<List<PendingTourDto>> GetApprovedToursAsync(int? partnerId = null)
+        public async Task<List<PendingTourDto>> GetApprovedToursAsync()
         {
-            var query = _dbContext.Tours
+            return await _dbContext.Tours
                 .Include(t => t.TourItineraries)
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
-                .Where(t => t.Status == TourStatuses.Approved && t.RemovedDate == null);
-
-            if (partnerId.HasValue)
-            {
-                query = query.Where(t => t.PartnerId == partnerId.Value);
-            }
-
-            return await query
+                .Where(t => t.Status == TourStatuses.Approved && t.RemovedDate == null)
                 .Select(t => new PendingTourDto
                 {
                     TourId = t.TourId,
