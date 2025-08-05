@@ -17,7 +17,7 @@ public class WeatherService
         _apiKey = configuration["Weather:OpenWeatherApiKey"];
 
         if (string.IsNullOrWhiteSpace(_apiKey))
-            throw new InvalidOperationException("❌ API key for OpenWeatherMap is missing in configuration.");
+            throw new InvalidOperationException(" API key for OpenWeatherMap is missing in configuration.");
 
         _logger.LogInformation("[WeatherService] Loaded API key: {keyPrefix}...", _apiKey[..4]);
     }
@@ -34,21 +34,21 @@ public class WeatherService
         var geoRes = await _httpClient.GetFromJsonAsync<List<GeoResponse>>(geoUrl);
         if (geoRes == null || geoRes.Count == 0)
         {
-            _logger.LogWarning("[WeatherService] ❌ No geo data found for city: {city}", city);
+            _logger.LogWarning("[WeatherService]  No geo data found for city: {city}", city);
             return null;
         }
 
         var lat = geoRes[0].lat;
         var lon = geoRes[0].lon;
 
-        // Step 2: Use 5-day/3-hour forecast
-        var forecastUrl = $"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={_apiKey}&units=metric";
+        // Step 2: Use 5-day/3-hour forecast with Vietnamese language
+        var forecastUrl = $"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={_apiKey}&units=metric&lang=vi";
         _logger.LogInformation("[WeatherService] Forecast URL: {url}", forecastUrl);
 
         var response = await _httpClient.GetAsync(forecastUrl);
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning("[WeatherService] ❌ Forecast API failed: {status}", response.StatusCode);
+            _logger.LogWarning("[WeatherService]  Forecast API failed: {status}", response.StatusCode);
             return null;
         }
 
@@ -70,7 +70,7 @@ public class WeatherService
             .OrderBy(x => x.diff)
             .FirstOrDefault();
 
-        _logger.LogInformation("[WeatherService] ✅ Found forecast for {datetime}: {weather}, {temp}°C", nearest.dt, nearest.weather, nearest.temp);
+        _logger.LogInformation("[WeatherService]  Found forecast for {datetime}: {weather}, {temp}°C", nearest.dt, nearest.weather, nearest.temp);
 
         return (nearest.weather, nearest.temp);
     }

@@ -266,12 +266,12 @@ namespace SimpleChatboxAI.Controllers
                 var updated = await _iAIGeneratePlanService.UpdateItineraryAsync(generatePlanId, userId, userInput.Message);
 
                 if (updated == null)
-                    return NotFound("❌ Không tìm thấy lịch trình với ID đã cung cấp.");
+                    return NotFound("Không tìm thấy lịch trình với ID đã cung cấp.");
 
                 return Ok(new
                 {
                     success = true,
-                    message = "✅ Đã cập nhật lịch trình thành công.",
+                    message = "Đã cập nhật lịch trình thành công.",
                     data = updated
                 });
             }
@@ -280,7 +280,7 @@ namespace SimpleChatboxAI.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "❌ Lỗi khi cập nhật lịch trình.",
+                    message = "Lỗi khi cập nhật lịch trình.",
                     detail = ex.Message
                 });
             }
