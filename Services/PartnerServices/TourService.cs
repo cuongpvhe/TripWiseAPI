@@ -67,12 +67,6 @@ namespace TripWiseAPI.Services.PartnerServices
                 throw new ArgumentException("Ghi chú tour không được để trống");
             if (string.IsNullOrWhiteSpace(request.TourInfo))
                 throw new ArgumentException("Thông tin tour không được để trống");
-            if (request.PriceAdult <= 0)
-                throw new ArgumentException("Giá người lớn phải lớn hơn 0");
-            if (request.PriceChild5To10 <= 0)
-                throw new ArgumentException("Giá trẻ em từ 5 đến 10 tuổi phải lớn hơn 0");
-            if (request.PriceChildUnder5 <= 0)
-                throw new ArgumentException("Giá trẻ em dưới 5 tuổi phải lớn hơn 0");
             var tour = new Tour
             {
                 TourName = request.TourName,
@@ -86,9 +80,6 @@ namespace TripWiseAPI.Services.PartnerServices
                 TourInfo = request.TourInfo,
                 TourTypesId = 2,
                 PartnerId = partnerId,
-                PriceAdult = request.PriceAdult,
-                PriceChild5To10 = request.PriceChild5To10,
-                PriceChildUnder5 = request.PriceChildUnder5,
                 CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = partnerId
             };
@@ -167,6 +158,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 TourId = tourId,
                 DayNumber = request.DayNumber ?? 1,
                 ItineraryName = request.Title,
+                Description = request.Description,
                 CreatedBy = userId,
                 CreatedDate = TimeHelper.GetVietnamTime()
             };
@@ -349,9 +341,6 @@ namespace TripWiseAPI.Services.PartnerServices
                 Preferences = tour.Category,
                 Budget = null,
                 TotalEstimatedCost = tour.Price,
-                PriceAdult = (decimal)tour.PriceAdult,
-                PriceChild5To10 = (decimal)tour.PriceChild5To10,
-                PriceChildUnder5 = (decimal)tour.PriceChildUnder5,
                 TourInfo = tour.TourInfo,
                 TourNote = tour.TourNote,
                 Itinerary = itineraryDtos,
@@ -381,7 +370,7 @@ namespace TripWiseAPI.Services.PartnerServices
             if (durationInt <= 0)
                 throw new ArgumentException("Thời lượng phải lớn hơn 0.");
 
-            if (request.Price < 0 || request.PriceAdult < 0 || request.PriceChild5To10 < 0 || request.PriceChildUnder5 < 0)
+            if (request.Price < 0 )
                 throw new ArgumentException("Giá phải lớn hơn hoặc bằng 0.");
 
             var tour = await _dbContext.Tours
@@ -397,9 +386,6 @@ namespace TripWiseAPI.Services.PartnerServices
             tour.Duration = request.Duration;
             tour.Category = request.Category;
             tour.Price = request.Price;
-            tour.PriceAdult = request.PriceAdult;
-            tour.PriceChild5To10 = request.PriceChild5To10;
-            tour.PriceChildUnder5 = request.PriceChildUnder5;
             tour.ModifiedBy = userId;
             tour.ModifiedDate = TimeHelper.GetVietnamTime();
 

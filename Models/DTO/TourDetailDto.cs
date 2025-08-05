@@ -37,9 +37,9 @@ namespace TripWiseAPI.Models.DTO
         public string Description { get; set; }
         public string Duration { get; set; }
         public decimal Price { get; set; }
-        public decimal PriceAdult { get; set; }
-        public decimal PriceChild5To10 { get; set; }
-        public decimal PriceChildUnder5 { get; set; }
+        //public decimal PriceAdult { get; set; }
+        //public decimal PriceChild5To10 { get; set; }
+        //public decimal PriceChildUnder5 { get; set; }
         public string Location { get; set; }
         public string? Category { get; set; }
 
@@ -93,9 +93,9 @@ namespace TripWiseAPI.Models.DTO
         public string Description { get; set; }
         public string Duration { get; set; }
         public decimal Price { get; set; }
-        public decimal PriceAdult { get; set; }
-        public decimal PriceChild5To10 { get; set; }
-        public decimal PriceChildUnder5 { get; set; }
+        //public decimal PriceAdult { get; set; }
+        //public decimal PriceChild5To10 { get; set; }
+        //public decimal PriceChildUnder5 { get; set; }
         public string Location { get; set; }
         public int MaxGroupSize { get; set; }
         public string? Category { get; set; }
@@ -109,8 +109,9 @@ namespace TripWiseAPI.Models.DTO
         public int TourId { get; set; }
         public int? DayNumber { get; set; }
         public string Title { get; set; }
+        public string? Description { get; set; }
 
-    }
+        }
 
     
     public class ActivityDayDto

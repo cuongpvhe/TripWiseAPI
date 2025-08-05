@@ -374,8 +374,6 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.PriceChildUnder5).HasColumnType("decimal(18, 2)");
 
-                entity.Property(e => e.PricePerDay).HasColumnType("decimal(18, 0)");
-
                 entity.Property(e => e.RejectReason).HasMaxLength(500);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
