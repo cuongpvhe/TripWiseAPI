@@ -353,7 +353,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 Status = tour.Status,
                 RejectReason = tour.RejectReason,
                 ImageUrls = imageUrls,
-                ImageIds = imageIds
+                ImageIds = imageIds,
+                OriginalTourId = tour.OriginalTourId
+                
             };
 
             return dto;
@@ -873,98 +875,159 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task SubmitDraftAsync(int tourId, int userId)
         {
+            // Lấy bản nháp
             var draft = await _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
                 .Include(t => t.TourItineraries)
                     .ThenInclude(i => i.TourAttractions)
                         .ThenInclude(a => a.TourAttractionImages)
                             .ThenInclude(ai => ai.Image)
-                .FirstOrDefaultAsync(t => t.OriginalTourId == tourId && t.Status == TourStatuses.PendingApproval && t.CreatedBy == userId);
+                .FirstOrDefaultAsync(t => t.OriginalTourId == tourId && t.Status == TourStatuses.PendingApproval);
 
+            // Lấy tour gốc
             var original = await _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
                 .Include(t => t.TourItineraries)
                     .ThenInclude(i => i.TourAttractions)
                         .ThenInclude(a => a.TourAttractionImages)
-                            .ThenInclude(ai => ai.Image)
                 .FirstOrDefaultAsync(t => t.TourId == tourId && t.Status == TourStatuses.Approved);
 
             if (draft == null || original == null)
                 throw new Exception("Draft or original tour not found");
 
-            // Cập nhật các trường chính của tour
-            original.StartTime = draft.StartTime;
+            // ===============================
+            // Cập nhật thông tin cơ bản
+            // ===============================
             original.TourName = draft.TourName;
             original.Description = draft.Description;
-            original.Location = draft.Location;
             original.Duration = draft.Duration;
-            original.Category = draft.Category;
+            original.StartTime = draft.StartTime;
             original.Price = draft.Price;
-            original.Status = TourStatuses.Approved;
-            original.ModifiedBy = userId;
+            original.MaxGroupSize = draft.MaxGroupSize;
+            original.TourNote = draft.TourNote;
+            original.TourInfo = draft.TourInfo;
+            original.Category = draft.Category;
+            original.Location = draft.Location;
+            original.TourTypesId = draft.TourTypesId;
             original.ModifiedDate = TimeHelper.GetVietnamTime();
 
-            // Xóa ảnh tour cũ
-            _dbContext.Images.RemoveRange(original.TourImages.Select(ti => ti.Image));
+            // ===============================
+            // Cập nhật hình ảnh
+            // ===============================
             _dbContext.TourImages.RemoveRange(original.TourImages);
 
-            // Gán ảnh tour mới
-            original.TourImages = draft.TourImages.Select(dti =>
+            foreach (var draftImage in draft.TourImages)
             {
-                var image = new Image { ImageUrl = dti.Image.ImageUrl };
+                var image = new Image { ImageUrl = draftImage.Image.ImageUrl };
                 _dbContext.Images.Add(image);
-                return new TourImage { Image = image };
-            }).ToList();
 
-            // Xoá dữ liệu itinerary và attraction cũ
-            foreach (var itinerary in original.TourItineraries)
+                original.TourImages.Add(new TourImage
+                {
+                    Image = image
+                });
+            }
+
+            // ===============================
+            // Cập nhật hành trình & hoạt động
+            // ===============================
+            _dbContext.TourItineraries.RemoveRange(original.TourItineraries);
+
+            foreach (var draftItinerary in draft.TourItineraries.OrderBy(i => i.DayNumber))
+            {
+                var newItinerary = new TourItinerary
+                {
+                    DayNumber = draftItinerary.DayNumber,
+                    ItineraryName = draftItinerary.ItineraryName,
+                    Description = draftItinerary.Description,
+                    CreatedBy = userId,
+                    CreatedDate = TimeHelper.GetVietnamTime(),
+                    TourAttractions = new List<TourAttraction>()
+                };
+
+                foreach (var draftAttraction in draftItinerary.TourAttractions)
+                {
+                    var newAttraction = new TourAttraction
+                    {
+                        StartTime = draftAttraction.StartTime,
+                        EndTime = draftAttraction.EndTime,
+                        Description = draftAttraction.Description,
+                        Localtion = draftAttraction.Localtion,
+                        Price = draftAttraction.Price,
+                        TourAttractionsName = draftAttraction.TourAttractionsName,
+                        Category = draftAttraction.Category,
+                        MapUrl = draftAttraction.MapUrl,
+                        CreatedBy = userId,
+                        CreatedDate = TimeHelper.GetVietnamTime(),
+                        TourAttractionImages = new List<TourAttractionImage>()
+                    };
+
+                    if (!string.IsNullOrWhiteSpace(draftAttraction.ImageUrl))
+                    {
+                        var image = new Image { ImageUrl = draftAttraction.ImageUrl };
+                        _dbContext.Images.Add(image);
+
+                        newAttraction.TourAttractionImages.Add(new TourAttractionImage
+                        {
+                            Image = image
+                        });
+                    }
+
+                    newItinerary.TourAttractions.Add(newAttraction);
+                }
+
+                original.TourItineraries.Add(newItinerary);
+            }
+
+            // ===============================
+            // Xoá bản nháp đúng cách
+            // ===============================
+            foreach (var tourImage in draft.TourImages)
+            {
+                if (tourImage.Image != null)
+                {
+                    var publicId = _imageUploadService.GetPublicIdFromUrl(tourImage.Image.ImageUrl);
+                    await _imageUploadService.DeleteImageAsync(publicId);
+
+                    tourImage.Image.RemovedDate = TimeHelper.GetVietnamTime();
+                    tourImage.Image.RemovedBy = userId;
+
+                    _dbContext.Images.Remove(tourImage.Image);
+                }
+
+                _dbContext.TourImages.Remove(tourImage);
+            }
+
+            foreach (var itinerary in draft.TourItineraries)
             {
                 foreach (var attraction in itinerary.TourAttractions)
                 {
-                    _dbContext.Images.RemoveRange(attraction.TourAttractionImages.Select(i => i.Image));
-                    _dbContext.TourAttractionImages.RemoveRange(attraction.TourAttractionImages);
+                    foreach (var image in attraction.TourAttractionImages)
+                    {
+                        if (image.Image != null)
+                        {
+                            var publicId = _imageUploadService.GetPublicIdFromUrl(image.Image.ImageUrl);
+                            await _imageUploadService.DeleteImageAsync(publicId);
+
+                            image.Image.RemovedDate = TimeHelper.GetVietnamTime();
+                            image.Image.RemovedBy = userId;
+
+                            _dbContext.Images.Remove(image.Image);
+                        }
+
+                        _dbContext.TourAttractionImages.Remove(image);
+                    }
+
+                    _dbContext.TourAttractions.Remove(attraction);
                 }
+
+                _dbContext.TourItineraries.Remove(itinerary);
             }
 
-            _dbContext.TourAttractions.RemoveRange(original.TourItineraries.SelectMany(i => i.TourAttractions));
-            _dbContext.TourItineraries.RemoveRange(original.TourItineraries);
-
-            // Gán itinerary mới
-            original.TourItineraries = draft.TourItineraries.Select(dItinerary =>
-            {
-                return new TourItinerary
-                {
-                    DayNumber = dItinerary.DayNumber,
-                    Description = dItinerary.Description,
-                    TourAttractions = dItinerary.TourAttractions.Select(dAttraction =>
-                    {
-                        var firstImageUrl = dAttraction.TourAttractionImages
-                            .FirstOrDefault()?.Image?.ImageUrl;
-
-                        return new TourAttraction
-                        {
-                            TourAttractionsName = dAttraction.TourAttractionsName,
-                            Description = dAttraction.Description,
-                            StartTime = dAttraction.StartTime,
-                            EndTime = dAttraction.EndTime,
-                            Localtion = dAttraction.Localtion,
-                            MapUrl = dAttraction.MapUrl,
-                            Price = dAttraction.Price,
-                            Category = dAttraction.Category,
-                            CreatedBy = userId,
-                            CreatedDate = TimeHelper.GetVietnamTime(),
-                            ImageUrl = firstImageUrl // Chỉ lấy 1 ảnh duy nhất
-                        };
-                    }).ToList()
-                };
-
-            }).ToList();
-
-            // Xóa bản nháp
             _dbContext.Tours.Remove(draft);
 
             await _dbContext.SaveChangesAsync();
         }
+
 
     }
 

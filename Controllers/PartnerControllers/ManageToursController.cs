@@ -346,23 +346,35 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         public async Task<IActionResult> CancelDraft(int tourId)
         {
             var userId = GetUserId();
-            await _tourService.CancelDraftAsync(tourId, userId.Value);
+
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+            await _tourService.CancelDraftAsync(tourId, partner.PartnerId);
             return Ok(new { message = "Bản nháp đã được hủy." });
         }
 
-        [HttpPost("{tourId}/submitdraft")]
-        public async Task<IActionResult> SubmitDraft(int tourId)
-        {
-            var userId = GetUserId();
-            await _tourService.SubmitDraftAsync(tourId, userId.Value);
-            return Ok(new { message = "Bản nháp đã được duyệt và cập nhật vào tour gốc." });
-        }
+       
 
         [HttpPost("{tourId}/send-to-admin")]
         public async Task<IActionResult> SendToAdmin(int tourId)
         {
             var userId = GetUserId();
-            await _tourService.SendDraftToAdminAsync(tourId, userId.Value);
+
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
+            await _tourService.SendDraftToAdminAsync(tourId, partner.PartnerId);
             return Ok(new { message = "Bản nháp đã được gửi cho admin phê duyệt." });
         }
 

@@ -11,11 +11,12 @@ namespace TripWiseAPI.Controllers.AdminControllers
     [Route("api/admin/tours")]
     public class AdminToursController : ControllerBase
     {
-        private readonly IManageTourService _tourService;
-        private readonly TripWiseDBContext _dbContext;
         private readonly IManageTourService _manageTourService;
+        private readonly TripWiseDBContext _dbContext;
 
-        public AdminToursController(IManageTourService tourService, TripWiseDBContext dbContext, IManageTourService manageTourService)
+        private readonly ITourService _tourService;
+
+        public AdminToursController( TripWiseDBContext dbContext, IManageTourService manageTourService, ITourService tourService)
         {
             _tourService = tourService;
             _dbContext = dbContext;
@@ -25,7 +26,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
         [HttpGet("all-tour")]
         public async Task<IActionResult> GetAllTours([FromQuery] string? status)
         { 
-            var tours = await _tourService.GetToursByStatusAsync(status);
+            var tours = await _manageTourService.GetToursByStatusAsync(status);
             return Ok(tours);
         }
         [HttpGet("pending")]
@@ -38,7 +39,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
         [HttpGet("{tourId}")]
         public async Task<IActionResult> GetTourDetail(int tourId)
         {
-            var tour = await _tourService.GetTourDetailForAdminAsync(tourId);
+            var tour = await _manageTourService.GetTourDetailForAdminAsync(tourId);
             if (tour == null) return NotFound();
             return Ok(tour);
         }
@@ -47,7 +48,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
         public async Task<IActionResult> ApproveTour(int tourId)
         {
             var adminId = GetAdminId();
-            var result = await _tourService.ApproveTourAsync(tourId, adminId.Value);
+            var result = await _manageTourService.ApproveTourAsync(tourId, adminId.Value);
             if (!result) return NotFound("Tour not found.");
             return Ok("Tour approved successfully.");
         }
@@ -59,11 +60,17 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 return BadRequest("Rejection reason is required.");
 
             var adminId = GetAdminId();
-            var result = await _tourService.RejectTourAsync(tourId, reason, adminId.Value);
+            var result = await _manageTourService.RejectTourAsync(tourId, reason, adminId.Value);
             if (!result) return NotFound("Tour not found.");
             return Ok("Tour rejected.");
         }
-
+        [HttpPost("{tourId}/submitdraft")]
+        public async Task<IActionResult> SubmitDraft(int tourId)
+        {
+            var userId = GetAdminId();
+            await _tourService.SubmitDraftAsync(tourId, userId.Value);
+            return Ok(new { message = "Bản nháp đã được duyệt và cập nhật vào tour gốc." });
+        }
         private int? GetAdminId()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
