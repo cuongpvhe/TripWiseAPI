@@ -174,6 +174,7 @@ namespace TripWiseAPI.Models.DTO
             public decimal? Price { get; set; }
             public string Status { get; set; }
             public string? UpdateNote { get; set; }
+            public int? PartnerID { get; set; }
             public bool IsUpdatedFromApprovedTour { get; set; }
             public int? OriginalTourId { get; set; }
             public DateTime? CreatedDate { get; set; }

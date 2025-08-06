@@ -49,6 +49,7 @@ namespace TripWiseAPI.Services.AdminServices
                     Location = t.Location,
                     Price = (decimal)t.PriceAdult,
                     Status = t.Status,
+                    PartnerID = t.PartnerId,
                     CreatedDate = t.CreatedDate,
                     ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
 
