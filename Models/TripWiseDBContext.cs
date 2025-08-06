@@ -366,6 +366,8 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.PartnerId).HasColumnName("PartnerID");
 
+                entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");
+
                 entity.Property(e => e.PriceAdult).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.PriceChild5To10).HasColumnType("decimal(18, 2)");

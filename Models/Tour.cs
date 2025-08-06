@@ -40,6 +40,7 @@ namespace TripWiseAPI.Models
         public decimal? PriceChildUnder5 { get; set; }
         public DateTime? StartTime { get; set; }
         public int? OriginalTourId { get; set; }
+        public decimal? Price { get; set; }
 
         public virtual Partner? Partner { get; set; }
         public virtual TourType? TourTypes { get; set; }

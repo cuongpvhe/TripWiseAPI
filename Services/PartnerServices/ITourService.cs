@@ -25,7 +25,6 @@ namespace TripWiseAPI.Services.PartnerServices
         //Task<bool> UpdateTourAsync(int tourId, CreateFullTourDto request, int userId);
         Task<bool> DeleteOrDraftTourAsync(int tourId, string action, int userId);
         Task<TourDraftDto?> GetOrCreateDraftAsync(int tourId);
-        Task SubmitDraftAsync(int tourId, int userId);
         Task CancelDraftAsync(int tourId, int userId);
         Task SendDraftToAdminAsync(int tourId, int userId);
     }
