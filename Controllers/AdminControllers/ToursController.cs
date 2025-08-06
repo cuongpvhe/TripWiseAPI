@@ -36,7 +36,14 @@ namespace TripWiseAPI.Controllers.AdminControllers
             return Ok(tour);
         }
 
-       
+        [HttpPost("{tourId}/approve")]
+        public async Task<IActionResult> ApproveTour(int tourId)
+        {
+            var adminId = GetAdminId();
+            var result = await _manageTourService.ApproveTourAsync(tourId, adminId.Value);
+            if (!result) return NotFound("Tour not found.");
+            return Ok("Tour approved successfully.");
+        }
 
         [HttpPost("{tourId}/reject")]
         public async Task<IActionResult> RejectTour(int tourId, [FromBody] string reason)
