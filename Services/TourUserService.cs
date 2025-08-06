@@ -115,6 +115,9 @@ namespace TripWiseAPI.Services
                 TourNote = tour.TourNote,
                 Itinerary = itineraryDtos,
                 Status = tour.Status,
+                PriceAdult = (decimal)tour.PriceAdult,
+                PriceChild5To10 = (decimal)tour.PriceChild5To10,
+                PriceChildUnder5 = (decimal)tour.PriceChildUnder5,
                 RejectReason = tour.RejectReason,
                 ImageUrls = imageUrls,
                 ImageIds = imageIds
