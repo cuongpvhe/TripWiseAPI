@@ -29,12 +29,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
             var tours = await _manageTourService.GetToursByStatusAsync(status);
             return Ok(tours);
         }
-        [HttpGet("pending")]
-        public async Task<IActionResult> GetPendingTours()
-        {
-            var tours = await _manageTourService.GetPendingToursAsync();
-            return Ok(tours);
-        }
+        
 
         [HttpGet("{tourId}")]
         public async Task<IActionResult> GetTourDetail(int tourId)
@@ -44,14 +39,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
             return Ok(tour);
         }
 
-        [HttpPost("{tourId}/approve")]
-        public async Task<IActionResult> ApproveTour(int tourId)
-        {
-            var adminId = GetAdminId();
-            var result = await _manageTourService.ApproveTourAsync(tourId, adminId.Value);
-            if (!result) return NotFound("Tour not found.");
-            return Ok("Tour approved successfully.");
-        }
+       
 
         [HttpPost("{tourId}/reject")]
         public async Task<IActionResult> RejectTour(int tourId, [FromBody] string reason)
@@ -68,7 +56,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
         public async Task<IActionResult> SubmitDraft(int tourId)
         {
             var userId = GetAdminId();
-            await _tourService.SubmitDraftAsync(tourId, userId.Value);
+            await _manageTourService.SubmitDraftAsync(tourId, userId.Value);
             return Ok(new { message = "Bản nháp đã được duyệt và cập nhật vào tour gốc." });
         }
         private int? GetAdminId()

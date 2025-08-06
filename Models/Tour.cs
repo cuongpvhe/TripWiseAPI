@@ -19,7 +19,6 @@ namespace TripWiseAPI.Models
         public string TourName { get; set; } = null!;
         public string? Description { get; set; }
         public string Duration { get; set; } = null!;
-        public decimal? Price { get; set; }
         public string? Location { get; set; }
         public int? MaxGroupSize { get; set; }
         public string? Category { get; set; }
@@ -41,6 +40,7 @@ namespace TripWiseAPI.Models
         public decimal? PriceChildUnder5 { get; set; }
         public DateTime? StartTime { get; set; }
         public int? OriginalTourId { get; set; }
+        public decimal? Price { get; set; }
 
         public virtual Partner? Partner { get; set; }
         public virtual TourType? TourTypes { get; set; }

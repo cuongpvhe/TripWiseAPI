@@ -30,7 +30,7 @@ namespace TripWiseAPI.Services
                     TourName = t.TourName,
                     Description = t.Description,
                     Location = t.Location,
-                    Price = (decimal)t.Price,
+                    Price = (decimal)t.PriceAdult,
                     Status = t.Status,
                     ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
                     CreatedDate = t.CreatedDate
@@ -110,7 +110,6 @@ namespace TripWiseAPI.Services
                 Location = tour.Location,
                 Preferences = tour.Category,
                 Budget = null,
-                TotalEstimatedCost = tour.Price,
                 TourInfo = tour.TourInfo,
                 TourNote = tour.TourNote,
                 Itinerary = itineraryDtos,
@@ -184,7 +183,7 @@ namespace TripWiseAPI.Services
                     TourName = w.Tour.TourName,
                     Description = w.Tour.Description,
                     Location = w.Tour.Location,
-                    Price = (decimal)w.Tour.Price,
+                    Price = (decimal)w.Tour.PriceAdult,
                     Status = w.Tour.Status,
                     ImageUrls = w.Tour.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
                     CreatedDate = w.Tour.CreatedDate

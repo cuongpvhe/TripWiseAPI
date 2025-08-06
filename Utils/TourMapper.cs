@@ -12,7 +12,7 @@ namespace TripWiseAPI.Utils
                 TourId = tour.TourId,
                 TourName = tour.TourName,
                 Description = tour.Description,
-                Price = tour.Price,
+                Price = tour.PriceAdult,
                 Duration = tour.Duration,
                 Location = tour.Location,
                 Thumbnail = tour.TourImages?

@@ -5,13 +5,12 @@ namespace TripWiseAPI.Services.AdminServices
 {
     public interface IManageTourService
     {
-        Task<List<PendingTourDto>> GetToursByStatusAsync(string? status);
-        Task<List<PendingTourDto>> GetToursAsync();
-        Task<List<PendingTourDto>> GetRejectToursAsync();
-        Task<List<PendingTourDto>> GetPendingToursAsync();
+        Task<List<PendingTourDto>> GetToursByStatusAsync(string? status = null);
+ 
         Task<bool> RejectTourAsync(int tourId, string reason, int adminId);
         Task<bool> PendingTourAsync(int tourId, int adminId);
         Task<bool> ApproveTourAsync(int tourId, int adminId);
         Task<TourDetailDto?> GetTourDetailForAdminAsync(int tourId);
+        Task SubmitDraftAsync(int tourId, int userId);
     }
 }
