@@ -962,7 +962,36 @@ namespace TripWiseAPI.Services.PartnerServices
             // TODO: Thêm gửi thông báo/email cho admin nếu cần
         }
 
-       
+        public async Task<bool> ResubmitRejectedDraftAsync(int originalTourId, int partnerId)
+        {
+            var rejectedDraft = await _dbContext.Tours
+                .FirstOrDefaultAsync(t => t.OriginalTourId == originalTourId
+                                          && t.Status == TourStatuses.Rejected
+                                          && (t.CreatedBy == partnerId || t.PartnerId == partnerId));
+
+            if (rejectedDraft == null)
+            {
+                // Log để debug
+                var drafts = await _dbContext.Tours
+                    .Where(t => t.OriginalTourId == originalTourId)
+                    .ToListAsync();
+                Console.WriteLine("All drafts for originalTourId: " + originalTourId);
+                foreach (var d in drafts)
+                {
+                    Console.WriteLine($"Id={d.TourId}, Status={d.Status}, CreatedBy={d.CreatedBy}, PartnerId={d.PartnerId}");
+                }
+
+                return false;
+            }
+
+            rejectedDraft.Status = TourStatuses.PendingApproval;
+            rejectedDraft.RejectReason = null;
+            rejectedDraft.ModifiedDate = TimeHelper.GetVietnamTime();
+            rejectedDraft.ModifiedBy = partnerId;
+
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
 
 
     }

@@ -11,6 +11,7 @@ namespace TripWiseAPI.Services.AdminServices
         Task<bool> PendingTourAsync(int tourId, int adminId);
         Task<bool> ApproveTourAsync(int tourId, int adminId);
         Task<TourDetailDto?> GetTourDetailForAdminAsync(int tourId);
-        Task SubmitDraftAsync(int tourId, int userId);
+        Task SubmitDraftAsync(int tourId, int adminId);
+        Task<bool> RejectDraftAsync(int tourId, string reason, int adminId);
     }
 }
