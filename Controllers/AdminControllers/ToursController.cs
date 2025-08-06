@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
+using TripWiseAPI.Services;
 using TripWiseAPI.Services.AdminServices;
 using TripWiseAPI.Services.PartnerServices;
 
@@ -12,21 +13,27 @@ namespace TripWiseAPI.Controllers.AdminControllers
     public class AdminToursController : ControllerBase
     {
         private readonly IManageTourService _manageTourService;
+        private readonly IAIGeneratePlanService _aIGeneratePlanService;
 
 
-        public AdminToursController(IManageTourService manageTourService)
+        public AdminToursController(IManageTourService manageTourService, IAIGeneratePlanService aIGeneratePlanService)
         { 
-
+            _aIGeneratePlanService = aIGeneratePlanService;
             _manageTourService = manageTourService; 
+        }
+        [HttpGet("top-destinations")]
+        public async Task<IActionResult> GetTopDestinations([FromQuery] int top = 10)
+        {
+            var result = await _aIGeneratePlanService.GetTopSearchedDestinationsAsync(top);
+            return Ok(result);
         }
 
         [HttpGet("all-tour")]
-        public async Task<IActionResult> GetAllTours([FromQuery] string? status)
-        { 
-            var tours = await _manageTourService.GetToursByStatusAsync(status);
+        public async Task<IActionResult> GetAllTours([FromQuery] string? status, [FromQuery] int? partnerId)
+        {
+            var tours = await _manageTourService.GetToursByStatusAsync(status, partnerId);
             return Ok(tours);
         }
-        
 
         [HttpGet("{tourId}")]
         public async Task<IActionResult> GetTourDetail(int tourId)

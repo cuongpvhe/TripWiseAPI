@@ -17,5 +17,7 @@ namespace TripWiseAPI.Services
         Task<object?> GetHistoryDetailByIdAsync(int id, int userId);
         Task<bool> DeleteGenerateTravelPlansAsync(int Id, int? userId);
         Task<ItineraryResponse?> UpdateItineraryChunkAsync(int generatePlanId, int userId, string userMessage, int startDay, int chunkSize);
+        Task<Dictionary<string, int>> GetTopSearchedDestinationsAsync(int top = 10);
+
     }
 }

@@ -1,16 +1,20 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
+using TripWiseAPI.Services.PartnerServices;
+using TripWiseAPI.Utils;
 
 namespace TripWiseAPI.Services
 {
     public class UserProfileService : IUserProfileService
     {
         private readonly TripWiseDBContext _context;
+        private readonly IImageUploadService _imageService;
 
-        public UserProfileService(TripWiseDBContext context)
+        public UserProfileService(TripWiseDBContext context, IImageUploadService imageService)
         {
             _context = context;
+            _imageService = imageService;
         }
 
         public async Task<UserProfileDTO?> GetProfileAsync(int userId)
@@ -26,7 +30,8 @@ namespace TripWiseAPI.Services
                     City = u.City,
                     Ward = u.Ward,
                     District = u.District,
-                    StreetAddress = u.StreetAddress
+                    StreetAddress = u.StreetAddress,
+                    Avatar = u.Avatar
                 })
                 .FirstOrDefaultAsync();
 
@@ -46,9 +51,35 @@ namespace TripWiseAPI.Services
             user.StreetAddress = dto.StreetAddress;
             user.ModifiedDate = DateTime.UtcNow;
 
+            // Xử lý avatar
+            string? newAvatarUrl = null;
+
+            if (dto.AvatarFile != null)
+            {
+                // Nếu có ảnh cũ thì xóa
+                if (!string.IsNullOrEmpty(user.Avatar))
+                {
+                    var oldPublicId = _imageService.GetPublicIdFromUrl(user.Avatar);
+                    await _imageService.DeleteImageAsync(oldPublicId);
+                }
+
+                newAvatarUrl = await _imageService.UploadImageFromFileAsync(dto.AvatarFile);
+            }
+            else if (!string.IsNullOrEmpty(dto.AvatarUrl))
+            {
+                // Nếu chỉ cung cấp URL mới
+                newAvatarUrl = dto.AvatarUrl;
+            }
+
+            if (!string.IsNullOrEmpty(newAvatarUrl))
+            {
+                user.Avatar = newAvatarUrl;
+            }
+
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
             return true;
         }
+
     }
 }
