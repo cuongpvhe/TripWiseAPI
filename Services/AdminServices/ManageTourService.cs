@@ -36,6 +36,7 @@ namespace TripWiseAPI.Services.AdminServices
                     Location = t.Location,
                     Price = (decimal)t.Price,
                     Status = t.Status,
+
                     CreatedDate = t.CreatedDate,
                     ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList()
                 })
@@ -87,9 +88,7 @@ namespace TripWiseAPI.Services.AdminServices
         }
         public async Task<List<PendingTourDto>> GetPendingToursAsync()
         {
-         
             var tours = await _dbContext.Tours
-                .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
                 .Where(t => t.Status == TourStatuses.PendingApproval && t.RemovedDate == null)
                 .Select(t => new PendingTourDto
                 {
@@ -101,12 +100,17 @@ namespace TripWiseAPI.Services.AdminServices
                     Price = (decimal)t.Price,
                     Status = t.Status,
                     CreatedDate = t.CreatedDate,
-                    ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList()
+                    IsUpdatedFromApprovedTour = t.OriginalTourId != null,
+                    OriginalTourId = t.OriginalTourId,
+                    UpdateNote = t.OriginalTourId != null
+                        ? $"Tour này là bản cập nhật của tour đã được duyệt trước đó TourId: ({t.OriginalTourId})"
+                        : null
                 })
                 .ToListAsync();
 
             return tours;
         }
+
         public async Task<bool> ApproveTourAsync(int tourId, int adminId)
         {
             var tour = await _dbContext.Tours.FindAsync(tourId);
