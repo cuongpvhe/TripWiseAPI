@@ -12,14 +12,11 @@ namespace TripWiseAPI.Controllers.AdminControllers
     public class AdminToursController : ControllerBase
     {
         private readonly IManageTourService _manageTourService;
-        private readonly TripWiseDBContext _dbContext;
 
-        private readonly ITourService _tourService;
 
-        public AdminToursController( TripWiseDBContext dbContext, IManageTourService manageTourService, ITourService tourService)
-        {
-            _tourService = tourService;
-            _dbContext = dbContext;
+        public AdminToursController(IManageTourService manageTourService)
+        { 
+
             _manageTourService = manageTourService; 
         }
 
@@ -52,8 +49,8 @@ namespace TripWiseAPI.Controllers.AdminControllers
             if (!result) return NotFound("Tour not found.");
             return Ok("Tour rejected.");
         }
-        [HttpPost("{tourId}/submitdraft")]
-        public async Task<IActionResult> SubmitDraft(int tourId)
+        [HttpPost("{tourId}/submitupdatedraft")]
+        public async Task<IActionResult> SubmitUpdateDraft(int tourId)
         {
             var userId = GetAdminId();
             await _manageTourService.SubmitDraftAsync(tourId, userId.Value);
@@ -66,6 +63,18 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 return userId;
             return null;
         }
+        [HttpPost("reject-update")]
+        public async Task<IActionResult> RejectDraftUpdate(int tourId, [FromBody] string reason)
+        {
+            var userId = GetAdminId(); // Lấy ID partner hiện tại
+
+            var result = await _manageTourService.RejectDraftAsync(tourId, reason, userId.Value);
+            if (!result)
+                return NotFound("Không tìm thấy bản nháp tương ứng");
+
+            return Ok("Đã từ chối bản nháp thành công");
+        }
+
     }
 
 }

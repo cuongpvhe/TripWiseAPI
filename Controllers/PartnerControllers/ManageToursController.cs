@@ -379,9 +379,26 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         }
 
 
+        [HttpPost("resubmit-rejected/{tourId}")]
+        public async Task<IActionResult> ResubmitRejectedTour(int tourId)
+        {
+            var userId = GetUserId();
 
+            // Lấy PartnerId từ UserId
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
 
+            if (partner == null)
+            {
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+            }
 
+            var success = await _tourService.ResubmitRejectedDraftAsync(tourId, partner.PartnerId);
+            if (!success)
+                return NotFound("Không tìm thấy bản cập nhật bị từ chối");
+
+            return Ok("Đã gửi lại bản cập nhật thành công");
+        }
 
     }
 

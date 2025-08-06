@@ -4,6 +4,7 @@ using System.Text.Json;
 using TripWiseAPI.Model;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
+using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Utils;
 using static TripWiseAPI.Models.DTO.UpdateTourDto;
 
@@ -14,12 +15,15 @@ namespace TripWiseAPI.Services
         private readonly TripWiseDBContext _dbContext;
         private readonly WeatherService _weatherService;
         private readonly IAiItineraryService _aiService;
+        private readonly ITourService _tourService;
 
-        public AIGeneratePlanService (TripWiseDBContext dbContext, WeatherService weatherService, IAiItineraryService aiService)
+
+        public AIGeneratePlanService (TripWiseDBContext dbContext, WeatherService weatherService, IAiItineraryService aiService, ITourService tourService)
         {
             _dbContext = dbContext;
             _weatherService = weatherService;
             _aiService = aiService;
+            _tourService = tourService;
         }
         public async Task<ItineraryResponse?> UpdateItineraryAsync(int generatePlanId, int userId, string userMessage)
         {
@@ -371,10 +375,18 @@ namespace TripWiseAPI.Services
             var tour = await _dbContext.Tours
                 .Where(t => t.TourId == tourId)
                 .Include(t => t.TourItineraries)
-                .ThenInclude(i => i.TourAttractions)
+                    .ThenInclude(i => i.TourAttractions)
                 .FirstOrDefaultAsync();
 
             if (tour == null) return null;
+
+            // Tách Destination từ TourName (theo format: "Tour {destination} - {travelDate:dd/MM/yyyy}")
+            string destination = null!;
+            var parts = tour.TourName?.Split(" - ");
+            if (parts != null && parts.Length >= 2 && parts[0].StartsWith("Tour "))
+            {
+                destination = parts[0].Substring("Tour ".Length).Trim();
+            }
 
             var itineraryByDay = tour.TourItineraries
                 .Where(i => i.DayNumber.HasValue)
@@ -395,7 +407,7 @@ namespace TripWiseAPI.Services
                         Address = a.Localtion,
                         EstimatedCost = a.Price ?? 0,
                         MapUrl = a.MapUrl,
-                        ImageUrls =  a.ImageUrl
+                        ImageUrls = a.ImageUrl
                     })).ToList()
                 }).ToList();
 
@@ -413,9 +425,21 @@ namespace TripWiseAPI.Services
                 TourNote = tour.TourNote,
             };
 
+            // 👉 Lấy các tour liên quan theo destination tách từ TourName
+            var relatedTours = await _tourService.GetToursByLocationAsync(destination, 4);
+            var relatedTourDtos = relatedTours.Select(TourMapper.ToRelatedDto).ToList();
+
+            string? relatedTourMessage = null;
+            if (!relatedTourDtos.Any())
+            {
+                relatedTourMessage = $"Hiện chưa có tour sẵn nào cho điểm đến {destination}.";
+            }
+
+            dto.RelatedTours = relatedTourDtos;
+            dto.RelatedTourMessage = relatedTourMessage;
+
             return dto;
         }
-
 
 
         public async Task<bool> DeleteTourAsync(int tourId, int? userId)
@@ -477,6 +501,14 @@ namespace TripWiseAPI.Services
             if (entity == null) return null;
 
             var response = JsonSerializer.Deserialize<ItineraryResponse>(entity.MessageResponse);
+            // Gọi service filter tour có sẵn
+            var relatedTours = await _tourService.GetToursByLocationAsync(response.Destination, 4);
+            var relatedTourDtos = relatedTours.Select(TourMapper.ToRelatedDto).ToList();
+            string? relatedTourMessage = null;
+            if (!relatedTourDtos.Any())
+            {
+                relatedTourMessage = $"Hiện chưa có tour sẵn nào cho điểm đến {response.Destination}.";
+            }
             return new
             {
                 response.Destination,
@@ -490,6 +522,7 @@ namespace TripWiseAPI.Services
                 response.DiningStyle,
                 response.Accommodation,
                 response.SuggestedAccommodation,
+
                 Itinerary = response.Itinerary.Select(day => new
                 {
                     Day = day.DayNumber,
@@ -510,7 +543,9 @@ namespace TripWiseAPI.Services
                         act.MapUrl,
                         act.Image
                     })
-                })
+                }),
+                RelatedTours = relatedTourDtos,
+                RelatedTourMessage = relatedTourMessage,
             };
         }
         public async Task<bool> DeleteGenerateTravelPlansAsync(int Id, int? userId)

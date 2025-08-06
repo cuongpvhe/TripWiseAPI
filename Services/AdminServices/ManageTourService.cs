@@ -75,7 +75,6 @@ namespace TripWiseAPI.Services.AdminServices
             return tours;
         }
        
-
         public async Task<bool> ApproveTourAsync(int tourId, int adminId)
         {
             var tour = await _dbContext.Tours.FindAsync(tourId);
@@ -212,7 +211,7 @@ namespace TripWiseAPI.Services.AdminServices
 
             return dto;
         }
-        public async Task SubmitDraftAsync(int tourId, int userId)
+        public async Task SubmitDraftAsync(int tourId, int adminId)
         {
             // Lấy bản nháp
             var draft = await _dbContext.Tours
@@ -280,7 +279,7 @@ namespace TripWiseAPI.Services.AdminServices
                     DayNumber = draftItinerary.DayNumber,
                     ItineraryName = draftItinerary.ItineraryName,
                     Description = draftItinerary.Description,
-                    CreatedBy = userId,
+                    CreatedBy = adminId,
                     CreatedDate = TimeHelper.GetVietnamTime(),
                     TourAttractions = new List<TourAttraction>()
                 };
@@ -297,7 +296,7 @@ namespace TripWiseAPI.Services.AdminServices
                         TourAttractionsName = draftAttraction.TourAttractionsName,
                         Category = draftAttraction.Category,
                         MapUrl = draftAttraction.MapUrl,
-                        CreatedBy = userId,
+                        CreatedBy = adminId,
                         CreatedDate = TimeHelper.GetVietnamTime(),
                         TourAttractionImages = new List<TourAttractionImage>()
                     };
@@ -330,7 +329,7 @@ namespace TripWiseAPI.Services.AdminServices
                     await _imageUploadService.DeleteImageAsync(publicId);
 
                     tourImage.Image.RemovedDate = TimeHelper.GetVietnamTime();
-                    tourImage.Image.RemovedBy = userId;
+                    tourImage.Image.RemovedBy = adminId;
 
                     _dbContext.Images.Remove(tourImage.Image);
                 }
@@ -350,7 +349,7 @@ namespace TripWiseAPI.Services.AdminServices
                             await _imageUploadService.DeleteImageAsync(publicId);
 
                             image.Image.RemovedDate = TimeHelper.GetVietnamTime();
-                            image.Image.RemovedBy = userId;
+                            image.Image.RemovedBy = adminId;
 
                             _dbContext.Images.Remove(image.Image);
                         }
@@ -368,5 +367,23 @@ namespace TripWiseAPI.Services.AdminServices
 
             await _dbContext.SaveChangesAsync();
         }
+        public async Task<bool> RejectDraftAsync(int tourId, string reason, int adminId)
+        {
+            var draftTour = await _dbContext.Tours
+                .Where(t => t.OriginalTourId == tourId && t.Status == TourStatuses.PendingApproval)
+                .FirstOrDefaultAsync();
+
+            if (draftTour == null)
+                return false;
+
+            draftTour.Status = TourStatuses.Rejected;
+            draftTour.RejectReason = reason;
+            draftTour.ModifiedDate = TimeHelper.GetVietnamTime();
+            draftTour.ModifiedBy = adminId;
+
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
     }
 }

@@ -27,5 +27,6 @@ namespace TripWiseAPI.Services.PartnerServices
         Task<TourDraftDto?> GetOrCreateDraftAsync(int tourId);
         Task CancelDraftAsync(int tourId, int userId);
         Task SendDraftToAdminAsync(int tourId, int userId);
+        Task<bool> ResubmitRejectedDraftAsync(int tourId, int partnerId);
     }
 }

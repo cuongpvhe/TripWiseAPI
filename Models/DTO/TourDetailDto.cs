@@ -31,6 +31,8 @@ namespace TripWiseAPI.Models.DTO
         public List<string>? ImageUrls { get; set; }
         public List<string> ImageIds { get; set; }
         public List<ItineraryDetailDto> Itinerary { get; set; } = new();
+        public List<RelatedTourDto>? RelatedTours { get; set; }
+        public string? RelatedTourMessage { get; set; }
     }
 
     public class UpdateTourDto
