@@ -5,7 +5,7 @@ namespace TripWiseAPI.Services.AdminServices
 {
     public interface IManageTourService
     {
-        Task<List<PendingTourDto>> GetToursByStatusAsync(string? status = null);
+        Task<List<PendingTourDto>> GetToursByStatusAsync(string? status = null, int? partnerId = null);
  
         Task<bool> RejectTourAsync(int tourId, string reason, int adminId);
         Task<bool> PendingTourAsync(int tourId, int adminId);

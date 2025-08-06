@@ -17,15 +17,26 @@ namespace TripWiseAPI.Services.AdminServices
             _dbContext = dbContext;
             _imageUploadService = imageUploadService;
         }
-        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status = null)
+        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status = null, int? partnerId = null)
         {
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
                 .Where(t => t.RemovedDate == null && t.TourTypesId == 2);
 
-            if (!string.IsNullOrEmpty(status))
+            // Lọc theo cả status và partnerId nếu có
+            if (!string.IsNullOrEmpty(status) && partnerId.HasValue)
+            {
+                query = query.Where(t => t.Status == status && t.PartnerId == partnerId.Value);
+            }
+            // Chỉ lọc theo status nếu có
+            else if (!string.IsNullOrEmpty(status))
             {
                 query = query.Where(t => t.Status == status);
+            }
+            // Chỉ lọc theo partnerId nếu có
+            else if (partnerId.HasValue)
+            {
+                query = query.Where(t => t.PartnerId == partnerId.Value);
             }
 
             var tours = await query
@@ -52,6 +63,7 @@ namespace TripWiseAPI.Services.AdminServices
 
             return tours;
         }
+
         public async Task<List<PendingTourDto>> GetRejectToursAsync()
         {
 

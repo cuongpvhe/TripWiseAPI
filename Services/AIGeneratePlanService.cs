@@ -249,6 +249,7 @@ namespace TripWiseAPI.Services
                 TourInfo = $"{accommodation}, Phong cách ăn uống: {diningStyle}",
                 TourNote = $"{suggestedAccommodation}",
                 TourTypesId = 1,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = userId
             };
 
@@ -561,6 +562,44 @@ namespace TripWiseAPI.Services
             await _dbContext.SaveChangesAsync();
 
             return true;
+        }
+        public async Task<Dictionary<string, int>> GetTopSearchedDestinationsAsync(int top = 10)
+        {
+            var messageRequests = await _dbContext.GenerateTravelPlans
+                .Where(g => !string.IsNullOrEmpty(g.MessageRequest))
+                .Select(g => g.MessageRequest)
+                .ToListAsync();
+
+            var destinationCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var json in messageRequests)
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("Destination", out var destinationProp))
+                    {
+                        var destination = destinationProp.GetString();
+                        if (!string.IsNullOrWhiteSpace(destination))
+                        {
+                            if (destinationCounts.ContainsKey(destination))
+                                destinationCounts[destination]++;
+                            else
+                                destinationCounts[destination] = 1;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Bỏ qua JSON sai định dạng
+                    continue;
+                }
+            }
+
+            return destinationCounts
+                .OrderByDescending(kv => kv.Value)
+                .Take(top)
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
         }
 
     }

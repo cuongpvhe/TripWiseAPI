@@ -79,6 +79,7 @@ namespace TripWiseAPI.Models.DTO
     public class UserProfileDTO
     {
         public string? UserName { get; set; }
+        public string? Avatar { get; set; }
         public string Email { get; set; } = null!;
         public string? PhoneNumber { get; set; }
         public string? Country { get; set; }
@@ -89,6 +90,8 @@ namespace TripWiseAPI.Models.DTO
     }
     public class UserProfileUpdateDTO
     {
+        public IFormFile? AvatarFile { get; set; } 
+        public string? AvatarUrl { get; set; }
         [StringLength(50, ErrorMessage = "UserName tối đa 50 ký tự")]
         public string? UserName { get; set; }
 

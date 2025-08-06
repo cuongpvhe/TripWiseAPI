@@ -40,7 +40,7 @@ namespace TripWiseAPI.Controllers
         }
 
         [HttpPut("profile")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UserProfileUpdateDTO dto)
+        public async Task<IActionResult> UpdateProfile([FromForm] UserProfileUpdateDTO dto)
         {
             var userId = GetUserId();
             if (userId == null)
