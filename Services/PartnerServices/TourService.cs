@@ -83,6 +83,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 Category = request.Category,
                 TourNote = request.TourNote,
                 TourInfo = request.TourInfo,
+                PriceAdult = request.PriceAdult,
+                PriceChild5To10 = request.PriceChild5To10,
+                PriceChildUnder5 = request.PriceChildUnder5,
                 TourTypesId = 2,
                 PartnerId = partnerId,
                 CreatedDate = TimeHelper.GetVietnamTime(),
@@ -354,8 +357,11 @@ namespace TripWiseAPI.Services.PartnerServices
                 RejectReason = tour.RejectReason,
                 ImageUrls = imageUrls,
                 ImageIds = imageIds,
-                OriginalTourId = tour.OriginalTourId
-                
+                OriginalTourId = tour.OriginalTourId,
+                PriceAdult = (decimal)tour.PriceAdult,
+                PriceChild5To10 = (decimal)tour.PriceChild5To10,
+                PriceChildUnder5 = (decimal)tour.PriceChildUnder5,
+
             };
 
             return dto;
@@ -394,6 +400,9 @@ namespace TripWiseAPI.Services.PartnerServices
             tour.Duration = request.Duration;
             tour.Category = request.Category;
             tour.Price = request.Price;
+            tour.PriceAdult = request.PriceAdult;
+            tour.PriceChild5To10 = request.PriceChild5To10;
+            tour.PriceChildUnder5 = request.PriceChildUnder5;
             tour.ModifiedBy = userId;
             tour.ModifiedDate = TimeHelper.GetVietnamTime();
 
@@ -749,6 +758,9 @@ namespace TripWiseAPI.Services.PartnerServices
                     TourNote = originalTour.TourNote,
                     TourInfo = originalTour.TourInfo,   
                     Status = TourStatuses.Draft,
+                    PriceAdult = originalTour.PriceAdult,
+                    PriceChild5To10 = originalTour.PriceChild5To10,
+                    PriceChildUnder5 = originalTour.PriceChildUnder5,
                     CreatedBy = originalTour.CreatedBy,
                     CreatedDate = TimeHelper.GetVietnamTime(),
                     TourTypesId = originalTour.TourTypesId,
@@ -819,6 +831,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 TourNote = draftTour.TourNote,
                 StartTime = draftTour.StartTime,
                 Status = draftTour.Status,
+                PriceAdult= (decimal)draftTour.PriceAdult,
+                PriceChild5To10 = (decimal)draftTour.PriceChild5To10,
+                PriceChildUnder5 = (decimal)draftTour.PriceChildUnder5,
                 PartnerID = draftTour.PartnerId,
                 OriginalTourId = draftTour.OriginalTourId,
                 TourTypesId = draftTour.TourTypesId,
@@ -908,6 +923,9 @@ namespace TripWiseAPI.Services.PartnerServices
             original.TourInfo = draft.TourInfo;
             original.Category = draft.Category;
             original.Location = draft.Location;
+            original.PriceAdult = draft.PriceAdult;
+            original.PriceChild5To10 = draft.PriceChild5To10;
+            original.PriceChildUnder5 = draft.PriceChildUnder5;
             original.TourTypesId = draft.TourTypesId;
             original.ModifiedDate = TimeHelper.GetVietnamTime();
 

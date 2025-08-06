@@ -40,9 +40,9 @@ namespace TripWiseAPI.Models.DTO
         public string Description { get; set; }
         public string Duration { get; set; }
         public decimal Price { get; set; }
-        //public decimal PriceAdult { get; set; }
-        //public decimal PriceChild5To10 { get; set; }
-        //public decimal PriceChildUnder5 { get; set; }
+        public decimal PriceAdult { get; set; }
+        public decimal PriceChild5To10 { get; set; }
+        public decimal PriceChildUnder5 { get; set; }
         public string Location { get; set; }
         public string? Category { get; set; }
 
@@ -107,6 +107,9 @@ namespace TripWiseAPI.Models.DTO
         public string? Category { get; set; }
         public string TourNote { get; set; }
         public string TourInfo { get; set; }
+        public decimal PriceAdult { get; set; }
+        public decimal PriceChild5To10 { get; set; }
+        public decimal PriceChildUnder5 { get; set; }
         public List<string>? Image { get; set; }
         public List<IFormFile>? ImageFile { get; set; }
     }
@@ -124,6 +127,9 @@ namespace TripWiseAPI.Models.DTO
             public string Category { get; set; }
             public decimal Price { get; set; }
             public string Status { get; set; }
+            public decimal PriceAdult { get; set; }
+            public decimal PriceChild5To10 { get; set; }
+            public decimal PriceChildUnder5 { get; set; }
             public int? TourTypesId { get; set; }
             public int? PartnerID { get; set; }
             public int? OriginalTourId { get; set; }
