@@ -187,6 +187,16 @@ namespace TripWiseAPI.Services.PartnerServices
             if (request.EstimatedCost < 0)
                 throw new ArgumentException("Chi phí ước tính phải lớn hơn 0.");
 
+            // Lấy itinerary và tour tương ứng
+            var itinerary = await _dbContext.TourItineraries
+                .Include(i => i.Tour)
+                .FirstOrDefaultAsync(i => i.ItineraryId == itineraryId);
+
+            var tourStartDate = itinerary.Tour.StartTime;
+
+            if (tourStartDate == null)
+                throw new ArgumentException("Tour chưa có thời gian bắt đầu.");
+
             if (!string.IsNullOrEmpty(request.StartTime) && !string.IsNullOrEmpty(request.EndTime))
             {
                 if (!TimeSpan.TryParse(request.StartTime, out var startTime))
@@ -198,10 +208,21 @@ namespace TripWiseAPI.Services.PartnerServices
                 if (endTime <= startTime)
                     throw new ArgumentException("Thời gian kết thúc phải lớn hơn thời gian bắt đầu.");
 
-                var now = TimeHelper.GetVietnamTime().TimeOfDay;
-                if (startTime <= now)
-                    throw new ArgumentException("Thời gian bắt đầu phải lớn hơn thời gian hiện tại.");
+                var tourDateOnly = tourStartDate.Value.Date;
+                var today = TimeHelper.GetVietnamTime().Date;
+
+                if (tourDateOnly == today)
+                {
+                    var activityStartDateTime = tourDateOnly.Add(startTime); // gộp ngày + giờ
+                    var now = TimeHelper.GetVietnamTime();
+
+                    if (activityStartDateTime <= now)
+                        throw new ArgumentException("Thời gian bắt đầu phải lớn hơn thời gian hiện tại.");
+                }
+
+                // Nếu tourDate > hôm nay thì KHÔNG cần check với now
             }
+
             var attraction = new TourAttraction
             {
                 TourAttractionsName = request.PlaceDetail,
