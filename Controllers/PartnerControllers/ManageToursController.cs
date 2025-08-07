@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
+using TripWiseAPI.Services;
 using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Utils;
 using static TripWiseAPI.Models.DTO.UpdateTourDto;
@@ -15,11 +16,19 @@ namespace TripWiseAPI.Controllers.PartnerControllers
     {
         private readonly ITourService _tourService;
         private readonly TripWiseDBContext _dbContext;
+        private readonly IAIGeneratePlanService _aIGeneratePlanService;
 
-        public PartnerToursController(ITourService tourService, TripWiseDBContext dbContext)
+        public PartnerToursController(ITourService tourService, TripWiseDBContext dbContext, IAIGeneratePlanService aIGeneratePlanService)
         {
             _tourService = tourService;
             _dbContext = dbContext;
+            _aIGeneratePlanService = aIGeneratePlanService;
+        }
+        [HttpGet("top-destinations")]
+        public async Task<IActionResult> GetTopDestinations([FromQuery] int top = 10)
+        {
+            var result = await _aIGeneratePlanService.GetTopSearchedDestinationsAsync(top);
+            return Ok(result);
         }
         [HttpGet]
         public async Task<IActionResult> GetAllTours([FromQuery] string? status)

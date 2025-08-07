@@ -178,6 +178,7 @@ namespace TripWiseAPI.Models.DTO
             public bool IsUpdatedFromApprovedTour { get; set; }
             public int? OriginalTourId { get; set; }
             public DateTime? CreatedDate { get; set; }
+            public DateTime? ModifiedDate { get; set; }
             public List<string> ImageUrls { get; set; } = new();
         }
     }

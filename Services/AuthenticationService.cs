@@ -209,7 +209,7 @@ namespace TripWiseAPI.Services
         {
             var otp = await _context.SignupOtps.FindAsync(data.SignupRequestId);
             if (otp == null)
-                return new ApiResponse<string>(200, ErrorMessage.InvalidRequestId);
+                return new ApiResponse<string>(401, ErrorMessage.InvalidRequestId);
 
             if (otp.ExpiresAt < DateTime.Now)
                 return new ApiResponse<string>(401, ErrorMessage.ExpiredOTP);
@@ -226,7 +226,7 @@ namespace TripWiseAPI.Services
                     _context.SignupOtps.Update(otp);
                 }
                 await _context.SaveChangesAsync();
-                return new ApiResponse<string>(200, $"OTP không đúng, còn lại {otp.RequestAttemptsRemains} lần thử.");
+                return new ApiResponse<string>(400, $"OTP không đúng, còn lại {otp.RequestAttemptsRemains} lần thử.");
             }
 
             var user = new User
@@ -333,7 +333,7 @@ namespace TripWiseAPI.Services
         {
             var otp = await _context.SignupOtps.FindAsync(req.Email);
             if (otp == null)
-                return new ApiResponse<string>(200, ErrorMessage.InvalidRequestId);
+                return new ApiResponse<string>(401, ErrorMessage.InvalidRequestId);
 
             if (otp.ExpiresAt < DateTime.Now)
                 return new ApiResponse<string>(401, ErrorMessage.ExpiredOTP);
@@ -350,7 +350,7 @@ namespace TripWiseAPI.Services
                     _context.SignupOtps.Update(otp);
                 }
                 await _context.SaveChangesAsync();
-                return new ApiResponse<string>(200, $"OTP không đúng, còn lại {otp.RequestAttemptsRemains} lần thử.");
+                return new ApiResponse<string>(400, $"OTP không đúng, còn lại {otp.RequestAttemptsRemains} lần thử.");
             }
 
             // OTP đúng → xóa

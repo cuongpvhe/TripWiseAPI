@@ -21,19 +21,19 @@ namespace TripWiseAPI.Controllers.AdminControllers
             _aIGeneratePlanService = aIGeneratePlanService;
             _manageTourService = manageTourService; 
         }
-        [HttpGet("top-destinations")]
-        public async Task<IActionResult> GetTopDestinations([FromQuery] int top = 10)
-        {
-            var result = await _aIGeneratePlanService.GetTopSearchedDestinationsAsync(top);
-            return Ok(result);
-        }
 
-        [HttpGet("all-tour")]
-        public async Task<IActionResult> GetAllTours([FromQuery] string? status, [FromQuery] int? partnerId)
+        [HttpGet("filter-tours")]
+        public async Task<IActionResult> GetFilteredTours(
+            [FromQuery] string? status,
+            [FromQuery] int? partnerId,
+            [FromQuery] int? day,
+            [FromQuery] int? month,
+            [FromQuery] int? year)
         {
-            var tours = await _manageTourService.GetToursByStatusAsync(status, partnerId);
+            var tours = await _manageTourService.GetToursByStatusAsync(status, partnerId, day, month, year);
             return Ok(tours);
         }
+
 
         [HttpGet("{tourId}")]
         public async Task<IActionResult> GetTourDetail(int tourId)

@@ -957,6 +957,8 @@ namespace TripWiseAPI.Services.PartnerServices
             if (draft == null) throw new Exception("Draft not found");
 
             draft.Status = TourStatuses.PendingApproval;
+            draft.ModifiedDate = TimeHelper.GetVietnamTime();
+            draft.ModifiedBy = userId;
             await _dbContext.SaveChangesAsync();
 
             // TODO: Thêm gửi thông báo/email cho admin nếu cần
