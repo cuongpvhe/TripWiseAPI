@@ -17,7 +17,7 @@ namespace TripWiseAPI.Services.AdminServices
             _dbContext = dbContext;
             _imageUploadService = imageUploadService;
         }
-        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status = null, int? partnerId = null, int? day = null, int? month = null, int? year = null)
+        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status, int? partnerId, DateTime? fromDate, DateTime? toDate)
         {
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
@@ -37,19 +37,15 @@ namespace TripWiseAPI.Services.AdminServices
                 query = query.Where(t => t.PartnerId == partnerId.Value);
             }
 
-            // ------------------------------
-            // Filter theo ModifiedDate nếu có
-            if (year.HasValue)
+            if (fromDate.HasValue)
             {
-                query = query.Where(t => t.ModifiedDate.HasValue && t.ModifiedDate.Value.Year == year.Value);
+                query = query.Where(t => t.CreatedDate >= fromDate.Value.Date);
             }
-            if (month.HasValue)
+
+            if (toDate.HasValue)
             {
-                query = query.Where(t => t.ModifiedDate.HasValue && t.ModifiedDate.Value.Month == month.Value);
-            }
-            if (day.HasValue)
-            {
-                query = query.Where(t => t.ModifiedDate.HasValue && t.ModifiedDate.Value.Day == day.Value);
+                // Include full day by setting time to 23:59:59
+                query = query.Where(t => t.CreatedDate <= toDate.Value.Date.AddDays(1).AddSeconds(-1));
             }
             // ------------------------------
 

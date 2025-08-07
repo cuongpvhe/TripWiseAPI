@@ -22,15 +22,14 @@ namespace TripWiseAPI.Controllers.AdminControllers
             _manageTourService = manageTourService; 
         }
 
-        [HttpGet("filter-tours")]
-        public async Task<IActionResult> GetFilteredTours(
-            [FromQuery] string? status,
-            [FromQuery] int? partnerId,
-            [FromQuery] int? day,
-            [FromQuery] int? month,
-            [FromQuery] int? year)
+        [HttpGet("all-tour")]
+        public async Task<IActionResult> GetAllTours(
+     [FromQuery] string? status,
+     [FromQuery] int? partnerId,
+     [FromQuery] DateTime? fromDate,
+     [FromQuery] DateTime? toDate)
         {
-            var tours = await _manageTourService.GetToursByStatusAsync(status, partnerId, day, month, year);
+            var tours = await _manageTourService.GetToursByStatusAsync(status, partnerId, fromDate, toDate);
             return Ok(tours);
         }
 
