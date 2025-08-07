@@ -17,27 +17,37 @@ namespace TripWiseAPI.Services.AdminServices
             _dbContext = dbContext;
             _imageUploadService = imageUploadService;
         }
-        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status = null, int? partnerId = null)
+        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status, int? partnerId, DateTime? fromDate, DateTime? toDate)
         {
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
                 .Where(t => t.RemovedDate == null && t.TourTypesId == 2);
 
-            // Lọc theo cả status và partnerId nếu có
+            // Lọc theo status và partnerId nếu có
             if (!string.IsNullOrEmpty(status) && partnerId.HasValue)
             {
                 query = query.Where(t => t.Status == status && t.PartnerId == partnerId.Value);
             }
-            // Chỉ lọc theo status nếu có
             else if (!string.IsNullOrEmpty(status))
             {
                 query = query.Where(t => t.Status == status);
             }
-            // Chỉ lọc theo partnerId nếu có
             else if (partnerId.HasValue)
             {
                 query = query.Where(t => t.PartnerId == partnerId.Value);
             }
+
+            if (fromDate.HasValue)
+            {
+                query = query.Where(t => t.CreatedDate >= fromDate.Value.Date);
+            }
+
+            if (toDate.HasValue)
+            {
+                // Include full day by setting time to 23:59:59
+                query = query.Where(t => t.CreatedDate <= toDate.Value.Date.AddDays(1).AddSeconds(-1));
+            }
+            // ------------------------------
 
             var tours = await query
                 .Select(t => new PendingTourDto
@@ -49,10 +59,11 @@ namespace TripWiseAPI.Services.AdminServices
                     Location = t.Location,
                     Price = (decimal)t.PriceAdult,
                     Status = t.Status,
+                    PartnerID = t.PartnerId,
                     CreatedDate = t.CreatedDate,
+                    ModifiedDate = t.ModifiedDate,
                     ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
 
-                    // Nếu status là PendingApproval thì thêm các thông tin dưới
                     OriginalTourId = t.Status == TourStatuses.PendingApproval ? t.OriginalTourId : null,
                     IsUpdatedFromApprovedTour = t.Status == TourStatuses.PendingApproval && t.OriginalTourId != null,
                     UpdateNote = t.Status == TourStatuses.PendingApproval && t.OriginalTourId != null
@@ -63,6 +74,7 @@ namespace TripWiseAPI.Services.AdminServices
 
             return tours;
         }
+
 
         public async Task<List<PendingTourDto>> GetRejectToursAsync()
         {
