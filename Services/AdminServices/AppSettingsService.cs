@@ -48,7 +48,11 @@ namespace TripWiseAPI.Services.AdminServices
             await _dbContext.SaveChangesAsync();
             return true;
         }
-    
+        public async Task<string?> GetValueAsync(string key)
+        {
+            var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == key);
+            return setting?.Value;
+        }
         public async Task<int> GetIntValueAsync(string key, int defaultValue = 0)
         {
             var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == key);
@@ -200,19 +204,7 @@ namespace TripWiseAPI.Services.AdminServices
             await _dbContext.SaveChangesAsync();
             return true;
         }
-     
 
-        public async Task UpdateValueAsync(int id, string value)
-        {
-            var setting = await _dbContext.AppSettings.FindAsync(id);
-            if (setting == null)
-                throw new KeyNotFoundException("Không tìm thấy cấu hình");
-
-            setting.Value = value;
-
-
-            await _dbContext.SaveChangesAsync();
-        }
 
     }
 
