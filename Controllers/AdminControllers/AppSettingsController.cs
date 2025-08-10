@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
 using TripWiseAPI.Services.AdminServices;
 
@@ -13,28 +12,26 @@ namespace TripWiseAPI.Controllers.Admin
     public class AdminAppSettingsController : ControllerBase
     {
         private readonly IAppSettingsService _service;
-        private readonly TripWiseDBContext _dbContext;
 
-        public AdminAppSettingsController(IAppSettingsService service, TripWiseDBContext dbContext)
+        public AdminAppSettingsController(IAppSettingsService service)
         {
             _service = service;
-            _dbContext = dbContext;
         }
 
-        //[HttpGet]
-        //public async Task<IActionResult> GetAll()
-        //{
-        //    var settings = await _service.GetAllAsync();
-        //    return Ok(settings);
-        //}
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var settings = await _service.GetAllAsync();
+            return Ok(settings);
+        }
 
-        //[HttpGet("{key}")]
-        //public async Task<IActionResult> GetByKey(string key)
-        //{
-        //    var setting = await _service.GetByKeyAsync(key);
-        //    if (setting == null) return NotFound();
-        //    return Ok(setting);
-        //}
+        [HttpGet("{key}")]
+        public async Task<IActionResult> GetByKey(string key)
+        {
+            var setting = await _service.GetByKeyAsync(key);
+            if (setting == null) return NotFound();
+            return Ok(setting);
+        }
 
         [HttpPut("{key}")]
         public async Task<IActionResult> Update(string key, [FromBody] AppSetting dto)
@@ -114,20 +111,7 @@ namespace TripWiseAPI.Controllers.Admin
 
             return Ok(new { Message = "Cập nhật thời gian OTP thành công" });
         }
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var settings = await _dbContext.AppSettings.ToListAsync();
-            return Ok(settings);
-        }
 
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateValue(int id, [FromBody] string value)
-        {
-            await _service.UpdateValueAsync(id, value);
-            return Ok(new { Message = "Cập nhật thành công" });
-        }
     }
 
 }
