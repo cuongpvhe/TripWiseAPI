@@ -30,10 +30,11 @@ namespace TripWiseAPI.Services
             var tick = TimeHelper.GetVietnamTime().Ticks.ToString();
             var orderCode = model.OrderType switch
             {
-                "plan" => $"user_{model.UserId}_plan_{model.PlanId}_{tick}",
-                "booking" => $"user_{model.UserId}_booking_{model.BookingId}_{tick}",
+                "plan" => $"user_{model.UserId}_plan_{model.PlanId}",
+                "booking" => $"user_{model.UserId}_booking_{model.BookingId}",
                 _ => throw new Exception("OrderType không hợp lệ")
             };
+
             var pay = new VnPayLibrary();
             var timeNow = TimeHelper.GetVietnamTime();
 
@@ -49,24 +50,41 @@ namespace TripWiseAPI.Services
             pay.AddRequestData("vnp_OrderType", model.OrderType);
             pay.AddRequestData("vnp_ReturnUrl", _configuration["PaymentCallBack:ReturnUrl"]);
             pay.AddRequestData("vnp_TxnRef", orderCode);
-            // 💾 Lưu PaymentTransaction vào DB
-            var transaction = new PaymentTransaction
-            {
-                OrderCode = orderCode,
-                UserId = model.UserId,
-                Amount = model.Amount,
-                PaymentStatus = "Pending",
-                CreatedDate = TimeHelper.GetVietnamTime(),
-                CreatedBy = model.UserId,
-            };
 
-            _dbContext.PaymentTransactions.Add(transaction);
+            // 💾 Kiểm tra PaymentTransaction đã tồn tại chưa
+            var existingTransaction = _dbContext.PaymentTransactions
+                .FirstOrDefault(t => t.OrderCode == orderCode);
+
+            if (existingTransaction != null)
+            {
+                // Update transaction cũ
+                existingTransaction.Amount = model.Amount;
+                existingTransaction.PaymentStatus = PaymentStatus.Pending;
+                existingTransaction.ModifiedDate = timeNow;
+                existingTransaction.ModifiedBy = model.UserId;
+            }
+            else
+            {
+                // Thêm mới transaction nếu chưa tồn tại
+                var transaction = new PaymentTransaction
+                {
+                    OrderCode = orderCode,
+                    UserId = model.UserId,
+                    Amount = model.Amount,
+                    PaymentStatus = PaymentStatus.Pending,
+                    CreatedDate = timeNow,
+                    CreatedBy = model.UserId,
+                };
+                _dbContext.PaymentTransactions.Add(transaction);
+            }
+
             _dbContext.SaveChanges();
 
             model.OrderCode = orderCode;
 
             return pay.CreateRequestUrl(_configuration["Vnpay:BaseUrl"], _configuration["Vnpay:HashSecret"]);
         }
+
         public async Task<string> BuyPlanAsync(BuyPlanRequest request, int userId, HttpContext context)
         {
             var plan = await _dbContext.Plans
@@ -110,7 +128,9 @@ namespace TripWiseAPI.Services
             {
                 string? planName = null;
                 string? tourName = null;
-                int? TourId = null;
+                int? tourId = null;
+                int? bookingId = null;
+
                 if (!string.IsNullOrEmpty(transaction.OrderCode))
                 {
                     if (transaction.OrderCode.Contains("plan"))
@@ -125,26 +145,25 @@ namespace TripWiseAPI.Services
                                 .FirstOrDefaultAsync();
                         }
                     }
-                    
                     else if (transaction.OrderCode.Contains("booking"))
                     {
                         var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_booking_(\d+)_");
                         if (match.Success)
                         {
-                            int bookingId = int.Parse(match.Groups[2].Value);
+                            bookingId = int.Parse(match.Groups[2].Value);
                             var bookingInfo = await _dbContext.Bookings
                                 .Where(b => b.BookingId == bookingId)
-                                .Select(b => new { b.Tour.TourName, b.TourId })
+                                .Select(b => new { b.BookingId, b.Tour.TourName, b.TourId })
                                 .FirstOrDefaultAsync();
 
                             if (bookingInfo != null)
                             {
                                 tourName = bookingInfo.TourName;
-                                TourId = bookingInfo.TourId; // <-- thêm dòng này
+                                tourId = bookingInfo.TourId;
+                                bookingId = bookingInfo.BookingId;
                             }
                         }
                     }
-
                 }
 
                 result.Add(new PaymentTransactionDto
@@ -158,15 +177,76 @@ namespace TripWiseAPI.Services
                     CreatedDate = transaction.CreatedDate,
                     PlanName = planName,
                     TourName = tourName,
-                    TourId = TourId
+                    TourId = tourId,
+                    BookingId = bookingId
                 });
             }
 
             return result;
         }
 
+        public async Task<BookingDetailDto?> GetBookingDetailAsync(int bookingId)
+        {
+            var booking = await (from b in _dbContext.Bookings
+                                 join u in _dbContext.Users on b.UserId equals u.UserId
+                                 join t in _dbContext.Tours on b.TourId equals t.TourId
+                                 // PaymentTransaction không nối bằng navigation property
+                                 join pt in _dbContext.PaymentTransactions
+                                     on b.OrderCode equals pt.OrderCode into ptJoin
+                                 from pt in ptJoin.DefaultIfEmpty()
+                                 where b.BookingId == bookingId
+                                 select new BookingDetailDto
+                                 {
+                                     BookingId = b.BookingId,
+                                     TourName = t.TourName,
+                                     OrderCode = b.OrderCode,
+                                     StartDate = t.StartTime,
+                                     PaymentStatus = pt != null ? pt.PaymentStatus : null,
+                                     BankCode = pt != null ? pt.BankCode : null,
+                                     VnpTransactionNo = pt != null ? pt.VnpTransactionNo : null,
+
+                                     UserEmail = u.Email,
+                                     PhoneNumber = u.PhoneNumber,
+                                     PriceAdult = t.PriceAdult,
+                                     PriceChild5To10 = t.PriceChild5To10,
+                                     PriceChildUnder5 = t.PriceChildUnder5,
+                                     Amount = b.TotalAmount,
+                                     PaymentTime = pt != null ? pt.PaymentTime : null,
+                                     CreatedDate = b.CreatedDate
+                                 })
+                                 .FirstOrDefaultAsync();
+
+            return booking;
+        }
+
         public async Task<string> CreateBookingAndPayAsync(BuyTourRequest request, int userId, HttpContext context)
         {
+            // Lấy thông tin user
+            var user = await _dbContext.Users
+                .Where(u => u.UserId == userId)
+                .Select(u => new { u.FirstName, u.LastName, u.Email, u.PhoneNumber })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+                throw new Exception("Người dùng không tồn tại.");
+
+            // Kiểm tra các trường bắt buộc và lưu lại tên trường thiếu
+            var missingFields = new List<string>();
+            if (string.IsNullOrWhiteSpace(user.FirstName))
+                missingFields.Add("FirstName");
+            if (string.IsNullOrWhiteSpace(user.LastName))
+                missingFields.Add("LastName");
+            if (string.IsNullOrWhiteSpace(user.Email))
+                missingFields.Add("Email");
+            if (string.IsNullOrWhiteSpace(user.PhoneNumber))
+                missingFields.Add("PhoneNumber");
+
+            if (missingFields.Any())
+            {
+                var fields = string.Join(", ", missingFields);
+                throw new Exception($"Vui lòng cập nhật đầy đủ thông tin cá nhân: {fields}.");
+            }
+
             var tour = await _dbContext.Tours
                 .FirstOrDefaultAsync(t => t.TourId == request.TourId && t.RemovedDate == null);
 
@@ -206,7 +286,7 @@ namespace TripWiseAPI.Services
             await _dbContext.SaveChangesAsync();
 
             // Bước 2: Gán OrderCode
-            booking.OrderCode = $"user_{userId}_booking_{booking.BookingId}_{now.Ticks}";
+            booking.OrderCode = $"user_{userId}_booking_{booking.BookingId}";
             booking.ModifiedDate = now;
             booking.ModifiedBy = userId;
             await _dbContext.SaveChangesAsync();
@@ -242,91 +322,96 @@ namespace TripWiseAPI.Services
 
         public async Task HandlePaymentCallbackAsync(IQueryCollection query)
         {
-            var pay = new VnPayLibrary();
-            var response = pay.GetFullResponseData(query, _configuration["Vnpay:HashSecret"]);
+            using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
 
-            var orderCode = query["vnp_TxnRef"].ToString();
-
-            if (string.IsNullOrEmpty(orderCode))
-                throw new Exception("Thiếu mã đơn hàng (vnp_TxnRef).");
-
-            var transaction = await _dbContext.PaymentTransactions
-                .FirstOrDefaultAsync(t => t.OrderCode == orderCode);
-
-            if (transaction == null)
-                throw new Exception($"Không tìm thấy giao dịch với mã {orderCode}");
-
-            transaction.VnpTransactionNo = query["vnp_TransactionNo"];
-            transaction.BankCode = query["vnp_BankCode"];
-            transaction.PaymentTime = TimeHelper.GetVietnamTime();
-            transaction.ModifiedDate = TimeHelper.GetVietnamTime();
-            transaction.ModifiedBy = transaction.UserId;
-
-            var responseCode = query["vnp_ResponseCode"];
-            var transactionStatus = query["vnp_TransactionStatus"];
-
-            if (response.Success && responseCode == "00" && transactionStatus == "00")
+            try
             {
-                transaction.PaymentStatus = "Success";
-            }
-            else if (responseCode == "24")
-            {
-                transaction.PaymentStatus = "Canceled";
-                transaction.RemovedDate = TimeHelper.GetVietnamTime();
-                transaction.RemovedBy = transaction.UserId;
-                transaction.RemovedReason = "Người dùng huỷ thanh toán tại VNPay";
-            }
-            else
-            {
-                transaction.PaymentStatus = "Failed";
-            }
+                var pay = new VnPayLibrary();
+                var response = pay.GetFullResponseData(query, _configuration["Vnpay:HashSecret"]);
 
-            await _dbContext.SaveChangesAsync();
+                var orderCode = query["vnp_TxnRef"].ToString();
+                if (string.IsNullOrEmpty(orderCode))
+                    throw new Exception("Thiếu mã đơn hàng (vnp_TxnRef).");
 
-            // Nếu là plan và thanh toán thành công thì nâng cấp plan
-            if (transaction.PaymentStatus == "Success" &&
-                orderCode.Contains("plan", StringComparison.OrdinalIgnoreCase))
-            {
-                var match = Regex.Match(orderCode, @"user_(\d+)_plan_(\d+)_");
+                // 🔹 Lấy PaymentTransaction hiện có để update
+                var transaction = await _dbContext.PaymentTransactions
+                    .FirstOrDefaultAsync(t => t.OrderCode == orderCode);
 
-                if (match.Success)
+                if (transaction == null)
+                    throw new Exception($"Không tìm thấy giao dịch với mã {orderCode}");
+
+                // Cập nhật thông tin thanh toán (không insert mới)
+                transaction.VnpTransactionNo = query["vnp_TransactionNo"];
+                transaction.BankCode = query["vnp_BankCode"];
+                transaction.PaymentTime = TimeHelper.GetVietnamTime();
+                transaction.ModifiedDate = TimeHelper.GetVietnamTime();
+                transaction.ModifiedBy = transaction.UserId;
+
+                var responseCode = query["vnp_ResponseCode"];
+                var transactionStatus = query["vnp_TransactionStatus"];
+
+                if (response.Success && responseCode == "00" && transactionStatus == "00")
                 {
-                    var userId = int.Parse(match.Groups[1].Value);
-                    var planId = int.Parse(match.Groups[2].Value);
-
-                    await _planService.UpgradePlanAsync(userId, planId);
+                    transaction.PaymentStatus = PaymentStatus.Success;
                 }
-            }
-
-            // ✅ Nếu là booking, cập nhật BookingStatus theo PaymentStatus
-            if (orderCode.Contains("booking", StringComparison.OrdinalIgnoreCase))
-            {
-                var match = Regex.Match(orderCode, @"user_(\d+)_booking_(\d+)_");
-                if (match.Success)
+                else if (responseCode == "24")
                 {
-                    var userId = int.Parse(match.Groups[1].Value);
-                    var bookingId = int.Parse(match.Groups[2].Value);
+                    transaction.PaymentStatus = PaymentStatus.Canceled;
+                    transaction.RemovedDate = TimeHelper.GetVietnamTime();
+                    transaction.RemovedBy = transaction.UserId;
+                    transaction.RemovedReason = "Người dùng huỷ thanh toán tại VNPay";
+                }
+                else
+                {
+                    transaction.PaymentStatus = PaymentStatus.Failed;
+                }
 
-                    var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingId == bookingId);
-                    if (booking != null)
+                // 🔹 Nếu là plan và thanh toán thành công thì nâng cấp plan
+                if (transaction.PaymentStatus == PaymentStatus.Success &&
+                    orderCode.Contains("plan", StringComparison.OrdinalIgnoreCase))
+                {
+                    var match = Regex.Match(orderCode, @"user_(\d+)_plan_(\d+)_");
+                    if (match.Success)
                     {
-                        booking.ModifiedDate = TimeHelper.GetVietnamTime();
-                        booking.ModifiedBy = userId;
-
-                        booking.BookingStatus = transaction.PaymentStatus switch
-                        {
-                            PaymentStatus.Success => PaymentStatus.Success,     // hoặc "Confirmed"
-                            PaymentStatus.Canceled => PaymentStatus.Canceled,
-                            PaymentStatus.Failed => PaymentStatus.Failed,
-                            _ => booking.BookingStatus
-                        };
-                        await _dbContext.SaveChangesAsync();
+                        var userId = int.Parse(match.Groups[1].Value);
+                        var planId = int.Parse(match.Groups[2].Value);
+                        await _planService.UpgradePlanAsync(userId, planId);
                     }
                 }
+
+                // 🔹 Nếu là booking, update BookingStatus đồng bộ với PaymentStatus
+                if (orderCode.Contains("booking", StringComparison.OrdinalIgnoreCase))
+                {
+                    var match = Regex.Match(orderCode, @"user_(\d+)_booking_(\d+)_");
+                    if (match.Success)
+                    {
+                        var userId = int.Parse(match.Groups[1].Value);
+                        var bookingId = int.Parse(match.Groups[2].Value);
+
+                        var booking = await _dbContext.Bookings
+                            .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+                        if (booking != null)
+                        {
+                            booking.ModifiedDate = TimeHelper.GetVietnamTime();
+                            booking.ModifiedBy = userId;
+                            booking.BookingStatus = transaction.PaymentStatus;
+                        }
+                    }
+                }
+
+                // Lưu cả hai bảng cùng lúc (update, không insert mới)
+                await _dbContext.SaveChangesAsync();
+                await dbTransaction.CommitAsync();
             }
-
-
+            catch
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
         }
+
+
         public static class PaymentStatus
         {
             public const string Pending = "Pending";

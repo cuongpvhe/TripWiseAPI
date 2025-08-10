@@ -1,11 +1,15 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
+using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Utils;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using static TripWiseAPI.Models.DTO.UpdateTourDto;
 
 namespace TripWiseAPI.Services.PartnerServices
@@ -15,13 +19,15 @@ namespace TripWiseAPI.Services.PartnerServices
         private readonly TripWiseDBContext _dbContext;
         private readonly IWebHostEnvironment _env;
         private readonly IImageUploadService _imageUploadService;
-        public TourService(TripWiseDBContext dbContext, IWebHostEnvironment env, IImageUploadService imageUploadService)
+        private readonly IConfiguration _configuration;
+        public TourService(TripWiseDBContext dbContext, IWebHostEnvironment env, IImageUploadService imageUploadService, IConfiguration configuration)
         {
             _dbContext = dbContext;
             _env = env;
             _imageUploadService = imageUploadService;
+            _configuration = configuration;
         }
-        public async Task<List<PendingTourDto>> GetToursByStatusAsync(int partnerId, string? status)
+        public async Task<List<PendingTourDto>> GetToursByStatusAsync(int partnerId, string? status, DateTime? fromDate, DateTime? toDate)
         {
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image) 
@@ -31,8 +37,18 @@ namespace TripWiseAPI.Services.PartnerServices
             {
                 query = query.Where(t => t.Status == status);
             }
+            if (fromDate.HasValue)
+            {
+                query = query.Where(t => t.CreatedDate >= fromDate.Value.Date);
+            }
 
+            if (toDate.HasValue)
+            {
+                // Include full day by setting time to 23:59:59
+                query = query.Where(t => t.CreatedDate <= toDate.Value.Date.AddDays(1).AddSeconds(-1));
+            }
             var tours = await query
+                .OrderByDescending(t => t.CreatedDate)
                 .Select(t => new PendingTourDto
                 {
                     TourId = t.TourId,
@@ -993,6 +1009,32 @@ namespace TripWiseAPI.Services.PartnerServices
 
             await _dbContext.SaveChangesAsync();
             return true;
+        }
+        public async Task<PartnerTourStatisticsDto> GetPartnerTourStatisticsAsync(int partnerId)
+        {
+            PartnerTourStatisticsDto result = null;
+
+            using var conn = new SqlConnection(_configuration.GetConnectionString("DBContext"));
+            using var command = new SqlCommand("sp_GetPartnerTourStatistics", conn);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@PartnerId", partnerId);
+
+            await conn.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                result = new PartnerTourStatisticsDto
+                {
+                    PartnerID = reader.GetInt32(0),
+                    CompanyName = reader.GetString(1),
+                    TotalTours = reader.GetInt32(2),
+                    TotalBookedTours = reader.GetInt32(3),
+                    TotalRevenue = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4)
+                };
+            }
+
+            return result ?? new PartnerTourStatisticsDto();
         }
 
 

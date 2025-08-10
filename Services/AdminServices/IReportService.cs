@@ -8,5 +8,6 @@ namespace TripWiseAPI.Services.AdminServices
         Task<List<PartnerPerformanceDto>> GetPartnerPerformanceAsync(DateTime fromDate, DateTime toDate);
         Task<List<TourBookingStatDto>> GetTourBookingStatsAsync(DateTime fromDate, DateTime toDate);
         Task<List<AnnualAdminStatDto>> GetAnnualAdminStatsAsync(int? year);
+        Task<List<DashboardStatisticsDto>> GetDashboardStatistics();
     }
 }

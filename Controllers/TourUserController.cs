@@ -10,9 +10,11 @@ namespace TripWiseAPI.Controllers
     public class TourUserController : ControllerBase
     {
         private readonly ITourUserService _tourUserService;
-        public TourUserController(ITourUserService tourUserService)
+        private readonly IVnPayService _vnPayService;
+        public TourUserController(ITourUserService tourUserService, IVnPayService vnPayService)
         {
             _tourUserService = tourUserService;
+            _vnPayService = vnPayService;
         }
         private int? GetUserId()
         {
@@ -48,6 +50,15 @@ namespace TripWiseAPI.Controllers
 
             var result = await _tourUserService.GetSuccessfulBookedToursAsync(userId.Value);
             return Ok(result);
+        }
+        [HttpGet("{bookingId}")]
+        public async Task<IActionResult> GetBookingDetail(int bookingId)
+        {
+            var detail = await _vnPayService.GetBookingDetailAsync(bookingId);
+            if (detail == null)
+                return NotFound(new { Message = "Không tìm thấy booking" });
+
+            return Ok(detail);
         }
         [HttpPost("addWishlist")]
         public async Task<IActionResult> AddToWishlist(int tourId)

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
 using TripWiseAPI.Services.AdminServices;
 
@@ -12,26 +13,28 @@ namespace TripWiseAPI.Controllers.Admin
     public class AdminAppSettingsController : ControllerBase
     {
         private readonly IAppSettingsService _service;
+        private readonly TripWiseDBContext _dbContext;
 
-        public AdminAppSettingsController(IAppSettingsService service)
+        public AdminAppSettingsController(IAppSettingsService service, TripWiseDBContext dbContext)
         {
             _service = service;
+            _dbContext = dbContext;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var settings = await _service.GetAllAsync();
-            return Ok(settings);
-        }
+        //[HttpGet]
+        //public async Task<IActionResult> GetAll()
+        //{
+        //    var settings = await _service.GetAllAsync();
+        //    return Ok(settings);
+        //}
 
-        [HttpGet("{key}")]
-        public async Task<IActionResult> GetByKey(string key)
-        {
-            var setting = await _service.GetByKeyAsync(key);
-            if (setting == null) return NotFound();
-            return Ok(setting);
-        }
+        //[HttpGet("{key}")]
+        //public async Task<IActionResult> GetByKey(string key)
+        //{
+        //    var setting = await _service.GetByKeyAsync(key);
+        //    if (setting == null) return NotFound();
+        //    return Ok(setting);
+        //}
 
         [HttpPut("{key}")]
         public async Task<IActionResult> Update(string key, [FromBody] AppSetting dto)
@@ -70,6 +73,61 @@ namespace TripWiseAPI.Controllers.Admin
             return Ok(new { message = $"Đã cập nhật TrialDurationInDays = {days}" });
         }
 
+        [HttpGet("timeout")]
+        public async Task<IActionResult> GetTimeout()
+        {
+            var timeout = await _service.GetTimeoutAsync();
+            return Ok(new { TimeoutMinutes = timeout });
+        }
+
+        [HttpPost("upadte-timeout")]
+        public async Task<IActionResult> UpdateTimeout([FromBody] int minutes)
+        {
+            await _service.UpdateTimeoutAsync(minutes);
+            return Ok(new { Message = "Đã cập nhật thời gian hết hạn phiên thành công", TimeoutMinutes = minutes });
+        }
+        /// <summary>
+        /// Lấy thời gian timeout của OTP
+        /// </summary>
+        [HttpGet("otp-timeout")]
+        public async Task<IActionResult> GetOtpTimeout()
+        {
+            var timeout = await _service.GetOtpTimeoutAsync();
+            if (!timeout.HasValue)
+                return NotFound(new { Message = "Chưa cấu hình thời gian OTP" });
+
+            return Ok(new { TimeoutSeconds = timeout.Value });
+        }
+
+        /// <summary>
+        /// Cập nhật thời gian timeout của OTP
+        /// </summary>
+        [HttpPut("otp-timeout")]
+        public async Task<IActionResult> UpdateOtpTimeout([FromBody] int timeoutSeconds)
+        {
+            if (timeoutSeconds <= 0)
+                return BadRequest(new { Message = "Thời gian OTP phải lớn hơn 0" });
+
+            var success = await _service.UpdateOtpTimeoutAsync(timeoutSeconds);
+            if (!success)
+                return BadRequest(new { Message = "Cập nhật thất bại" });
+
+            return Ok(new { Message = "Cập nhật thời gian OTP thành công" });
+        }
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var settings = await _dbContext.AppSettings.ToListAsync();
+            return Ok(settings);
+        }
+
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateValue(int id, [FromBody] string value)
+        {
+            await _service.UpdateValueAsync(id, value);
+            return Ok(new { Message = "Cập nhật thành công" });
+        }
     }
 
 }
