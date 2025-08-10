@@ -79,6 +79,8 @@ namespace TripWiseAPI.Models.DTO
     public class UserProfileDTO
     {
         public string? UserName { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
         public string? Avatar { get; set; }
         public string Email { get; set; } = null!;
         public string? PhoneNumber { get; set; }
@@ -94,6 +96,8 @@ namespace TripWiseAPI.Models.DTO
         public string? AvatarUrl { get; set; }
         [StringLength(50, ErrorMessage = "UserName tối đa 50 ký tự")]
         public string? UserName { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
 
         [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
         [StringLength(11, ErrorMessage = "Số điện thoại tối đa 11 ký tự")]

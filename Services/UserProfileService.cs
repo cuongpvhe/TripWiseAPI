@@ -24,6 +24,8 @@ namespace TripWiseAPI.Services
                 .Select(u => new UserProfileDTO
                 {
                     UserName = u.UserName,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,  
                     Email = u.Email,
                     PhoneNumber = u.PhoneNumber,
                     Country = u.Country,
@@ -43,6 +45,8 @@ namespace TripWiseAPI.Services
             if (user == null) return false;
 
             user.UserName = dto.UserName;
+            user.FirstName = dto.FirstName;
+            user.LastName = dto.LastName;
             user.PhoneNumber = dto.PhoneNumber;
             user.Country = dto.Country;
             user.City = dto.City;
