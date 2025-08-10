@@ -147,7 +147,7 @@ namespace TripWiseAPI.Services
                     }
                     else if (transaction.OrderCode.Contains("booking"))
                     {
-                        var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_booking_(\d+)_");
+                        var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_booking_(\d+)");
                         if (match.Success)
                         {
                             bookingId = int.Parse(match.Groups[2].Value);
@@ -382,7 +382,7 @@ namespace TripWiseAPI.Services
                 // 🔹 Nếu là booking, update BookingStatus đồng bộ với PaymentStatus
                 if (orderCode.Contains("booking", StringComparison.OrdinalIgnoreCase))
                 {
-                    var match = Regex.Match(orderCode, @"user_(\d+)_booking_(\d+)_");
+                    var match = Regex.Match(orderCode, @"user_(\d+)_booking_(\d+)");
                     if (match.Success)
                     {
                         var userId = int.Parse(match.Groups[1].Value);
@@ -395,8 +395,17 @@ namespace TripWiseAPI.Services
                         {
                             booking.ModifiedDate = TimeHelper.GetVietnamTime();
                             booking.ModifiedBy = userId;
-                            booking.BookingStatus = transaction.PaymentStatus;
+                            booking.BookingStatus = transaction.PaymentStatus switch
+                            {
+                                PaymentStatus.Success => PaymentStatus.Success,     // hoặc "Confirmed"
+                                PaymentStatus.Canceled => PaymentStatus.Canceled,
+                                PaymentStatus.Failed => PaymentStatus.Failed,
+                                _ => booking.BookingStatus
+                            };
+                            _dbContext.Entry(booking).State = EntityState.Modified;
                         }
+                        
+
                     }
                 }
 
