@@ -110,6 +110,14 @@ namespace TripWiseAPI.Controllers
             };
         }
 
+        [HttpGet("{bookingId}")]
+        public async Task<IActionResult> GetBookingDetail(int bookingId)
+        {
+            var detail = await _vnPayService.GetBookingDetailAsync(bookingId);
+            if (detail == null)
+                return NotFound(new { Message = "Không tìm thấy booking" });
 
+            return Ok(detail);
+        }
     }
 }

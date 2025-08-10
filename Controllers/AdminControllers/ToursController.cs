@@ -23,11 +23,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
         }
 
         [HttpGet("all-tour")]
-        public async Task<IActionResult> GetAllTours(
-     [FromQuery] string? status,
-     [FromQuery] int? partnerId,
-     [FromQuery] DateTime? fromDate,
-     [FromQuery] DateTime? toDate)
+        public async Task<IActionResult> GetAllTours([FromQuery] string? status, [FromQuery] int? partnerId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
             var tours = await _manageTourService.GetToursByStatusAsync(status, partnerId, fromDate, toDate);
             return Ok(tours);

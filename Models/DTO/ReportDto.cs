@@ -47,5 +47,18 @@
         public int TotalBookings { get; set; }
         public int TotalPlans { get; set; }
     }
-
+    public class DashboardStatisticsDto
+    {
+        public int TotalUsers { get; set;}
+        public int TotalPartners { get; set; }
+        public int TotalTours { get; set; }
+    }
+    public class PartnerTourStatisticsDto
+    {
+        public int PartnerID { get; set; }
+        public string CompanyName { get; set; }
+        public int TotalTours { get; set; }
+        public int TotalBookedTours { get; set; }
+        public decimal TotalRevenue { get; set; }
+    }
 }

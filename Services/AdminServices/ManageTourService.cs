@@ -21,6 +21,7 @@ namespace TripWiseAPI.Services.AdminServices
         {
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
+                .Include(t => t.Partner)
                 .Where(t => t.RemovedDate == null && t.TourTypesId == 2);
 
             // Lọc theo status và partnerId nếu có
@@ -60,6 +61,7 @@ namespace TripWiseAPI.Services.AdminServices
                     Price = (decimal)t.PriceAdult,
                     Status = t.Status,
                     PartnerID = t.PartnerId,
+                    CompanyName = t.Partner.CompanyName,
                     CreatedDate = t.CreatedDate,
                     ModifiedDate = t.ModifiedDate,
                     ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
