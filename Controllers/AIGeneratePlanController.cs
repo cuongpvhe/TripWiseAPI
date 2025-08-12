@@ -24,8 +24,9 @@ namespace SimpleChatboxAI.Controllers
         private readonly IAIGeneratePlanService _iAIGeneratePlanService;
         private readonly IPlanService _iplanService;
         private readonly ITourService _tourService;
-        public AIGeneratePlanController(
-            VectorSearchService vectorSearchService,IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService, IAIGeneratePlanService iAIGeneratePlanService, IPlanService iplanService, ITourService tourService)
+		private readonly FirebaseLogService _firebaseLogService;
+		public AIGeneratePlanController(
+            VectorSearchService vectorSearchService,IAiItineraryService aiService, TripWiseDBContext _context, WeatherService weatherService, IAIGeneratePlanService iAIGeneratePlanService, IPlanService iplanService, ITourService tourService, FirebaseLogService firebaseLogService)
         {
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
@@ -34,7 +35,8 @@ namespace SimpleChatboxAI.Controllers
             _iAIGeneratePlanService = iAIGeneratePlanService;
             _iplanService = iplanService;
             _tourService = tourService;
-        }
+			_firebaseLogService = firebaseLogService;
+		}
         private int? GetUserId()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
@@ -160,9 +162,9 @@ namespace SimpleChatboxAI.Controllers
 
                 // Lưu kế hoạch
                 int generatedId = await _iAIGeneratePlanService.SaveGeneratedPlanAsync(UserId.Value, request, response);
-
-                // Trả về kết quả
-                return Ok(new
+				await _firebaseLogService.LogAsync(userId: UserId ?? 0, action: "GenerateItinerary", message: $"Itinerary for {request.Destination} generated successfully with {request.Days} day(s).", statusCode: 200);
+				// Trả về kết quả
+				return Ok(new
                 {
                     success = true,
                     convertedFromUSD = request.BudgetVND,
@@ -267,7 +269,7 @@ namespace SimpleChatboxAI.Controllers
 
                 if (updated == null)
                     return NotFound("Không tìm thấy lịch trình với ID đã cung cấp.");
-
+                
                 return Ok(new
                 {
                     success = true,

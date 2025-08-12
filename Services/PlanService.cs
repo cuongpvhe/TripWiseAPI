@@ -184,8 +184,8 @@ namespace TripWiseAPI.Services
 
             await _dbContext.UserPlans.AddAsync(newUserPlan);
             await _dbContext.SaveChangesAsync();
-
-            return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
+			await _logService.LogAsync(userId, "Update", $"Người dùng đã nâng cấp lên gói '{newPlan.PlanName}' với {newPlan.MaxRequests ?? 0} lượt. Cộng dồn {remainingRequests} lượt còn lại từ gói cũ.", 200, createdBy: userId, createdDate: TimeHelper.GetVietnamTime());
+			return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
         }
        
 
@@ -298,8 +298,8 @@ namespace TripWiseAPI.Services
                 CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = createdBy,
             };
-
-            await _dbContext.Plans.AddAsync(plan);
+			await _logService.LogAsync(createdBy, "Create", $"Tạo mới gói '{dto.PlanName}' với {dto.MaxRequests} lượt, giá {dto.Price:N0} VND.", 201, createdBy: createdBy, createdDate: TimeHelper.GetVietnamTime());
+			await _dbContext.Plans.AddAsync(plan);
             await _dbContext.SaveChangesAsync();
 
             return new PlanDto
@@ -325,7 +325,8 @@ namespace TripWiseAPI.Services
             plan.ModifiedDate = TimeHelper.GetVietnamTime();
             plan.ModifiedBy = modifiedBy;
             _dbContext.Plans.Update(plan);
-            await _dbContext.SaveChangesAsync();
+			await _logService.LogAsync(modifiedBy, "Update", $"Cập nhật gói ID {id}: tên '{dto.PlanName}', giá {dto.Price:N0} VND, lượt {dto.MaxRequests}.", 200, modifiedBy: modifiedBy, modifiedDate: TimeHelper.GetVietnamTime());
+			await _dbContext.SaveChangesAsync();
             return true;
         }
 
@@ -336,7 +337,8 @@ namespace TripWiseAPI.Services
 
             plan.RemovedDate = TimeHelper.GetVietnamTime();
             _dbContext.Plans.Update(plan);
-            await _dbContext.SaveChangesAsync();
+			await _logService.LogAsync(0, "Delete", $"Xóa mềm gói ID {id}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: plan.RemovedBy);
+			await _dbContext.SaveChangesAsync();
             return true;
         }
         public async Task<PlanDto?> GetPlanDetailAsync(int id)

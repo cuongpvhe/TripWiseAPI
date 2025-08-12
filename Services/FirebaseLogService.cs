@@ -186,7 +186,7 @@ public class FirebaseLogService
 			ModifiedBy = modifiedBy,
 			RemovedDate = removedDate,
 			RemovedBy = removedBy,
-			ExpireAt = DateTime.UtcNow.AddHours(1)
+			ExpireAt = DateTime.UtcNow.AddDays(4)
 		};
 
 		await LogToFirebase(log);
