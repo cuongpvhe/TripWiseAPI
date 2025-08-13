@@ -20,13 +20,16 @@ namespace TripWiseAPI.Services.PartnerServices
         private readonly IWebHostEnvironment _env;
         private readonly IImageUploadService _imageUploadService;
         private readonly IConfiguration _configuration;
-        public TourService(TripWiseDBContext dbContext, IWebHostEnvironment env, IImageUploadService imageUploadService, IConfiguration configuration)
+        private readonly FirebaseLogService _logService;
+
+		public TourService(TripWiseDBContext dbContext, IWebHostEnvironment env, IImageUploadService imageUploadService, IConfiguration configuration, FirebaseLogService firebaseLogService)
         {
             _dbContext = dbContext;
             _env = env;
             _imageUploadService = imageUploadService;
             _configuration = configuration;
-        }
+			_logService = firebaseLogService;
+		}
         public async Task<List<PendingTourDto>> GetToursByStatusAsync(int partnerId, string? status, DateTime? fromDate, DateTime? toDate)
 
         {
