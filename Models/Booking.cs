@@ -19,6 +19,7 @@ namespace TripWiseAPI.Models
         public int? ModifiedBy { get; set; }
         public int? RemovedBy { get; set; }
         public string? RemovedReason { get; set; }
+        public DateTime? ExpiredDate { get; set; }
 
         public virtual Tour Tour { get; set; } = null!;
         public virtual User User { get; set; } = null!;

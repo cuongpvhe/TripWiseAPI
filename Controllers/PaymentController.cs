@@ -5,6 +5,7 @@ using TripWiseAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Utils;
 using Microsoft.AspNetCore.WebUtilities;
+using TripWiseAPI.Models.DTO;
 
 namespace TripWiseAPI.Controllers
 {
@@ -48,9 +49,8 @@ namespace TripWiseAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
-
-        [HttpPost("booking")]
-        public async Task<IActionResult> PayBooking([FromBody] BuyTourRequest request)
+        [HttpPost("create-draft")]
+        public async Task<IActionResult> CreateBookingDraft([FromBody] BuyTourRequest request)
         {
             var userId = GetUserId();
             if (userId == null)
@@ -58,14 +58,67 @@ namespace TripWiseAPI.Controllers
 
             try
             {
-                var paymentUrl = await _vnPayService.CreateBookingAndPayAsync(request, userId.Value, HttpContext);
+                var result = await _vnPayService.CreateBookingDraftAsync(request, userId.Value);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("update-draft")]
+        public async Task<IActionResult> UpdateBookingDraft([FromBody] UpdateBookingRequest request)
+        {
+            var userId = GetUserId();
+            if (userId == null)
+                return Unauthorized("Bạn chưa đăng nhập.");
+
+            try
+            {
+                var result = await _vnPayService.UpdateBookingDraftAsync(request, userId.Value);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("confirm-and-pay/{bookingId}")]
+        public async Task<IActionResult> ConfirmBookingAndPay(int bookingId)
+        {
+            var userId = GetUserId();
+            if (userId == null)
+                return Unauthorized("Bạn chưa đăng nhập.");
+
+            try
+            {
+                var paymentUrl = await _vnPayService.ConfirmBookingAndPayAsync(bookingId, userId.Value, HttpContext);
                 return Ok(new { url = paymentUrl });
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { message = ex.Message });
             }
         }
+        //[HttpPost("booking")]
+        //public async Task<IActionResult> PayBooking([FromBody] BuyTourRequest request)
+        //{
+        //    var userId = GetUserId();
+        //    if (userId == null)
+        //        return Unauthorized("Bạn chưa đăng nhập.");
+
+        //    try
+        //    {
+        //        var paymentUrl = await _vnPayService.CreateBookingAndPayAsync(request, userId.Value, HttpContext);
+        //        return Ok(new { url = paymentUrl });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(ex.Message);
+        //    }
+        //}
         [HttpGet("payment-history")]
         public async Task<IActionResult> PaymentHistory([FromQuery] string? status)
         {

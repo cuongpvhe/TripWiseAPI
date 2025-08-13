@@ -50,8 +50,15 @@
     public class DashboardStatisticsDto
     {
         public int TotalUsers { get; set;}
+        public int TotalReviews { get; set; }
+        public int TotalComments { get; set; }
+        public int TotalStarRatings { get; set; }
         public int TotalPartners { get; set; }
         public int TotalTours { get; set; }
+        public int TotalBlogs { get; set; }
+        public int TotalPlans { get; set; }
+        public int TotalTourBookings { get; set; }
+        public int TotalPlanPurchases { get; set; }
     }
     public class PartnerTourStatisticsDto
     {

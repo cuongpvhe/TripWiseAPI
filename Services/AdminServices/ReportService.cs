@@ -169,8 +169,15 @@ namespace TripWiseAPI.Services.AdminServices
                 result.Add(new DashboardStatisticsDto
                 {
                     TotalUsers = reader.GetInt32(reader.GetOrdinal("TotalUsers")),
+                    TotalReviews = reader.GetInt32(reader.GetOrdinal("TotalReviews")),
+                    TotalComments = reader.GetInt32(reader.GetOrdinal("TotalComments")),
+                    TotalStarRatings = reader.GetInt32(reader.GetOrdinal("TotalStarRatings")),
                     TotalPartners = reader.GetInt32(reader.GetOrdinal("TotalPartners")),
                     TotalTours = reader.GetInt32(reader.GetOrdinal("TotalTours")),
+                    TotalBlogs = reader.GetInt32(reader.GetOrdinal("TotalBlogs")),
+                    TotalPlans = reader.GetInt32(reader.GetOrdinal("TotalPlans")),
+                    TotalTourBookings = reader.GetInt32(reader.GetOrdinal("TotalTourBookings")),
+                    TotalPlanPurchases = reader.GetInt32(reader.GetOrdinal("TotalPlanPurchases")),
                 });
             }
             return result;
