@@ -35,6 +35,28 @@ namespace TripWiseAPI.Services.PartnerServices
 
             return bookings;
         }
+        public async Task<List<BookingDto>> GetBookingsByTourIdAsync(int tourId)
+        {
+            var bookings = await _dbContext.Bookings
+                .Include(b => b.Tour)
+                .Include(b => b.User) // lấy thông tin user
+                .Where(b => b.TourId == tourId && b.BookingStatus == "Success")
+                .OrderByDescending(b => b.CreatedDate)
+                .Select(b => new BookingDto
+                {
+                    BookingId = b.BookingId,
+                    TourId = b.TourId,
+                    TourName = b.Tour.TourName,
+                    UserId = b.UserId,
+                    UserName = b.User.FirstName + " " + b.User.LastName,
+                    TotalAmount = b.TotalAmount,
+                    BookingStatus = b.BookingStatus,
+                    CreatedDate = b.CreatedDate ?? DateTime.MinValue
+                })
+                .ToListAsync();
+
+            return bookings;
+        }
 
     }
 }

@@ -8,10 +8,11 @@ using TripWiseAPI.Utils;
 public class UserService : IUserService
 {
     private readonly TripWiseDBContext _context;
-
-    public UserService(TripWiseDBContext context)
+    private readonly IAppSettingsService _appSettingsService;
+    public UserService(TripWiseDBContext context, IAppSettingsService appSettingsService)
     {
         _context = context;
+        _appSettingsService = appSettingsService;
     }
 
     public async Task<List<UserDto>> GetAllAsync()
@@ -83,6 +84,7 @@ public class UserService : IUserService
             .AnyAsync(u => u.PhoneNumber == dto.PhoneNumber && u.RemovedDate == null);
         if (phoneExists)
             throw new ArgumentException("Số điện thoại đã tồn tại");
+
         var user = new User
         {
             FirstName = dto.FirstName,
@@ -99,6 +101,47 @@ public class UserService : IUserService
 
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
+        // ====== Gán gói Trial hoặc Free giống GoogleLoginAsync ======
+        string? trialPlanName = await _appSettingsService.GetValueAsync("DefaultTrialPlanName");
+        string? freePlanName = await _appSettingsService.GetValueAsync("FreePlan");
+        int trialDuration = await _appSettingsService.GetIntValueAsync("TrialDurationInDays", 90);
+
+        Plan? planToAssign = null;
+        DateTime? endDate = null;
+
+        if (!string.IsNullOrEmpty(trialPlanName))
+        {
+            planToAssign = await _context.Plans
+                .FirstOrDefaultAsync(p => p.PlanName == trialPlanName && p.RemovedDate == null);
+
+            if (planToAssign != null)
+            {
+                endDate = TimeHelper.GetVietnamTime().AddDays(trialDuration);
+            }
+        }
+
+        if (planToAssign == null && !string.IsNullOrEmpty(freePlanName))
+        {
+            planToAssign = await _context.Plans
+                .FirstOrDefaultAsync(p => p.PlanName == freePlanName && p.RemovedDate == null);
+        }
+
+        if (planToAssign != null)
+        {
+            var userPlan = new UserPlan
+            {
+                UserId = user.UserId,
+                PlanId = planToAssign.PlanId,
+                StartDate = TimeHelper.GetVietnamTime(),
+                EndDate = endDate,
+                CreatedDate = TimeHelper.GetVietnamTime(),
+                IsActive = true,
+                RequestInDays = planToAssign.MaxRequests ?? 0
+            };
+
+            await _context.UserPlans.AddAsync(userPlan);
+            await _context.SaveChangesAsync();
+        }
         return true;
     }
 

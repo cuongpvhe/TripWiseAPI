@@ -256,7 +256,7 @@ namespace TripWiseAPI.Services
                 CreatedDate = now,
                 CreatedBy = userId,
                 OrderCode = $"draft_{Guid.NewGuid()}",
-                ExpiredDate = now.AddMinutes(1) 
+                ExpiredDate = now.AddMinutes(5) 
             };
 
             _dbContext.Bookings.Add(booking);
@@ -359,7 +359,9 @@ namespace TripWiseAPI.Services
         {
             var booking = await _dbContext.Bookings
                 .Include(b => b.Tour)
+                .Include(b => b.User) 
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.UserId == userId);
+
 
             if (booking == null || booking.BookingStatus != "Draft")
                 throw new Exception("Không tìm thấy booking nháp để xác nhận.");
