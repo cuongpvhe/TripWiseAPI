@@ -18,13 +18,15 @@ namespace TripWiseAPI.Services
         private readonly TripWiseDBContext _dbContext;
         private readonly IPlanService _planService;
         private readonly IServiceProvider _serviceProvider;
-        public VnPayService(IConfiguration config, TripWiseDBContext dbContext, IPlanService planService, IServiceProvider serviceProvider)
+        private readonly FirebaseLogService _logService;
+		public VnPayService(IConfiguration config, TripWiseDBContext dbContext, IPlanService planService, IServiceProvider serviceProvider, FirebaseLogService firebaseLog)
         {
             _configuration = config;
             _dbContext = dbContext;
             _planService = planService;
             _serviceProvider = serviceProvider;
-        }
+			_logService = firebaseLog;
+		}
 
         public string CreatePaymentUrl(PaymentInformationModel model, HttpContext context)
         {
@@ -106,8 +108,8 @@ namespace TripWiseAPI.Services
                 OrderType = "plan",
                 PlanId = plan.PlanId
             };
-
-            return CreatePaymentUrl(paymentModel, context);
+			await _logService.LogAsync(userId: userId, action: "BuyPlan", message: $"Người dùng {userId} mua gói {plan.PlanName} giá {plan.Price:N0} VND", statusCode: 200, createdBy: userId, createdDate:DateTime.Now);
+			return CreatePaymentUrl(paymentModel, context);
         }
         public async Task<List<PaymentTransactionDto>> GetPaymentHistoryAsync(int userId, string? status)
         {
@@ -428,8 +430,8 @@ namespace TripWiseAPI.Services
                 BookingId = booking.BookingId,
                 OrderCode = booking.OrderCode,
             };
-
-            return CreatePaymentUrl(paymentModel, context);
+			await _logService.LogAsync(userId: userId, action: "Create", message: $"Người dùng {userId} đặt tour {booking.Tour.TourName} với mã đơn {booking.OrderCode} - Số tiền: {booking.TotalAmount:N0} VND", statusCode: 201, createdBy: userId);
+			return CreatePaymentUrl(paymentModel, context);
         }
 
         public async Task HandlePaymentCallbackAsync(IQueryCollection query)

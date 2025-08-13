@@ -8,12 +8,13 @@ public class BlogService : IBlogService
 	private readonly TripWiseDBContext _context;
 	private readonly IWebHostEnvironment _env;
 	private readonly IImageUploadService _imageUploadService;
-
-	public BlogService(TripWiseDBContext context, IWebHostEnvironment env, IImageUploadService imageUploadService)
+	private readonly FirebaseLogService _logService;
+	public BlogService(TripWiseDBContext context, IWebHostEnvironment env, IImageUploadService imageUploadService, FirebaseLogService firebaseLogService)
 	{
 		_context = context;
 		_env = env;
 		_imageUploadService = imageUploadService;
+		_logService = firebaseLogService;
 	}
 
 
@@ -152,7 +153,7 @@ public class BlogService : IBlogService
 			}		
 
 	}
-
+		await _logService.LogAsync(userId: userId, action: "Create", message: $"Tạo blog mới: {blog.BlogName}", 200, createdBy: userId);
 		_context.Blogs.Add(blog);
 		await _context.SaveChangesAsync();
 
@@ -242,9 +243,9 @@ public class BlogService : IBlogService
 				addedImages.Add(image);
 			}
 		}
-	
+		await _logService.LogAsync(userId: userId, action: "Update", message: $"Cập nhật blog {blog.BlogId} - {blog.BlogName}", statusCode: 200, modifiedBy: userId, modifiedDate: DateTime.Now);
 
-	await _context.SaveChangesAsync();
+		await _context.SaveChangesAsync();
 
 		return new BlogDto
 		{
@@ -277,7 +278,7 @@ public class BlogService : IBlogService
 		blog.RemovedDate = DateTime.Now;
 		blog.RemovedBy = userId;
 		blog.RemovedReason = $"Xoá bài blog {blog.BlogName}";
-
+		await _logService.LogAsync(userId: userId, action: "Delete", message: $"Xoá blog {blog.BlogId} - {blog.BlogName}", statusCode: 200, removedBy: userId, removedDate: DateTime.Now);
 		await _context.SaveChangesAsync();
 		return true;
 	}

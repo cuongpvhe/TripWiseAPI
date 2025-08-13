@@ -8,6 +8,7 @@ using TripWiseAPI.Utils;
 public class UserService : IUserService
 {
     private readonly TripWiseDBContext _context;
+
     private readonly IAppSettingsService _appSettingsService;
     public UserService(TripWiseDBContext context, IAppSettingsService appSettingsService)
     {
@@ -98,8 +99,8 @@ public class UserService : IUserService
             CreatedDate = TimeHelper.GetVietnamTime(),
             CreatedBy = createdBy
         };
-
-        await _context.Users.AddAsync(user);
+		await _logService.LogAsync(createdBy, "Create", $"Tạo người dùng mới: {dto.UserName}", 20, createdBy: createdBy, createdDate: TimeHelper.GetVietnamTime());
+		await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
         // ====== Gán gói Trial hoặc Free giống GoogleLoginAsync ======
         string? trialPlanName = await _appSettingsService.GetValueAsync("DefaultTrialPlanName");
@@ -156,7 +157,8 @@ public class UserService : IUserService
         user.RemovedBy = removedBy;
         user.RemovedReason = removedReason;
         _context.Users.Update(user);
-        await _context.SaveChangesAsync();
+		await _logService.LogAsync(removedBy, "Delete", $"Xóa người dùng ID {userId} - Lý do: {removedReason}", 200, removedBy: removedBy, removedDate: TimeHelper.GetVietnamTime());
+		await _context.SaveChangesAsync();
         return true;
     }
 
@@ -299,8 +301,8 @@ public class UserService : IUserService
 
         user.ModifiedBy = modifiedBy;
         user.ModifiedDate = TimeHelper.GetVietnamTime();
-
-        _context.Users.Update(user);
+		await _logService.LogAsync(modifiedBy, "Update", $"Cập nhật người dùng ID {userId}", 200, modifiedBy: modifiedBy, modifiedDate: TimeHelper.GetVietnamTime());
+		_context.Users.Update(user);
         await _context.SaveChangesAsync();
         return true;
     }

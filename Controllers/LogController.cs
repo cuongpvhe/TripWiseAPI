@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using TripWiseAPI.Models.APIModel;
 
 namespace TripWiseAPI.Controllers
 {
@@ -22,17 +23,38 @@ namespace TripWiseAPI.Controllers
 			return Ok("Firebase reachable");
 		}
 
-		// Xem tất cả log (có phân trang tùy chọn)
-		[HttpGet("raw")]
-		public async Task<IActionResult> GetRawLogs(
+		[HttpGet("filtered")]
+		public async Task<IActionResult> GetFilteredLogs(
 		[FromQuery] int page = 1,
 		[FromQuery] int pageSize = 1000)
 		{
 			try
 			{
+				// Lấy raw logs từ Firebase
 				var raw = await _logService.GetRawLogsAsync();
-				var total = raw.Count;
-				var paged = raw.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+				// Chuyển sang APIResponseLogs và lấy DateTime hợp lệ
+				var filtered = raw.Select(log =>
+				{
+					var dateTime = log.CreatedDate ?? log.ModifiedDate ?? log.RemovedDate;
+					return new APIResponseLogs
+					{
+						Id = log.Id,
+						UserId = log.UserId,
+						UserName = log.UserName,
+						Action = log.Action,
+						Message = log.Message,
+						StatusCode = log.StatusCode,
+						DateTime = dateTime
+					};
+				})
+				.Where(r => r.DateTime.HasValue) // chỉ lấy log có DateTime
+				.ToList();
+
+				// Phân trang
+				var total = filtered.Count;
+				var paged = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
 				return Ok(new { Total = total, Page = page, PageSize = pageSize, Data = paged });
 			}
 			catch (Exception ex)

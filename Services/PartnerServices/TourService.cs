@@ -20,14 +20,18 @@ namespace TripWiseAPI.Services.PartnerServices
         private readonly IWebHostEnvironment _env;
         private readonly IImageUploadService _imageUploadService;
         private readonly IConfiguration _configuration;
-        public TourService(TripWiseDBContext dbContext, IWebHostEnvironment env, IImageUploadService imageUploadService, IConfiguration configuration)
+        private readonly FirebaseLogService _logService;
+
+		public TourService(TripWiseDBContext dbContext, IWebHostEnvironment env, IImageUploadService imageUploadService, IConfiguration configuration, FirebaseLogService firebaseLogService)
         {
             _dbContext = dbContext;
             _env = env;
             _imageUploadService = imageUploadService;
             _configuration = configuration;
-        }
+			_logService = firebaseLogService;
+		}
         public async Task<List<PendingTourDto>> GetToursByStatusAsync(int partnerId, string? status, DateTime? fromDate, DateTime? toDate)
+
         {
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image) 
@@ -113,8 +117,8 @@ namespace TripWiseAPI.Services.PartnerServices
                 CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = partnerId
             };
-
-            _dbContext.Tours.Add(tour);
+			await _logService.LogAsync(partnerId, "Create", $"Tour '{request.TourName}' created successfully", 200, createdDate: TimeHelper.GetVietnamTime(), createdBy: partnerId);
+			_dbContext.Tours.Add(tour);
             await _dbContext.SaveChangesAsync();
 
             // Tải và gán nhiều ảnh từ file
@@ -317,7 +321,8 @@ namespace TripWiseAPI.Services.PartnerServices
             tour.RejectReason = null;
             tour.ModifiedDate = TimeHelper.GetVietnamTime();
             tour.ModifiedBy = partnerId;
-            await _dbContext.SaveChangesAsync();
+			await _logService.LogAsync(partnerId, "SubmitTour", $"Tour ID {tourId} submitted for {TourStatuses.PendingApproval}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: partnerId);
+			await _dbContext.SaveChangesAsync();
             return true;
         }
         public async Task<TourDetailDto?> GetTourDetailAsync(int tourId, int userId)
@@ -468,8 +473,8 @@ namespace TripWiseAPI.Services.PartnerServices
                     tour.TourImages.Add(new TourImage { Image = image });
                 }
             }
-
-            await _dbContext.SaveChangesAsync();
+			await _logService.LogAsync(userId, "Update", $"Tour ID {tourId} updated successfully", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+			await _dbContext.SaveChangesAsync();
             return true;
         }
 
@@ -497,8 +502,8 @@ namespace TripWiseAPI.Services.PartnerServices
                 _dbContext.Images.Remove(tourImage.Image);
                 _dbContext.TourImages.Remove(tourImage);
             }
-
-            await _dbContext.SaveChangesAsync();
+			await _logService.LogAsync(userId, "DeleteTourImages", $"Deleted images: {string.Join(",", imageIds)}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
+			await _dbContext.SaveChangesAsync();
             return true;
         }
 
@@ -539,7 +544,8 @@ namespace TripWiseAPI.Services.PartnerServices
             itinerary.DayNumber = request.DayNumber;
             itinerary.ModifiedBy = userId;
             itinerary.ModifiedDate = TimeHelper.GetVietnamTime();
-            await _dbContext.SaveChangesAsync();
+			await _logService.LogAsync(userId, "Update", $"Updated itinerary ID {itineraryId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+			await _dbContext.SaveChangesAsync();
             return true;
         }
 
@@ -579,7 +585,8 @@ namespace TripWiseAPI.Services.PartnerServices
                     activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
                 }
             }
-            await _dbContext.SaveChangesAsync();
+			await _logService.LogAsync(userId, "Update", $"Updated activity ID {activityId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+			await _dbContext.SaveChangesAsync();
             return true;
         }
 
@@ -620,8 +627,8 @@ namespace TripWiseAPI.Services.PartnerServices
             itinerary.RemovedDate = TimeHelper.GetVietnamTime();
             itinerary.RemovedBy = userId;
             _dbContext.TourItineraries.Remove(itinerary);
-
-            await _dbContext.SaveChangesAsync();
+			await _logService.LogAsync(userId, "Delete", $"Deleted itinerary ID {itineraryId}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
+			await _dbContext.SaveChangesAsync();
             return true;
         }
 
@@ -655,8 +662,8 @@ namespace TripWiseAPI.Services.PartnerServices
 
                 _dbContext.TourAttractionImages.Remove(attractionImage);
             }
-
-            _dbContext.TourAttractions.Remove(activity);
+			await _logService.LogAsync(userId, "Delete", $"Deleted activity ID {activityId}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
+			_dbContext.TourAttractions.Remove(activity);
             await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -736,8 +743,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 tour.ModifiedBy = partnerId;
             }
             else return false;
-
-            await _dbContext.SaveChangesAsync();
+			string messageLog = action == "Delete" ? $"Tour ID {tourId} deleted by partner" : $"Tour ID {tourId} moved to Draft";
+			await _logService.LogAsync(partnerId, "Delete", messageLog, 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: partnerId);
+			await _dbContext.SaveChangesAsync();
             return true;
         }
         public async Task<List<Tour>> GetToursByLocationAsync(string location, int maxResults = 4)
