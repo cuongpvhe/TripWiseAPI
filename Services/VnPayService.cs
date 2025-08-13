@@ -106,8 +106,8 @@ namespace TripWiseAPI.Services
                 OrderType = "plan",
                 PlanId = plan.PlanId
             };
-
-            return CreatePaymentUrl(paymentModel, context);
+			await _logService.LogAsync(userId: userId, action: "BuyPlan", message: $"Người dùng {userId} mua gói {plan.PlanName} giá {plan.Price:N0} VND", statusCode: 200, createdBy: userId, createdDate:DateTime.Now);
+			return CreatePaymentUrl(paymentModel, context);
         }
         public async Task<List<PaymentTransactionDto>> GetPaymentHistoryAsync(int userId, string? status)
         {
@@ -426,8 +426,8 @@ namespace TripWiseAPI.Services
                 BookingId = booking.BookingId,
                 OrderCode = booking.OrderCode,
             };
-
-            return CreatePaymentUrl(paymentModel, context);
+			await _logService.LogAsync(userId: userId, action: "Create", message: $"Người dùng {userId} đặt tour {tour.TourName} với mã đơn {booking.OrderCode} - Số tiền: {totalAmount:N0} VND", statusCode: 201, createdBy: userId);
+			return CreatePaymentUrl(paymentModel, context);
         }
 
         public async Task HandlePaymentCallbackAsync(IQueryCollection query)

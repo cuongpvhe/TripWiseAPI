@@ -131,8 +131,8 @@ namespace TripWiseAPI.Services
                 CreatedAt = TimeHelper.GetVietnamTime(),
                 ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(60)
             });
-
-            await _context.SaveChangesAsync();
+			await _logFireService.LogAsync(user.UserId, "GoogleLogin", $"Người dùng {user.UserName} đăng nhập bằng Google.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
+			await _context.SaveChangesAsync();
             return (accessToken, refreshToken);
         }
 
@@ -166,7 +166,8 @@ namespace TripWiseAPI.Services
             if (token != null)
             {
                 _context.UserRefreshTokens.Remove(token);
-                await _context.SaveChangesAsync();
+				await _logFireService.LogAsync(token.UserId, "Logout", $"Người dùng đăng xuất trên thiết bị {deviceId}.", 200, createdDate: DateTime.UtcNow, createdBy: token.UserId);
+				await _context.SaveChangesAsync();
                 return "Đăng xuất thành công";
             }
             return "Không tìm thấy token.";
@@ -195,8 +196,7 @@ namespace TripWiseAPI.Services
                 RequestAttemptsRemains = 3,
                 ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(otpTimeoutMinutes)
             };
-
-            await _context.SignupOtps.AddAsync(otp);
+			await _context.SignupOtps.AddAsync(otp);
             await _context.SaveChangesAsync();
 
             _ = Task.Run(() => EmailHelper.SendEmailMultiThread(req.Email, "Mã OTP", $"Mã OTP của bạn là <b>{otp.Otpstring}</b>"));
@@ -282,8 +282,8 @@ namespace TripWiseAPI.Services
                 await _context.UserPlans.AddAsync(userPlan);
             }
 
-
-            _context.SignupOtps.Remove(otp);
+			await _logFireService.LogAsync(user.UserId, "Signup", $"Người dùng {user.UserName} đăng ký thành công.", 201, createdDate: DateTime.UtcNow, createdBy: user.UserId);
+			_context.SignupOtps.Remove(otp);
             await _context.SaveChangesAsync();
 
             return new ApiResponse<string>(201, SuccessMessage.SignupSuccess);
@@ -367,8 +367,8 @@ namespace TripWiseAPI.Services
             user.PasswordHash = PasswordHelper.HashPasswordBCrypt(req.NewPassword);
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
-
-            return new ApiResponse<string>("Mật khẩu đã được cập nhật");
+			await _logFireService.LogAsync(user.UserId, "ResetPassword", $"Người dùng {user.UserName} đã thay đổi mật khẩu thành công.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
+			return new ApiResponse<string>("Mật khẩu đã được cập nhật");
         }
 
 

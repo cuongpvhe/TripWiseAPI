@@ -10,11 +10,12 @@ using System.Text.RegularExpressions;
 public class PartnerService : IPartnerService
 {
     private readonly TripWiseDBContext _db;
-
-    public PartnerService(TripWiseDBContext db)
+	private readonly FirebaseLogService _logService;
+	public PartnerService(TripWiseDBContext db, FirebaseLogService firebaseLog)
     {
         _db = db;
-    }
+		_logService = firebaseLog;
+	}
     public async Task<List<PartnerDto>> GetAllAsync()
     {
         return await _db.Partners
@@ -110,8 +111,8 @@ public class PartnerService : IPartnerService
             CreatedDate = TimeHelper.GetVietnamTime(),
             CreatedBy = createdBy
         };
-
-        _db.Partners.Add(partner);
+		await _logService.LogAsync(user.UserId, action: "Create", message: $"Tạo đối tác với email: {dto.Email}", 200, createdBy: createdBy,createdDate: TimeHelper.GetVietnamTime());
+		_db.Partners.Add(partner);
         await _db.SaveChangesAsync();
 
         return true;
@@ -168,8 +169,8 @@ public class PartnerService : IPartnerService
         partner.Website = dto.Website;
         partner.ModifiedDate = TimeHelper.GetVietnamTime();
         partner.ModifiedBy = modifiedBy;
-
-        await _db.SaveChangesAsync();
+		await _logService.LogAsync(userId: modifiedBy, action: "Update", message: $"Cập nhật đối tác {partnerId} - email: {dto.Email}",200, modifiedBy: modifiedBy, modifiedDate: TimeHelper.GetVietnamTime());
+		await _db.SaveChangesAsync();
         return true;
     }
     public async Task<PartnerDetailDto?> GetPartnerDetailAsync(int partnerId)
@@ -237,8 +238,8 @@ public class PartnerService : IPartnerService
         partner.User.RemovedDate = TimeHelper.GetVietnamTime();
         partner.User.RemovedBy = removedBy;
         partner.User.RemovedReason = removedReason;
-
-        await _db.SaveChangesAsync();
+		await _logService.LogAsync(userId: removedBy, action: "Delete", message: $"Vô hiệu hóa đối tác {partnerId} - lý do: {removedReason}", 200, removedBy: removedBy, removedDate: TimeHelper.GetVietnamTime());
+		await _db.SaveChangesAsync();
         return true;
     }
     public async Task<bool> SetActiveStatusAsync(int partnerId, int modifiedBy)
@@ -265,8 +266,8 @@ public class PartnerService : IPartnerService
         partner.User.RemovedDate = null;
         partner.User.RemovedBy = null;
         partner.User.RemovedReason = null;
-
-        await _db.SaveChangesAsync();
+		await _logService.LogAsync(userId: modifiedBy, action: "Reactivate", message: $"Kích hoạt lại đối tác {partnerId}", statusCode: 200, modifiedBy: modifiedBy, modifiedDate: TimeHelper.GetVietnamTime());
+		await _db.SaveChangesAsync();
         return true;
     }
     public async Task<List<ReviewTourDto>> GetTourReviewsByPartnerAsync(int partnerId)
