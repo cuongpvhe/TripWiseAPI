@@ -25,9 +25,11 @@ namespace TripWiseAPI.Services
 
         public async Task<(string accessToken, string refreshToken)> LoginAsync(LoginModel loginModel)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginModel.Email && u.IsActive);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginModel.Email);
             if (user == null || !PasswordHelper.VerifyPasswordBCrypt(loginModel.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Email hoặc mật khẩu không đúng.");
+            if (!user.IsActive)
+                throw new UnauthorizedAccessException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.");
 
             await DeleteOldRefreshToken(user.UserId, loginModel.DeviceId);
 
