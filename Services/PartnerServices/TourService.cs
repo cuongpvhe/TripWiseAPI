@@ -392,6 +392,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 Location = tour.Location,
                 Preferences = tour.Category,
                 Budget = null,
+                MaxGroupSize = (int)tour.MaxGroupSize,
                 TotalEstimatedCost = tour.PriceAdult,
                 TourInfo = tour.TourInfo,
                 TourNote = tour.TourNote,
@@ -439,6 +440,7 @@ namespace TripWiseAPI.Services.PartnerServices
             tour.Location = request.Location;
             tour.Duration = request.Duration;
             tour.Category = request.Category;
+            tour.MaxGroupSize = request.MaxGroupSize;
             tour.PriceAdult = request.PriceAdult;
             tour.PriceChild5To10 = request.PriceChild5To10;
             tour.PriceChildUnder5 = request.PriceChildUnder5;

@@ -114,6 +114,7 @@ namespace TripWiseAPI.Services
                 TourNote = tour.TourNote,
                 Itinerary = itineraryDtos,
                 Status = tour.Status,
+                MaxGroupSize = (int)tour.MaxGroupSize,
                 PriceAdult = (decimal)tour.PriceAdult,
                 PriceChild5To10 = (decimal)tour.PriceChild5To10,
                 PriceChildUnder5 = (decimal)tour.PriceChildUnder5,

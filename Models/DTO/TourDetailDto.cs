@@ -13,6 +13,7 @@ namespace TripWiseAPI.Models.DTO
         public string? Days { get; set; }
         public string? Preferences { get; set; }
         public decimal? Budget { get; set; }
+        public int MaxGroupSize { get; set; }
         public decimal PriceAdult { get; set; }
         public decimal PriceChild5To10 { get; set; }
         public decimal PriceChildUnder5 { get; set; }
@@ -42,6 +43,7 @@ namespace TripWiseAPI.Models.DTO
         public string Description { get; set; }
         public string Duration { get; set; }
         public decimal? Price { get; set; }
+        public int MaxGroupSize { get; set; }
         public decimal PriceAdult { get; set; }
         public decimal PriceChild5To10 { get; set; }
         public decimal PriceChildUnder5 { get; set; }
