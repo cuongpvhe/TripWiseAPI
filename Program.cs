@@ -116,8 +116,12 @@ namespace TripWiseAPI
             builder.Services.AddScoped<IReportService, ReportService>();
             builder.Services.AddScoped<ExcelExportService>();
             builder.Services.AddScoped<IManageReviewService, ManageReviewService>();
+			builder.Services.AddScoped<IBookingService, BookingService>();
+            builder.Services.AddHostedService<DraftCleanupService>();
 
-			builder.Services.AddSwaggerGen(c =>
+
+
+            builder.Services.AddSwaggerGen(c =>
 			{
 				c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
 

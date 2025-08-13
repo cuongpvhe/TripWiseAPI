@@ -150,7 +150,12 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 fileName);
         }
 
-        
+        [HttpGet("get-dashboard-statistics")]
+        public async Task<IActionResult> GetDashboardStatistics()
+        {
+            var statisticsList = await _reportService.GetDashboardStatistics();
+            return Ok(statisticsList);
+        }
 
     }
 

@@ -9,5 +9,9 @@ public interface IVnPayService
     Task<List<PaymentTransactionDto>> GetPaymentHistoryAsync(int userId, string? status);
     Task HandlePaymentCallbackAsync(IQueryCollection query);
     Task<string> BuyPlanAsync(BuyPlanRequest request, int userId, HttpContext context);
-    Task<string> CreateBookingAndPayAsync(BuyTourRequest request, int userId, HttpContext context);
+    Task<BookingDetailDto> CreateBookingDraftAsync(BuyTourRequest request, int userId);
+    Task<BookingDetailDto> UpdateBookingDraftAsync(UpdateBookingRequest request, int userId);
+    Task<string> ConfirmBookingAndPayAsync(int bookingId, int userId, HttpContext context);
+    //Task<string> CreateBookingAndPayAsync(BuyTourRequest request, int userId, HttpContext context);
+    Task<BookingDetailDto?> GetBookingDetailAsync(int bookingId);
 }

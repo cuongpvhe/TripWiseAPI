@@ -150,7 +150,38 @@ namespace TripWiseAPI.Services.AdminServices
             return result;
         }
        
+        public async Task<List<DashboardStatisticsDto>> GetDashboardStatistics()
+        {
+            var result = new List<DashboardStatisticsDto>();
 
+            using var conn = new SqlConnection(_configuration.GetConnectionString("DBContext"));
+            using var command = new SqlCommand("sp_GetDashboardStatistics", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            await conn.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+
+                result.Add(new DashboardStatisticsDto
+                {
+                    TotalUsers = reader.GetInt32(reader.GetOrdinal("TotalUsers")),
+                    TotalReviews = reader.GetInt32(reader.GetOrdinal("TotalReviews")),
+                    TotalComments = reader.GetInt32(reader.GetOrdinal("TotalComments")),
+                    TotalStarRatings = reader.GetInt32(reader.GetOrdinal("TotalStarRatings")),
+                    TotalPartners = reader.GetInt32(reader.GetOrdinal("TotalPartners")),
+                    TotalTours = reader.GetInt32(reader.GetOrdinal("TotalTours")),
+                    TotalBlogs = reader.GetInt32(reader.GetOrdinal("TotalBlogs")),
+                    TotalPlans = reader.GetInt32(reader.GetOrdinal("TotalPlans")),
+                    TotalTourBookings = reader.GetInt32(reader.GetOrdinal("TotalTourBookings")),
+                    TotalPlanPurchases = reader.GetInt32(reader.GetOrdinal("TotalPlanPurchases")),
+                });
+            }
+            return result;
+        }
     }
 
 }

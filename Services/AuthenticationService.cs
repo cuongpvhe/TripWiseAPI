@@ -23,9 +23,6 @@ namespace TripWiseAPI.Services
 			_appSettingsService = appSettingsService;
 		}
 
-
-
-
         public async Task<(string accessToken, string refreshToken)> LoginAsync(LoginModel loginModel)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginModel.Email && u.IsActive);
@@ -34,7 +31,7 @@ namespace TripWiseAPI.Services
 
             await DeleteOldRefreshToken(user.UserId, loginModel.DeviceId);
 
-            var accessToken = JwtHelper.GenerateJwtToken(_config, user);
+            var accessToken = await JwtHelper.GenerateJwtToken(_config, _appSettingsService, user);
             var refreshToken = JwtHelper.GenerateRefreshToken();
 
             await _context.UserRefreshTokens.AddAsync(new UserRefreshToken
@@ -42,8 +39,8 @@ namespace TripWiseAPI.Services
                 UserId = user.UserId,
                 RefreshToken = refreshToken,
                 DeviceId = loginModel.DeviceId,
-                CreatedAt = DateTime.Now,
-                ExpiresAt = DateTime.Now.AddMonths(1)
+                CreatedAt = TimeHelper.GetVietnamTime(),
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(60)
             });			
 			await _logFireService.LogAsync(user.UserId, "Login", $"Người dùng {user.UserName} đăng nhập.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
 
@@ -123,7 +120,7 @@ namespace TripWiseAPI.Services
                     await _context.SaveChangesAsync();
                 }
             }
-            var accessToken = JwtHelper.GenerateJwtToken(_config, user);
+            var accessToken = await JwtHelper.GenerateJwtToken(_config, _appSettingsService, user);
             var refreshToken = JwtHelper.GenerateRefreshToken();
 
             await _context.UserRefreshTokens.AddAsync(new UserRefreshToken
@@ -132,7 +129,7 @@ namespace TripWiseAPI.Services
                 RefreshToken = refreshToken,
                 DeviceId = model.DeviceId,
                 CreatedAt = TimeHelper.GetVietnamTime(),
-                ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1)
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(60)
             });
 			await _logFireService.LogAsync(user.UserId, "GoogleLogin", $"Người dùng {user.UserName} đăng nhập bằng Google.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
 			await _context.SaveChangesAsync();
@@ -158,7 +155,9 @@ namespace TripWiseAPI.Services
             token.ExpiresAt = TimeHelper.GetVietnamTime().AddMonths(1);
             await _context.SaveChangesAsync();
 
-            return (JwtHelper.GenerateJwtToken(_config, user), token.RefreshToken);
+            var accessToken = await JwtHelper.GenerateJwtToken(_config, _appSettingsService, user);
+
+            return (accessToken, token.RefreshToken);
         }
 
         public async Task<string> LogoutAsync(string deviceId)
@@ -189,13 +188,13 @@ namespace TripWiseAPI.Services
             }
 
             if (response.InvalidFields.Any()) return response;
-
+            var otpTimeoutMinutes = await _appSettingsService.GetIntValueAsync("OTP_TIMEOUT", 5);
             var otp = new SignupOtp
             {
                 SignupRequestId = req.SignupRequestId,
                 Otpstring = OtpHelper.GenerateRandomDigits(6),
                 RequestAttemptsRemains = 3,
-                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(10)
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(otpTimeoutMinutes)
             };
 			await _context.SignupOtps.AddAsync(otp);
             await _context.SaveChangesAsync();
@@ -228,7 +227,6 @@ namespace TripWiseAPI.Services
                 await _context.SaveChangesAsync();
                 return new ApiResponse<string>(400, $"OTP không đúng, còn lại {otp.RequestAttemptsRemains} lần thử.");
             }
-
             var user = new User
             {
                 UserName = data.Username,
@@ -312,12 +310,13 @@ namespace TripWiseAPI.Services
                 _context.SignupOtps.Remove(existingOtp);
                 await _context.SaveChangesAsync();
             }
+            var otpTimeoutMinutes = await _appSettingsService.GetIntValueAsync("OTP_TIMEOUT", 5);
             var otp = new SignupOtp
             {
                 SignupRequestId = req.Email,
                 Otpstring = OtpHelper.GenerateRandomDigits(6),
                 RequestAttemptsRemains = 3,
-                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(10)
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(otpTimeoutMinutes)
             };
 
             await _context.SignupOtps.AddAsync(otp);

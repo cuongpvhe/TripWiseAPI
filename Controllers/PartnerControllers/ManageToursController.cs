@@ -31,7 +31,7 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(result);
         }
         [HttpGet]
-        public async Task<IActionResult> GetAllTours([FromQuery] string? status)
+        public async Task<IActionResult> GetAllTours([FromQuery] string? status, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
             var userId = GetUserId();
 
@@ -44,7 +44,7 @@ namespace TripWiseAPI.Controllers.PartnerControllers
                 return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
             }
 
-            var tours = await _tourService.GetToursByStatusAsync(partner.PartnerId, status);
+            var tours = await _tourService.GetToursByStatusAsync(partner.PartnerId, status, fromDate, toDate);
             return Ok(tours);
         }
 
@@ -407,6 +407,20 @@ namespace TripWiseAPI.Controllers.PartnerControllers
                 return NotFound("Không tìm thấy bản cập nhật bị từ chối");
 
             return Ok("Đã gửi lại bản cập nhật thành công");
+        }
+
+        [HttpGet("statistics")]
+        public async Task<IActionResult> GetStatistics()
+        {
+            var userId = GetUserId();
+            var partner = await _dbContext.Partners
+                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
+
+            if (partner == null)
+                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
+
+            var stats = await _tourService.GetPartnerTourStatisticsAsync(partner.PartnerId);
+            return Ok(stats);
         }
 
     }

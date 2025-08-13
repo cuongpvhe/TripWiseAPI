@@ -12,5 +12,9 @@ namespace TripWiseAPI.Services.AdminServices
         Task<bool> SetFreePlanAsync(string planName);
         Task<bool> SetTrialPlanAsync(string planName);
         Task<bool> SetValueAsync(string key, string value);
+        Task UpdateTimeoutAsync(int minutes);
+        Task<int> GetTimeoutAsync();
+        Task<int?> GetOtpTimeoutAsync();
+        Task<bool> UpdateOtpTimeoutAsync(int timeoutSeconds);
     }
 }
