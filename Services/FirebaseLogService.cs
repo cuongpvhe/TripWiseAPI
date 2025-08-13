@@ -191,4 +191,31 @@ public class FirebaseLogService
 
 		await LogToFirebase(log);
 	}
+
+	public async Task<List<APIResponseLogs>> GetFilteredLogsAsync()
+	{
+		var rawLogs = await GetRawLogsAsync();
+
+		var filteredLogs = rawLogs.Select(log =>
+		{
+			// Lấy ngày ưu tiên: CreatedDate > ModifiedDate > RemovedDate
+			DateTime? dateTime = log.CreatedDate ?? log.ModifiedDate ?? log.RemovedDate;
+
+			return new APIResponseLogs
+			{
+				Id = log.Id,
+				UserId = log.UserId,
+				UserName = log.UserName,
+				Action = log.Action,
+				Message = log.Message,
+				StatusCode = log.StatusCode,
+				DateTime = dateTime
+			};
+		})
+		.Where(r => r.DateTime.HasValue) // chỉ lấy những log có DateTime
+		.ToList();
+
+		return filteredLogs;
+	}
+
 }

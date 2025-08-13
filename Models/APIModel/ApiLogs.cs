@@ -16,4 +16,15 @@
 		public int? RemovedBy { get; set; }
 		public DateTime? ExpireAt { get; set; }
 	}
+
+	public class APIResponseLogs
+	{
+		public int Id { get; set; }
+		public int UserId { get; set; }
+		public string UserName { get; set; }
+		public string Action { get; set; }
+		public string Message { get; set; }
+		public int StatusCode { get; set; }
+		public DateTime? DateTime { get; set; }
+	}
 }
