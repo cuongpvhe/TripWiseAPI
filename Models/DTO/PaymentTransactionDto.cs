@@ -24,6 +24,8 @@
         public string? BankCode { get; set; }
         public string? VnpTransactionNo { get; set; }
 
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
         public string UserEmail { get; set; } 
         public string PhoneNumber { get; set; }
         public decimal? PriceAdult { get; set; }
@@ -32,6 +34,18 @@
         public decimal Amount { get; set; }
         public DateTime? PaymentTime { get; set; }
         public DateTime? CreatedDate { get; set; }
+        public DateTime? ExpiredDate { get; set; }
+    }
+    public class UpdateBookingRequest
+    {
+        public int BookingId { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string UserEmail { get; set; }
+        public string PhoneNumber { get; set; }
+        public decimal? PriceAdult { get; set; }
+        public decimal? PriceChild5To10 { get; set; }
+        public decimal? PriceChildUnder5 { get; set; }
     }
     public class BookingDto
     {

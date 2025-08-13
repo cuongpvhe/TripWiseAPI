@@ -17,12 +17,13 @@ namespace TripWiseAPI.Services
         private readonly IConfiguration _configuration;
         private readonly TripWiseDBContext _dbContext;
         private readonly IPlanService _planService;
-
-        public VnPayService(IConfiguration config, TripWiseDBContext dbContext, IPlanService planService)
+        private readonly IServiceProvider _serviceProvider;
+        public VnPayService(IConfiguration config, TripWiseDBContext dbContext, IPlanService planService, IServiceProvider serviceProvider)
         {
             _configuration = config;
             _dbContext = dbContext;
             _planService = planService;
+            _serviceProvider = serviceProvider;
         }
 
         public string CreatePaymentUrl(PaymentInformationModel model, HttpContext context)
@@ -218,34 +219,15 @@ namespace TripWiseAPI.Services
 
             return booking;
         }
-
-        public async Task<string> CreateBookingAndPayAsync(BuyTourRequest request, int userId, HttpContext context)
+        public async Task<BookingDetailDto> CreateBookingDraftAsync(BuyTourRequest request, int userId)
         {
-            // Lấy thông tin user
             var user = await _dbContext.Users
                 .Where(u => u.UserId == userId)
-                .Select(u => new { u.FirstName, u.LastName, u.Email, u.PhoneNumber })
+                .Select(u => new { u.Email, u.PhoneNumber, u.FirstName, u.LastName })
                 .FirstOrDefaultAsync();
 
             if (user == null)
                 throw new Exception("Người dùng không tồn tại.");
-
-            // Kiểm tra các trường bắt buộc và lưu lại tên trường thiếu
-            var missingFields = new List<string>();
-            if (string.IsNullOrWhiteSpace(user.FirstName))
-                missingFields.Add("FirstName");
-            if (string.IsNullOrWhiteSpace(user.LastName))
-                missingFields.Add("LastName");
-            if (string.IsNullOrWhiteSpace(user.Email))
-                missingFields.Add("Email");
-            if (string.IsNullOrWhiteSpace(user.PhoneNumber))
-                missingFields.Add("PhoneNumber");
-
-            if (missingFields.Any())
-            {
-                var fields = string.Join(", ", missingFields);
-                throw new Exception($"Vui lòng cập nhật đầy đủ thông tin cá nhân: {fields}.");
-            }
 
             var tour = await _dbContext.Tours
                 .FirstOrDefaultAsync(t => t.TourId == request.TourId && t.RemovedDate == null);
@@ -253,64 +235,193 @@ namespace TripWiseAPI.Services
             if (tour == null)
                 throw new Exception("Tour không tồn tại.");
 
-            if (tour.PriceAdult == null || tour.PriceAdult <= 0)
-                throw new Exception("Tour chưa có giá người lớn hợp lệ.");
-
             var totalPeople = request.NumAdults + request.NumChildren5To10 + request.NumChildrenUnder5;
+            if (totalPeople > tour.MaxGroupSize)
+                throw new Exception($"Số lượng người vượt quá giới hạn {tour.MaxGroupSize}.");
 
-            if (tour.MaxGroupSize.HasValue && totalPeople > tour.MaxGroupSize.Value)
-                throw new Exception($"Tổng số người ({totalPeople}) vượt quá số lượng tối đa cho phép ({tour.MaxGroupSize}).");
+            var totalAmount =
+                (request.NumAdults * (tour.PriceAdult ?? 0)) +
+                (request.NumChildren5To10 * (tour.PriceChild5To10 ?? 0)) +
+                (request.NumChildrenUnder5 * (tour.PriceChildUnder5 ?? 0));
 
             var now = TimeHelper.GetVietnamTime();
 
-            // ✅ Tính tổng tiền
-            var totalAmount = (decimal)(
-                request.NumAdults * tour.PriceAdult.Value +
-                request.NumChildren5To10 * (tour.PriceChild5To10 ?? 0) +
-                request.NumChildrenUnder5 * (tour.PriceChildUnder5 ?? 0)
-            );
-
-            // Bước 1: Tạo booking
             var booking = new Booking
             {
                 UserId = userId,
                 TourId = request.TourId,
                 Quantity = totalPeople,
                 TotalAmount = totalAmount,
-                BookingStatus = PaymentStatus.Pending,
+                BookingStatus = PaymentStatus.Draft,
                 CreatedDate = now,
                 CreatedBy = userId,
-                OrderCode = "temp" // Tạm thời, sẽ cập nhật lại
+                OrderCode = $"draft_{Guid.NewGuid()}",
+                ExpiredDate = now.AddMinutes(1) 
             };
+
             _dbContext.Bookings.Add(booking);
             await _dbContext.SaveChangesAsync();
 
-            // Bước 2: Gán OrderCode
-            booking.OrderCode = $"user_{userId}_booking_{booking.BookingId}";
-            booking.ModifiedDate = now;
+            return new BookingDetailDto
+            {
+                BookingId = booking.BookingId,
+                TourName = tour.TourName,
+                OrderCode = booking.OrderCode,
+                StartDate = tour.StartTime,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                UserEmail = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                PriceAdult = tour.PriceAdult,
+                PriceChild5To10 = tour.PriceChild5To10,
+                PriceChildUnder5 = tour.PriceChildUnder5,
+                Amount = booking.TotalAmount,
+                CreatedDate = booking.CreatedDate,
+                ExpiredDate = booking.ExpiredDate
+            };
+        }
+
+        public async Task<BookingDetailDto> UpdateBookingDraftAsync(UpdateBookingRequest request, int userId)
+        {
+            var booking = await _dbContext.Bookings
+                .Include(b => b.Tour)
+                .Include(b => b.User)
+                .FirstOrDefaultAsync(b => b.BookingId == request.BookingId && b.UserId == userId);
+
+            if (booking == null || booking.BookingStatus != "Draft")
+                throw new Exception("Không tìm thấy booking nháp hợp lệ.");
+
+            // ✅ Nếu hết hạn → xóa và báo lỗi
+            if (booking.ExpiredDate.HasValue && booking.ExpiredDate < TimeHelper.GetVietnamTime())
+            {
+                _dbContext.Bookings.Remove(booking);
+                await _dbContext.SaveChangesAsync();
+                throw new Exception("Đặt tour đã hết thời gian chờ, vui lòng tạo lại.");
+            }
+
+            var totalPeople = request.PriceAdult + request.PriceChild5To10 + request.PriceChildUnder5;
+            if (totalPeople > booking.Tour.MaxGroupSize)
+                throw new Exception($"Số lượng người vượt quá giới hạn {booking.Tour.MaxGroupSize}.");
+
+            booking.Quantity = (int)totalPeople;
+            booking.TotalAmount =
+                (decimal)((request.PriceAdult * (booking.Tour.PriceAdult ?? 0)) +
+                (request.PriceChild5To10 * (booking.Tour.PriceChild5To10 ?? 0)) +
+                (request.PriceChildUnder5 * (booking.Tour.PriceChildUnder5 ?? 0)));
+            booking.ModifiedDate = TimeHelper.GetVietnamTime();
             booking.ModifiedBy = userId;
+            // Kiểm tra các trường bắt buộc
+            var missingFields = new List<string>();
+            if (string.IsNullOrWhiteSpace(request.FirstName)) missingFields.Add("Họ");
+            if (string.IsNullOrWhiteSpace(request.LastName)) missingFields.Add("Tên");
+            if (string.IsNullOrWhiteSpace(request.PhoneNumber)) missingFields.Add("Số điện thoại");
+            if (string.IsNullOrWhiteSpace(request.UserEmail)) missingFields.Add("Email");
+            // Kiểm tra định dạng email nếu không rỗng
+            if (!string.IsNullOrWhiteSpace(request.UserEmail))
+            {
+                var emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+                if (!emailRegex.IsMatch(request.UserEmail))
+                    throw new Exception("Email không hợp lệ.");
+            }
+            if (missingFields.Any())
+                throw new Exception($"Vui lòng điền đầy đủ thông tin: {string.Join(", ", missingFields)} trước khi thanh toán.");
+
+            // Gán dữ liệu cập nhật, chỉ khi hợp lệ
+            booking.User.FirstName = request.FirstName;
+            booking.User.LastName = request.LastName;
+            booking.User.PhoneNumber = request.PhoneNumber;
+            booking.User.Email = request.UserEmail;
+
+
             await _dbContext.SaveChangesAsync();
 
-            // Bước 3: Tạo transaction
+            return new BookingDetailDto
+            {
+                BookingId = booking.BookingId,
+                TourName = booking.Tour.TourName,
+                OrderCode = booking.OrderCode,
+                StartDate = booking.Tour.StartTime,
+                FirstName = booking.User.FirstName,
+                LastName = booking.User.LastName,
+                UserEmail = booking.User.Email,
+                PhoneNumber = booking.User.PhoneNumber,
+                PriceAdult = booking.Tour.PriceAdult,
+                PriceChild5To10 = booking.Tour.PriceChild5To10,
+                PriceChildUnder5 = booking.Tour.PriceChildUnder5,
+                Amount = booking.TotalAmount,
+                PaymentStatus = booking.BookingStatus,
+                CreatedDate = booking.CreatedDate,
+                ExpiredDate = booking.ExpiredDate
+            };
+        }
+
+        public async Task<string> ConfirmBookingAndPayAsync(int bookingId, int userId, HttpContext context)
+        {
+            var booking = await _dbContext.Bookings
+                .Include(b => b.Tour)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.UserId == userId);
+
+            if (booking == null || booking.BookingStatus != "Draft")
+                throw new Exception("Không tìm thấy booking nháp để xác nhận.");
+
+            // ✅ Nếu hết hạn → xóa và báo lỗi
+            if (booking.ExpiredDate.HasValue && booking.ExpiredDate < TimeHelper.GetVietnamTime())
+            {
+                _dbContext.Bookings.Remove(booking);
+                await _dbContext.SaveChangesAsync();
+                throw new Exception("Đặt tour đã hết thời gian chờ, vui lòng tạo lại.");
+            }
+            // Kiểm tra các trường bắt buộc
+            var missingFields = new List<string>();
+
+            if (booking.User == null)
+            {
+                missingFields.Add("Thông tin người dùng chưa tồn tại");
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(booking.User.FirstName))
+                    missingFields.Add("Họ");
+
+                if (string.IsNullOrWhiteSpace(booking.User.LastName))
+                    missingFields.Add("Tên");
+
+                if (string.IsNullOrWhiteSpace(booking.User.PhoneNumber))
+                    missingFields.Add("Số điện thoại");
+
+                if (string.IsNullOrWhiteSpace(booking.User.Email))
+                    missingFields.Add("Email");
+            }
+
+            if (missingFields.Any())
+                throw new Exception($"Vui lòng điền đầy đủ thông tin: {string.Join(", ", missingFields)} trước khi thanh toán.");
+
+            booking.BookingStatus = PaymentStatus.Pending;
+            booking.OrderCode = $"user_{userId}_booking_{booking.BookingId}";
+            booking.ModifiedDate = TimeHelper.GetVietnamTime();
+            booking.ModifiedBy = userId;
+
+            await _dbContext.SaveChangesAsync();
+
             var transaction = new PaymentTransaction
             {
                 OrderCode = booking.OrderCode,
                 UserId = userId,
-                Amount = totalAmount,
+                Amount = booking.TotalAmount,
                 PaymentStatus = PaymentStatus.Pending,
-                CreatedDate = now,
+                CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = userId
             };
+
             _dbContext.PaymentTransactions.Add(transaction);
             await _dbContext.SaveChangesAsync();
 
-            // Bước 4: Tạo link thanh toán
             var paymentModel = new PaymentInformationModel
             {
                 UserId = userId,
-                Amount = totalAmount,
-                Name = $"Tour: {tour.TourName}",
-                OrderDescription = $"Thanh toán tour \"{tour.TourName}\" cho {request.NumAdults} người lớn, {request.NumChildren5To10} trẻ 5-10 tuổi, {request.NumChildrenUnder5} dưới 5 tuổi. Tổng tiền {totalAmount:N0} VND",
+                Amount = booking.TotalAmount,
+                Name = $"Tour: {booking.Tour.TourName}",
+                OrderDescription = $"Thanh toán tour {booking.Tour.TourName} cho {booking.Quantity} người. Tổng: {booking.TotalAmount:N0} VND",
                 OrderType = "booking",
                 BookingId = booking.BookingId,
                 OrderCode = booking.OrderCode,
@@ -318,7 +429,6 @@ namespace TripWiseAPI.Services
 
             return CreatePaymentUrl(paymentModel, context);
         }
-
 
         public async Task HandlePaymentCallbackAsync(IQueryCollection query)
         {
@@ -427,6 +537,7 @@ namespace TripWiseAPI.Services
             public const string Success = "Success";
             public const string Failed = "Failed";
             public const string Canceled = "Canceled";
+            public const string Draft = "Draft";
         }
 
     }
