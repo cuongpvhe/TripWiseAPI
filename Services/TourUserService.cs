@@ -47,6 +47,13 @@ namespace TripWiseAPI.Services
                 .FirstOrDefaultAsync(t => t.TourId == tourId && t.RemovedDate == null);
 
             if (tour == null) return null;
+            // 🔹 Tính số slot còn trống (không cho số âm)
+            var bookedCount = await _dbContext.Bookings
+                .Where(b => b.TourId == tourId && b.BookingStatus == PaymentStatus.Success)
+                .SumAsync(b => (int?)b.Quantity) ?? 0;
+
+            var availableSlots = Math.Max(0, (decimal)(tour.MaxGroupSize - bookedCount));
+
 
             var itineraryDtos = new List<ItineraryDetailDto>();
             foreach (var itinerary in tour.TourItineraries.OrderBy(i => i.DayNumber))
@@ -120,7 +127,8 @@ namespace TripWiseAPI.Services
                 PriceChildUnder5 = (decimal)tour.PriceChildUnder5,
                 RejectReason = tour.RejectReason,
                 ImageUrls = imageUrls,
-                ImageIds = imageIds
+                ImageIds = imageIds,
+                AvailableSlots = (int)availableSlots
             };
 
             return dto;

@@ -4,6 +4,7 @@ using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Utils;
 using static TripWiseAPI.Models.DTO.UpdateTourDto;
+using static TripWiseAPI.Services.VnPayService;
 
 namespace TripWiseAPI.Services.AdminServices
 {
@@ -23,61 +24,50 @@ namespace TripWiseAPI.Services.AdminServices
             var query = _dbContext.Tours
                 .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
                 .Include(t => t.Partner)
-                .Where(t => t.RemovedDate == null && t.TourTypesId == 2);
+                .Join(_dbContext.Tours,
+                      t => t.OriginalTourId,
+                      ot => ot.TourId,
+                      (t, ot) => new { Tour = t, OriginalTour = ot }) // self-join
+                .Where(x => x.Tour.RemovedDate == null
+                         && x.Tour.TourTypesId == 2
+                         && x.Tour.Status != TourStatuses.Draft);
 
-            // Lọc theo status và partnerId nếu có
-            if (!string.IsNullOrEmpty(status) && partnerId.HasValue)
-            {
-                query = query.Where(t => t.Status == status && t.PartnerId == partnerId.Value);
-            }
-            else if (!string.IsNullOrEmpty(status))
-            {
-                query = query.Where(t => t.Status == status);
-            }
+            if (!string.IsNullOrEmpty(status) && !status.Equals(TourStatuses.Draft, StringComparison.OrdinalIgnoreCase))
+                query = partnerId.HasValue
+                    ? query.Where(x => x.Tour.Status == status && x.Tour.PartnerId == partnerId.Value)
+                    : query.Where(x => x.Tour.Status == status);
             else if (partnerId.HasValue)
-            {
-                query = query.Where(t => t.PartnerId == partnerId.Value);
-            }
+                query = query.Where(x => x.Tour.PartnerId == partnerId.Value);
 
             if (fromDate.HasValue)
-            {
-                query = query.Where(t => t.CreatedDate >= fromDate.Value.Date);
-            }
+                query = query.Where(x => x.Tour.CreatedDate >= fromDate.Value.Date);
 
             if (toDate.HasValue)
-            {
-                // Include full day by setting time to 23:59:59
-                query = query.Where(t => t.CreatedDate <= toDate.Value.Date.AddDays(1).AddSeconds(-1));
-            }
-            // ------------------------------
+                query = query.Where(x => x.Tour.CreatedDate <= toDate.Value.Date.AddDays(1).AddSeconds(-1));
 
-            var tours = await query
-                .Select(t => new PendingTourDto
+            return await query
+                .Select(x => new PendingTourDto
                 {
-                    TourId = t.TourId,
-                    StartTime = t.StartTime,
-                    TourName = t.TourName,
-                    Description = t.Description,
-                    Location = t.Location,
-                    Price = (decimal)t.PriceAdult,
-                    Status = t.Status,
-                    PartnerID = t.PartnerId,
-                    CompanyName = t.Partner.CompanyName,
-                    CreatedDate = t.CreatedDate,
-                    ModifiedDate = t.ModifiedDate,
-                    ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
-
-                    OriginalTourId = t.Status == TourStatuses.PendingApproval ? t.OriginalTourId : null,
-                    IsUpdatedFromApprovedTour = t.Status == TourStatuses.PendingApproval && t.OriginalTourId != null,
-                    UpdateNote = t.Status == TourStatuses.PendingApproval && t.OriginalTourId != null
-                        ? $"Tour này là bản cập nhật của tour đã được duyệt trước đó TourId: ({t.OriginalTourId})"
+                    TourId = x.Tour.TourId,
+                    StartTime = x.Tour.StartTime,
+                    TourName = x.Tour.TourName,
+                    Description = x.Tour.Description,
+                    Location = x.Tour.Location,
+                    Price = (decimal)x.Tour.PriceAdult,
+                    Status = x.Tour.Status,
+                    PartnerID = x.Tour.PartnerId,
+                    CompanyName = x.Tour.Partner.CompanyName,
+                    CreatedDate = x.Tour.CreatedDate,
+                    ModifiedDate = x.Tour.ModifiedDate,
+                    ImageUrls = x.Tour.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
+                    OriginalTourId = x.Tour.Status == TourStatuses.PendingApproval ? x.Tour.OriginalTourId : null,
+                    IsUpdatedFromApprovedTour = x.Tour.Status == TourStatuses.PendingApproval && x.Tour.OriginalTourId != null,
+                    UpdateNote = x.Tour.Status == TourStatuses.PendingApproval && x.OriginalTour != null
+                        ? $"Bản cập nhật của tour {x.OriginalTour.TourName}"
                         : null
                 })
                 .ToListAsync();
-
-            return tours;
         }
-
 
         public async Task<List<PendingTourDto>> GetRejectToursAsync()
         {
@@ -148,6 +138,19 @@ namespace TripWiseAPI.Services.AdminServices
                 .FirstOrDefaultAsync(t => t.TourId == tourId && t.RemovedDate == null);
 
             if (tour == null) return null;
+            // Mặc định null
+            decimal? availableSlots = null;
+
+            // 🔹 Chỉ tính nếu tour Approved
+            if (tour.Status == "Approved")
+            {
+                var bookedCount = await _dbContext.Bookings
+                    .Where(b => b.TourId == tour.TourId && b.BookingStatus == PaymentStatus.Success)
+                    .SumAsync(b => (int?)b.Quantity) ?? 0;
+
+                availableSlots = Math.Max(0, (decimal)(tour.MaxGroupSize - bookedCount));
+            }
+
             var itineraryDtos = new List<ItineraryDetailDto>();
 
             foreach (var itinerary in tour.TourItineraries.OrderBy(i => i.DayNumber))
@@ -225,6 +228,7 @@ namespace TripWiseAPI.Services.AdminServices
                 Itinerary = itineraryDtos,
                 Status = tour.Status,
                 MaxGroupSize = (int)tour.MaxGroupSize,
+                AvailableSlots = (int)availableSlots,
                 PriceAdult = (decimal)tour.PriceAdult,
                 PriceChild5To10 = (decimal)tour.PriceChild5To10,
                 PriceChildUnder5 = (decimal)tour.PriceChildUnder5,

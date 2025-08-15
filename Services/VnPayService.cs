@@ -209,7 +209,10 @@ namespace TripWiseAPI.Services
                                      VnpTransactionNo = pt != null ? pt.VnpTransactionNo : null,
 
                                      UserEmail = u.Email,
+                                     
                                      PhoneNumber = u.PhoneNumber,
+                                     FirstName = u.FirstName,
+                                     LastName = u.LastName,
                                      PriceAdult = t.PriceAdult,
                                      PriceChild5To10 = t.PriceChild5To10,
                                      PriceChildUnder5 = t.PriceChildUnder5,
@@ -240,9 +243,21 @@ namespace TripWiseAPI.Services
             if (tour == null)
                 throw new Exception("Tour không tồn tại.");
 
+            // 🔹 Tính tổng số người đã đặt thành công
+            var bookedCount = await _dbContext.Bookings
+                .Where(b => b.TourId == request.TourId && b.BookingStatus == PaymentStatus.Success)
+                .SumAsync(b => (int?)b.Quantity) ?? 0;
+
+            // 🔹 Đảm bảo availableSlots >= 0
+            var availableSlots = Math.Max(0, (decimal)(tour.MaxGroupSize - bookedCount));
+
+
+            if (availableSlots <= 0)
+                throw new Exception("Tour đã hết chỗ.");
+
             var totalPeople = request.NumAdults + request.NumChildren5To10 + request.NumChildrenUnder5;
-            if (totalPeople > tour.MaxGroupSize)
-                throw new Exception($"Số lượng người vượt quá giới hạn {tour.MaxGroupSize}.");
+            if (totalPeople > availableSlots)
+                throw new Exception($"Chỉ còn {availableSlots} chỗ trống cho tour này.");
 
             var totalAmount =
                 (request.NumAdults * (tour.PriceAdult ?? 0)) +
@@ -288,7 +303,8 @@ namespace TripWiseAPI.Services
                 NumChildrenUnder5 = booking.NumChildrenUnder5,
                 Amount = booking.TotalAmount,
                 CreatedDate = booking.CreatedDate,
-                ExpiredDate = booking.ExpiredDate
+                ExpiredDate = booking.ExpiredDate,
+                AvailableSlots = (int)(availableSlots - totalPeople)
             };
         }
 
@@ -310,10 +326,27 @@ namespace TripWiseAPI.Services
                 throw new Exception("Đặt tour đã hết thời gian chờ, vui lòng tạo lại.");
             }
 
-            var totalPeople = request.PriceAdult + request.PriceChild5To10 + request.PriceChildUnder5;
-            if (totalPeople > booking.Tour.MaxGroupSize)
-                throw new Exception($"Số lượng người vượt quá giới hạn {booking.Tour.MaxGroupSize}.");
+            // 🔹 Đếm tổng số người đã đặt thành công
+            var bookedCount = await _dbContext.Bookings
+                .Where(b => b.TourId == booking.TourId && b.BookingStatus == PaymentStatus.Success)
+                .SumAsync(b => (int?)b.Quantity) ?? 0;
 
+            // 🔹 Đảm bảo không âm
+            var availableSlots = Math.Max(0, (decimal)(booking.Tour.MaxGroupSize - bookedCount));
+
+
+            // ✅ Tính đúng số lượng người từ request
+            var totalPeople = request.NumAdults + request.NumChildren5To10 + request.NumChildrenUnder5;
+
+            if (availableSlots <= 0)
+                throw new Exception("Tour đã hết chỗ.");
+
+            if (totalPeople > availableSlots)
+                throw new Exception($"Chỉ còn {availableSlots} chỗ trống cho tour này.");
+
+            booking.NumAdults = request.NumAdults;
+            booking.NumChildren5To10 = request.NumChildren5To10;
+            booking.NumChildrenUnder5 = request.NumChildrenUnder5;
             booking.Quantity = (int)totalPeople;
             booking.TotalAmount =
                 (decimal)((request.PriceAdult * (booking.Tour.PriceAdult ?? 0)) +
@@ -365,7 +398,8 @@ namespace TripWiseAPI.Services
                 Amount = booking.TotalAmount,
                 PaymentStatus = booking.BookingStatus,
                 CreatedDate = booking.CreatedDate,
-                ExpiredDate = booking.ExpiredDate
+                ExpiredDate = booking.ExpiredDate,
+                AvailableSlots = (int)(availableSlots - totalPeople)
             };
         }
 

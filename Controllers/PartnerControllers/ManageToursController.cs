@@ -351,25 +351,6 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(draft);
         }
 
-        [HttpPost("{tourId}/cancel")]
-        public async Task<IActionResult> CancelDraft(int tourId)
-        {
-            var userId = GetUserId();
-
-            // Lấy PartnerId từ UserId
-            var partner = await _dbContext.Partners
-                .FirstOrDefaultAsync(p => p.UserId == userId.Value);
-
-            if (partner == null)
-            {
-                return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
-            }
-            await _tourService.CancelDraftAsync(tourId, partner.PartnerId);
-            return Ok(new { message = "Bản nháp đã được hủy." });
-        }
-
-       
-
         [HttpPost("{tourId}/send-to-admin")]
         public async Task<IActionResult> SendToAdmin(int tourId)
         {
@@ -410,7 +391,7 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         }
 
         [HttpGet("statistics")]
-        public async Task<IActionResult> GetStatistics()
+        public async Task<IActionResult> GetStatistics(DateTime? fromDate, DateTime? toDate)
         {
             var userId = GetUserId();
             var partner = await _dbContext.Partners
@@ -419,9 +400,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             if (partner == null)
                 return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
 
-            var stats = await _tourService.GetPartnerTourStatisticsAsync(partner.PartnerId);
+            var stats = await _tourService.GetPartnerTourStatisticsAsync(partner.PartnerId, fromDate, toDate);
             return Ok(stats);
         }
+
 
     }
 
