@@ -563,11 +563,11 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
-        public async Task<bool> UpdateActivityAsync(int activityId, int userId, UpdateActivityDto request)
+        public async Task<bool> UpdateActivityAsync(int activityId, int userId, UpdateActivityDto request, List<IFormFile>? imageFiles, List<string>? imageUrls)
         {
             var activity = await _dbContext.TourAttractions
                 .Include(a => a.TourAttractionImages)
-                    .ThenInclude(ai => ai.Image)
+                .ThenInclude(ai => ai.Image)
                 .FirstOrDefaultAsync(a => a.TourAttractionsId == activityId);
 
             if (activity == null) return false;
@@ -582,44 +582,39 @@ namespace TripWiseAPI.Services.PartnerServices
             activity.ModifiedBy = userId;
             activity.ModifiedDate = TimeHelper.GetVietnamTime();
 
-            // Check xem có ảnh hiện tại không
-            var currentImageRelation = activity.TourAttractionImages.FirstOrDefault();
-
-            string? newUrl = null;
-
-            if (request.ImageFile != null)
+            // Upload từ file
+            if (imageFiles?.Any() == true)
             {
-                newUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
-            }
-            else if (!string.IsNullOrEmpty(request.Image))
-            {
-                newUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
-            }
-
-            if (!string.IsNullOrEmpty(newUrl))
-            {
-                if (currentImageRelation != null)
+                foreach (var file in imageFiles)
                 {
-                    // Xóa ảnh cũ trên cloud
-                    var publicId = _imageUploadService.GetPublicIdFromUrl(currentImageRelation.Image.ImageUrl);
-                    await _imageUploadService.DeleteImageAsync(publicId);
-
-                    // Ghi đè link ảnh mới
-                    currentImageRelation.Image.ImageUrl = newUrl;
-                    currentImageRelation.Image.ModifiedDate = TimeHelper.GetVietnamTime();
-                    currentImageRelation.Image.ModifiedBy = userId;
+                    var url = await _imageUploadService.UploadImageFromFileAsync(file);
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                        var image = new Image { ImageUrl = url };
+                        _dbContext.Images.Add(image);
+                        activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
+                    }
                 }
-                else
+            }
+
+            // Upload từ URL
+            if (imageUrls?.Any() == true)
+            {
+                foreach (var url in imageUrls)
                 {
-                    // Nếu chưa có ảnh thì thêm mới
-                    var image = new Image { ImageUrl = newUrl };
-                    _dbContext.Images.Add(image);
-                    activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
+                    var uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(url);
+                    if (!string.IsNullOrEmpty(uploadedUrl))
+                    {
+                        var image = new Image { ImageUrl = uploadedUrl };
+                        _dbContext.Images.Add(image);
+                        activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
+                    }
                 }
             }
 
             await _logService.LogAsync(userId, "Update", $"Updated activity ID {activityId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
             await _dbContext.SaveChangesAsync();
+
             return true;
         }
 

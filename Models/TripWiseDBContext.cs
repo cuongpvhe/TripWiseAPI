@@ -200,9 +200,7 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.ImageAlt).HasMaxLength(255);
 
-                entity.Property(e => e.ImageUrl)
-                    .HasMaxLength(255)
-                    .HasColumnName("ImageURL");
+                entity.Property(e => e.ImageUrl).HasColumnName("ImageURL");
 
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
