@@ -336,9 +336,12 @@ namespace TripWiseAPI.Services.AdminServices
                         TourAttractionImages = new List<TourAttractionImage>()
                     };
 
-                    if (!string.IsNullOrWhiteSpace(draftAttraction.ImageUrl))
+                    // ===============================
+                    // Đồng bộ ảnh cho Activity
+                    // ===============================
+                    foreach (var draftAttractionImage in draftAttraction.TourAttractionImages)
                     {
-                        var image = new Image { ImageUrl = draftAttraction.ImageUrl };
+                        var image = new Image { ImageUrl = draftAttractionImage.Image.ImageUrl };
                         _dbContext.Images.Add(image);
 
                         newAttraction.TourAttractionImages.Add(new TourAttractionImage
