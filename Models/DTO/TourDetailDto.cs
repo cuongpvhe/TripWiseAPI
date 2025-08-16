@@ -23,7 +23,7 @@ namespace TripWiseAPI.Models.DTO
         public string Status { get; set; } = null!;
         public string? RejectReason { get; set; }
         public int? OriginalTourId { get; set; }
-        public int AvailableSlots { get; set; }
+        public int? AvailableSlots { get; set; }
 
         public DateTime? CreatedDate { get; set; }
         public int? CreatedBy { get; set; }

@@ -423,9 +423,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 PriceAdult = (decimal)tour.PriceAdult,
                 PriceChild5To10 = (decimal)tour.PriceChild5To10,
                 PriceChildUnder5 = (decimal)tour.PriceChildUnder5,
-                AvailableSlots = (int)availableSlots
-            
-        };
+                AvailableSlots = (int?)(availableSlots ?? 0)
+
+            };
 
             return dto;
         }
