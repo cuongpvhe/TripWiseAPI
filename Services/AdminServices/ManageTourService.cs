@@ -228,7 +228,7 @@ namespace TripWiseAPI.Services.AdminServices
                 Itinerary = itineraryDtos,
                 Status = tour.Status,
                 MaxGroupSize = (int)tour.MaxGroupSize,
-                AvailableSlots = (int)availableSlots,
+                AvailableSlots = (int?)(availableSlots ?? 0),
                 PriceAdult = (decimal)tour.PriceAdult,
                 PriceChild5To10 = (decimal)tour.PriceChild5To10,
                 PriceChildUnder5 = (decimal)tour.PriceChildUnder5,
