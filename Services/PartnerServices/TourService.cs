@@ -582,42 +582,37 @@ namespace TripWiseAPI.Services.PartnerServices
             activity.ModifiedBy = userId;
             activity.ModifiedDate = TimeHelper.GetVietnamTime();
 
-            bool hasNewImage = request.ImageFile != null || !string.IsNullOrEmpty(request.Image);
+            // Check xem có ảnh hiện tại không
+            var currentImageRelation = activity.TourAttractionImages.FirstOrDefault();
 
-            if (hasNewImage)
+            string? newUrl = null;
+
+            if (request.ImageFile != null)
             {
-                // Xoá ảnh cũ
-                if (activity.TourAttractionImages.Any())
-                {
-                    foreach (var ai in activity.TourAttractionImages.ToList())
-                    {
-                        if (ai.Image != null)
-                        {
-                            var publicId = _imageUploadService.GetPublicIdFromUrl(ai.Image.ImageUrl);
-                            await _imageUploadService.DeleteImageAsync(publicId);
+                newUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
+            }
+            else if (!string.IsNullOrEmpty(request.Image))
+            {
+                newUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
+            }
 
-                            ai.Image.RemovedDate = TimeHelper.GetVietnamTime();
-                            ai.Image.RemovedBy = userId;
-                            _dbContext.Images.Remove(ai.Image);
-                        }
-                        _dbContext.TourAttractionImages.Remove(ai);
-                    }
-                    activity.TourAttractionImages.Clear();
-                }
+            if (!string.IsNullOrEmpty(newUrl))
+            {
+                if (currentImageRelation != null)
+                {
+                    // Xóa ảnh cũ trên cloud
+                    var publicId = _imageUploadService.GetPublicIdFromUrl(currentImageRelation.Image.ImageUrl);
+                    await _imageUploadService.DeleteImageAsync(publicId);
 
-                // Thêm ảnh mới từ file
-                if (request.ImageFile != null)
-                {
-                    var url = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
-                    var image = new Image { ImageUrl = url };
-                    _dbContext.Images.Add(image);
-                    activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
+                    // Ghi đè link ảnh mới
+                    currentImageRelation.Image.ImageUrl = newUrl;
+                    currentImageRelation.Image.ModifiedDate = TimeHelper.GetVietnamTime();
+                    currentImageRelation.Image.ModifiedBy = userId;
                 }
-                // Thêm ảnh mới từ URL
-                else if (!string.IsNullOrEmpty(request.Image))
+                else
                 {
-                    var uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
-                    var image = new Image { ImageUrl = uploadedUrl };
+                    // Nếu chưa có ảnh thì thêm mới
+                    var image = new Image { ImageUrl = newUrl };
                     _dbContext.Images.Add(image);
                     activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
                 }
