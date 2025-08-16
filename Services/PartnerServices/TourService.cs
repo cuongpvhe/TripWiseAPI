@@ -563,46 +563,71 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
-        public async Task<bool> UpdateActivityAsync(int activityId, int userId, ActivityDto request, List<IFormFile>? imageFiles, List<string>? imageUrls)
+        public async Task<bool> UpdateActivityAsync(int activityId, int userId, UpdateActivityDto request)
         {
-            var activity = await _dbContext.TourAttractions.FindAsync(activityId);
+            var activity = await _dbContext.TourAttractions
+                .Include(a => a.TourAttractionImages)
+                    .ThenInclude(ai => ai.Image)
+                .FirstOrDefaultAsync(a => a.TourAttractionsId == activityId);
+
             if (activity == null) return false;
 
             activity.StartTime = string.IsNullOrEmpty(request.StartTime) ? null : TimeSpan.Parse(request.StartTime);
             activity.EndTime = string.IsNullOrEmpty(request.EndTime) ? null : TimeSpan.Parse(request.EndTime);
             activity.Description = request.Description;
             activity.Localtion = request.Address;
-            activity.Price = request.EstimatedCost;
-            activity.TourAttractionsName= request.PlaceDetail;
+            activity.TourAttractionsName = request.PlaceDetail;
             activity.Category = request.Category;
             activity.MapUrl = request.MapUrl;
             activity.ModifiedBy = userId;
             activity.ModifiedDate = TimeHelper.GetVietnamTime();
-            if (imageFiles != null)
+
+            bool hasNewImage = request.ImageFile != null || !string.IsNullOrEmpty(request.Image);
+
+            if (hasNewImage)
             {
-                foreach (var file in imageFiles)
+                // Xoá ảnh cũ
+                if (activity.TourAttractionImages.Any())
                 {
-                    var url = await _imageUploadService.UploadImageFromFileAsync(file);
+                    foreach (var ai in activity.TourAttractionImages.ToList())
+                    {
+                        if (ai.Image != null)
+                        {
+                            var publicId = _imageUploadService.GetPublicIdFromUrl(ai.Image.ImageUrl);
+                            await _imageUploadService.DeleteImageAsync(publicId);
+
+                            ai.Image.RemovedDate = TimeHelper.GetVietnamTime();
+                            ai.Image.RemovedBy = userId;
+                            _dbContext.Images.Remove(ai.Image);
+                        }
+                        _dbContext.TourAttractionImages.Remove(ai);
+                    }
+                    activity.TourAttractionImages.Clear();
+                }
+
+                // Thêm ảnh mới từ file
+                if (request.ImageFile != null)
+                {
+                    var url = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
                     var image = new Image { ImageUrl = url };
                     _dbContext.Images.Add(image);
                     activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
                 }
-            }
-
-            if (imageUrls != null)
-            {
-                foreach (var url in imageUrls)
+                // Thêm ảnh mới từ URL
+                else if (!string.IsNullOrEmpty(request.Image))
                 {
-                    var uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(url);
+                    var uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
                     var image = new Image { ImageUrl = uploadedUrl };
                     _dbContext.Images.Add(image);
                     activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
                 }
             }
-			await _logService.LogAsync(userId, "Update", $"Updated activity ID {activityId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
-			await _dbContext.SaveChangesAsync();
+
+            await _logService.LogAsync(userId, "Update", $"Updated activity ID {activityId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+            await _dbContext.SaveChangesAsync();
             return true;
         }
+
 
         public async Task<bool> DeleteItineraryAsync(int userId, int itineraryId)
         {

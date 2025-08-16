@@ -44,7 +44,6 @@ namespace TripWiseAPI.Models.DTO
         public string TourName { get; set; }
         public string Description { get; set; }
         public string Duration { get; set; }
-        public decimal? Price { get; set; }
         public int MaxGroupSize { get; set; }
         public decimal PriceAdult { get; set; }
         public decimal PriceChild5To10 { get; set; }
@@ -98,7 +97,21 @@ namespace TripWiseAPI.Models.DTO
             public string? ImageUrls { get; set; }
 
         }
-    public class CreateTourDto
+        public class UpdateActivityDto
+        {
+            public String? StartTime { get; set; }
+            public String? EndTime { get; set; }
+            public string? Description { get; set; }
+            public string? Transportation { get; set; }
+            public string? Address { get; set; }
+            public string? PlaceDetail { get; set; }
+            public string? Category { get; set; }
+            public string? MapUrl { get; set; }
+            public string? Image { get; set; }
+            public IFormFile? ImageFile { get; set; }
+
+        }
+        public class CreateTourDto
     {
         public DateTime? StartTime { get; set; }
         public string TourName { get; set; }
