@@ -118,7 +118,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 CreatedDate = TimeHelper.GetVietnamTime(),
                 CreatedBy = partnerId
             };
-			await _logService.LogAsync(partnerId, "Create", $"Tour '{request.TourName}' created successfully", 200, createdDate: TimeHelper.GetVietnamTime(), createdBy: partnerId);
+			await _logService.LogAsync(partnerId, "Create", $"Tạo tour {request.TourName} thành công", 200, createdDate: TimeHelper.GetVietnamTime(), createdBy: partnerId);
 			_dbContext.Tours.Add(tour);
             await _dbContext.SaveChangesAsync();
 
@@ -322,7 +322,7 @@ namespace TripWiseAPI.Services.PartnerServices
             tour.RejectReason = null;
             tour.ModifiedDate = TimeHelper.GetVietnamTime();
             tour.ModifiedBy = partnerId;
-			await _logService.LogAsync(partnerId, "SubmitTour", $"Tour ID {tourId} submitted for {TourStatuses.PendingApproval}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: partnerId);
+			await _logService.LogAsync(partnerId, "SubmitTour", $"Tour ID {tourId} đã được gửi để phê duyệt.", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: partnerId);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -487,7 +487,7 @@ namespace TripWiseAPI.Services.PartnerServices
                     tour.TourImages.Add(new TourImage { Image = image });
                 }
             }
-			await _logService.LogAsync(userId, "Update", $"Tour ID {tourId} updated successfully", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+			await _logService.LogAsync(userId, "Update", $"Cập nhật Tour ID {tourId} - {tour.TourName} thành công", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -516,7 +516,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 _dbContext.Images.Remove(tourImage.Image);
                 _dbContext.TourImages.Remove(tourImage);
             }
-			await _logService.LogAsync(userId, "DeleteTourImages", $"Deleted images: {string.Join(",", imageIds)}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
+			await _logService.LogAsync(userId, "Delete", $"Xóa ảnh: {string.Join(",", imageIds)} thành công", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -558,7 +558,7 @@ namespace TripWiseAPI.Services.PartnerServices
             itinerary.DayNumber = request.DayNumber;
             itinerary.ModifiedBy = userId;
             itinerary.ModifiedDate = TimeHelper.GetVietnamTime();
-			await _logService.LogAsync(userId, "Update", $"Updated itinerary ID {itineraryId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+			await _logService.LogAsync(userId, "Update", $"Updated hành trình ID {itinerary.ItineraryId} - {itinerary.ItineraryName} thành công", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -618,7 +618,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 }
             }
 
-            await _logService.LogAsync(userId, "Update", $"Updated activity ID {activityId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+            await _logService.LogAsync(userId, "Update", $"Cập nhật hoạt động ID {activityId} - {activity.TourAttractionsName} thành công", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
             await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -661,7 +661,7 @@ namespace TripWiseAPI.Services.PartnerServices
             itinerary.RemovedDate = TimeHelper.GetVietnamTime();
             itinerary.RemovedBy = userId;
             _dbContext.TourItineraries.Remove(itinerary);
-			await _logService.LogAsync(userId, "Delete", $"Deleted itinerary ID {itineraryId}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
+			await _logService.LogAsync(userId, "Delete", $"Xóa hành trình ID {itineraryId} - {itinerary.ItineraryName} thành công", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -696,7 +696,7 @@ namespace TripWiseAPI.Services.PartnerServices
 
                 _dbContext.TourAttractionImages.Remove(attractionImage);
             }
-			await _logService.LogAsync(userId, "Delete", $"Deleted activity ID {activityId}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
+			await _logService.LogAsync(userId, "Delete", $"Xóa hoạt động ID {activityId} - {activity.TourAttractionsName} thành công", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: userId);
 			_dbContext.TourAttractions.Remove(activity);
             await _dbContext.SaveChangesAsync();
             return true;
@@ -777,7 +777,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 tour.ModifiedBy = partnerId;
             }
             else return false;
-			string messageLog = action == "Delete" ? $"Tour ID {tourId} deleted by partner" : $"Tour ID {tourId} moved to Draft";
+			string messageLog = action == "Xóa" ? $"Tour ID {tourId} - {tour.TourName} đã bị đối tác xóa" : $"Tour ID {tourId} -{tour.TourName} đã được chuyển vào bản nháp";
 			await _logService.LogAsync(partnerId, "Delete", messageLog, 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: partnerId);
 			await _dbContext.SaveChangesAsync();
             return true;

@@ -44,7 +44,7 @@ namespace TripWiseAPI.Services
                 CreatedAt = TimeHelper.GetVietnamTime(),
                 ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(60)
             });			
-			await _logFireService.LogAsync(user.UserId, "Login", $"Người dùng {user.UserName} đăng nhập.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
+			await _logFireService.LogAsync(user.UserId, "Login", $"Người dùng {user.UserName} đăng nhập trên thiết bị {loginModel.DeviceId}.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
 
 
             await _context.SaveChangesAsync();
@@ -133,7 +133,7 @@ namespace TripWiseAPI.Services
                 CreatedAt = TimeHelper.GetVietnamTime(),
                 ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(60)
             });
-			await _logFireService.LogAsync(user.UserId, "GoogleLogin", $"Người dùng {user.UserName} đăng nhập bằng Google.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
+			await _logFireService.LogAsync(user.UserId, "GoogleLogin", $"Người dùng {user.UserName} đăng nhập bằng Google trên thiết bị {model.DeviceId}.", 200, createdDate: DateTime.UtcNow, createdBy: user.UserId);
 			await _context.SaveChangesAsync();
             return (accessToken, refreshToken);
         }
