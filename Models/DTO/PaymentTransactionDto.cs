@@ -38,6 +38,8 @@
         public DateTime? PaymentTime { get; set; }
         public DateTime? CreatedDate { get; set; }
         public DateTime? ExpiredDate { get; set; }
+        public int AvailableSlots { get; set; }
+
     }
     public class UpdateBookingRequest
     {
@@ -49,6 +51,9 @@
         public decimal? PriceAdult { get; set; }
         public decimal? PriceChild5To10 { get; set; }
         public decimal? PriceChildUnder5 { get; set; }
+        public int? NumAdults { get; set; }
+        public int? NumChildren5To10 { get; set; }
+        public int? NumChildrenUnder5 { get; set; }
     }
     public class BookingDto
     {

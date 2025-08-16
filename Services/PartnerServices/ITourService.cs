@@ -22,10 +22,9 @@ namespace TripWiseAPI.Services.PartnerServices
         Task<TourDetailDto?> GetTourDetailAsync(int tourId, int userId);
         Task<bool> DeleteOrDraftTourAsync(int tourId, string action, int userId);
         Task<TourDraftDto?> GetOrCreateDraftAsync(int tourId);
-        Task CancelDraftAsync(int tourId, int userId);
         Task SendDraftToAdminAsync(int tourId, int userId);
         Task<bool> ResubmitRejectedDraftAsync(int tourId, int partnerId);
-        Task<PartnerTourStatisticsDto> GetPartnerTourStatisticsAsync(int partnerId);
+        Task<PartnerTourStatisticsDto> GetPartnerTourStatisticsAsync(int partnerId, DateTime? fromDate, DateTime? toDate);
 
     }
 }
