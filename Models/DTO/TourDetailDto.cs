@@ -107,8 +107,8 @@ namespace TripWiseAPI.Models.DTO
             public string? PlaceDetail { get; set; }
             public string? Category { get; set; }
             public string? MapUrl { get; set; }
-            public string? Image { get; set; }
-            public IFormFile? ImageFile { get; set; }
+
+
 
         }
         public class CreateTourDto
