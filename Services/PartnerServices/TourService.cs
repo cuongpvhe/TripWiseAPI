@@ -600,19 +600,18 @@ namespace TripWiseAPI.Services.PartnerServices
             // Upload từ URL
             if (imageUrls?.Any() == true)
             {
-                foreach (var url in imageUrls)
+                foreach (var srcUrl in imageUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct())
                 {
-                    var uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(url);
+                    var uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(srcUrl);
+
                     if (!string.IsNullOrEmpty(uploadedUrl))
                     {
-                        var image = new Image { ImageUrl = uploadedUrl };
-                        _dbContext.Images.Add(image);
-                        activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
+                        await AddTourAttractionImageAsync(activity.TourAttractionsId, uploadedUrl, userId);
                     }
                 }
             }
 
-            await _logService.LogAsync(userId, "Update", $"Cập nhật hoạt động ID {activityId} - {activity.TourAttractionsName} thành công", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+            await _logService.LogAsync(userId, "Update", $"Updated activity ID {activityId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
             await _dbContext.SaveChangesAsync();
 
             return true;
