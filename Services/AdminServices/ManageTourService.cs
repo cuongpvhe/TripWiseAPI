@@ -19,31 +19,41 @@ namespace TripWiseAPI.Services.AdminServices
             _imageUploadService = imageUploadService;
 			_logService = firebaseLog;
 		}
-        public async Task<List<PendingTourDto>> GetToursByStatusAsync(string? status, int? partnerId, DateTime? fromDate, DateTime? toDate)
+        public async Task<List<PendingTourDto>> GetToursByStatusAsync( string? status, int? partnerId, DateTime? fromDate, DateTime? toDate)
         {
-            var query = _dbContext.Tours
-                .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
-                .Include(t => t.Partner)
-                .Join(_dbContext.Tours,
-                      t => t.OriginalTourId,
-                      ot => ot.TourId,
-                      (t, ot) => new { Tour = t, OriginalTour = ot }) // self-join
-                .Where(x => x.Tour.RemovedDate == null
-                         && x.Tour.TourTypesId == 2
-                         && x.Tour.Status != TourStatuses.Draft);
+            var query =
+                from t in _dbContext.Tours
+                    .Include(t => t.TourImages).ThenInclude(ti => ti.Image)
+                    .Include(t => t.Partner)
+                where t.RemovedDate == null
+                      && t.TourTypesId == 2
+                      && t.Status != TourStatuses.Draft
+                join ot in _dbContext.Tours on t.OriginalTourId equals ot.TourId into g
+                from originalTour in g.DefaultIfEmpty() // left join
+                select new { Tour = t, OriginalTour = originalTour };
 
-            if (!string.IsNullOrEmpty(status) && !status.Equals(TourStatuses.Draft, StringComparison.OrdinalIgnoreCase))
-                query = partnerId.HasValue
-                    ? query.Where(x => x.Tour.Status == status && x.Tour.PartnerId == partnerId.Value)
-                    : query.Where(x => x.Tour.Status == status);
-            else if (partnerId.HasValue)
+            // Nếu có truyền status cụ thể thì lọc theo status
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(x => x.Tour.Status == status);
+            }
+
+            // Nếu có filter partnerId
+            if (partnerId.HasValue)
+            {
                 query = query.Where(x => x.Tour.PartnerId == partnerId.Value);
+            }
 
+            // Lọc theo ngày tạo
             if (fromDate.HasValue)
+            {
                 query = query.Where(x => x.Tour.CreatedDate >= fromDate.Value.Date);
+            }
 
             if (toDate.HasValue)
+            {
                 query = query.Where(x => x.Tour.CreatedDate <= toDate.Value.Date.AddDays(1).AddSeconds(-1));
+            }
 
             return await query
                 .Select(x => new PendingTourDto
