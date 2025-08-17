@@ -162,7 +162,7 @@ namespace SimpleChatboxAI.Controllers
 
                 // Lưu kế hoạch
                 int generatedId = await _iAIGeneratePlanService.SaveGeneratedPlanAsync(UserId.Value, request, response);
-				await _firebaseLogService.LogAsync(userId: UserId ?? 0, action: "GenerateItinerary", message: $"Itinerary for {request.Destination} generated successfully with {request.Days} day(s).", statusCode: 200);
+				await _firebaseLogService.LogAsync(userId: UserId ?? 0, action: "Create", message: $"Hành trình cho {request.Destination} đã được tạo thành công với {request.Days} ngày.", statusCode: 200,createdBy:UserId,createdDate:DateTime.Now);
 				// Trả về kết quả
 				return Ok(new
                 {
