@@ -110,7 +110,7 @@ namespace TripWiseAPI.Services.AdminServices
             tour.Status = TourStatuses.Approved;
             tour.ModifiedDate = TimeHelper.GetVietnamTime();
             tour.ModifiedBy = adminId;
-			await _logService.LogAsync(userId: adminId, action: "ApproveTour", message: $"Duyệt tour {tour.TourId} - {tour.TourName}", statusCode: 200, modifiedBy: adminId, modifiedDate: tour.ModifiedDate);
+			await _logService.LogAsync(userId: adminId, action: "Update", message: $"Duyệt tour {tour.TourId} - {tour.TourName}", statusCode: 200, modifiedBy: adminId, modifiedDate: tour.ModifiedDate);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -122,7 +122,7 @@ namespace TripWiseAPI.Services.AdminServices
             tour.Status = TourStatuses.PendingApproval;
             tour.ModifiedDate = TimeHelper.GetVietnamTime();
             tour.ModifiedBy = adminId;
-			await _logService.LogAsync(userId: adminId, action: "SetTourToPending", message: $"Chuyển tour {tour.TourId} - {tour.TourName} sang trạng thái chờ duyệt", statusCode: 200, modifiedBy: adminId, modifiedDate: tour.ModifiedDate);
+			await _logService.LogAsync(userId: adminId, action: "Update", message: $"Chuyển tour {tour.TourId} - {tour.TourName} sang trạng thái chờ duyệt", statusCode: 200, modifiedBy: adminId, modifiedDate: tour.ModifiedDate);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -135,7 +135,7 @@ namespace TripWiseAPI.Services.AdminServices
             tour.RejectReason = reason;
             tour.ModifiedDate = TimeHelper.GetVietnamTime();
             tour.ModifiedBy = adminId;
-			await _logService.LogAsync(userId: adminId, action: "RejectTour", message: $"Admin đã từ chối tour {tour.TourId} - {tour.TourName} với lý do: {reason}", statusCode: 200, modifiedBy: adminId, modifiedDate: tour.ModifiedDate);
+			await _logService.LogAsync(userId: adminId, action: "Update", message: $"Admin đã từ chối tour {tour.TourId} - {tour.TourName} với lý do: {reason}", statusCode: 200, modifiedBy: adminId, modifiedDate: tour.ModifiedDate);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
@@ -410,7 +410,7 @@ namespace TripWiseAPI.Services.AdminServices
 
                 _dbContext.TourItineraries.Remove(itinerary);
             }
-			await _logService.LogAsync(userId: adminId, action: "SubmitDraft", message: $"Gửi bản nháp cập nhật tour {tourId}", statusCode: 200, modifiedBy: adminId, modifiedDate: TimeHelper.GetVietnamTime());
+			await _logService.LogAsync(userId: adminId, action: "Update", message: $"Gửi bản nháp cập nhật tour {tourId}", statusCode: 200, modifiedBy: adminId, modifiedDate: TimeHelper.GetVietnamTime());
 			_dbContext.Tours.Remove(draft);
 
             await _dbContext.SaveChangesAsync();
@@ -428,7 +428,7 @@ namespace TripWiseAPI.Services.AdminServices
             draftTour.RejectReason = reason;
             draftTour.ModifiedDate = TimeHelper.GetVietnamTime();
             draftTour.ModifiedBy = adminId;
-			await _logService.LogAsync(userId: adminId, action: "RejectDraft", message: $"Admin đã từ chối bản nháp của tour {tourId} với lý do: {reason}", statusCode: 200, modifiedBy: adminId, modifiedDate: draftTour.ModifiedDate);
+			await _logService.LogAsync(userId: adminId, action: "Update", message: $"Admin đã từ chối bản nháp của tour {tourId} với lý do: {reason}", statusCode: 200, modifiedBy: adminId, modifiedDate: draftTour.ModifiedDate);
 			await _dbContext.SaveChangesAsync();
             return true;
         }

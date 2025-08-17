@@ -108,7 +108,7 @@ namespace TripWiseAPI.Services
                 OrderType = "plan",
                 PlanId = plan.PlanId
             };
-			await _logService.LogAsync(userId: userId, action: "BuyPlan", message: $"Người dùng {userId} mua gói {plan.PlanName} giá {plan.Price:N0} VND", statusCode: 200, createdBy: userId, createdDate:DateTime.Now);
+			await _logService.LogAsync(userId: userId, action: "Create", message: $"Người dùng {userId} mua gói {plan.PlanName} giá {plan.Price:N0} VND", statusCode: 200, createdBy: userId, createdDate:DateTime.Now);
 			return CreatePaymentUrl(paymentModel, context);
         }
         public async Task<List<PaymentTransactionDto>> GetPaymentHistoryAsync(int userId, string? status)

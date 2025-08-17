@@ -266,7 +266,7 @@ public class PartnerService : IPartnerService
         partner.User.RemovedDate = null;
         partner.User.RemovedBy = null;
         partner.User.RemovedReason = null;
-		await _logService.LogAsync(userId: modifiedBy, action: "Reactivate", message: $"Kích hoạt lại đối tác {partnerId}", statusCode: 200, modifiedBy: modifiedBy, modifiedDate: TimeHelper.GetVietnamTime());
+		await _logService.LogAsync(userId: modifiedBy, action: "Update", message: $"Kích hoạt lại đối tác {partnerId}", statusCode: 200, modifiedBy: modifiedBy, modifiedDate: TimeHelper.GetVietnamTime());
 		await _db.SaveChangesAsync();
         return true;
     }

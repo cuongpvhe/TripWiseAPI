@@ -118,7 +118,7 @@ namespace TripWiseAPI.Services
                         user.RequestChatbot = (user.RequestChatbot ?? 0) + 1;
                         _dbContext.Users.Update(user);
                     }
-                    await _logService.LogAsync(userId, "UsePlan", $"Người dùng đã sử dụng 1 lượt từ gói '{userPlan.Plan.PlanName}'. Lượt còn lại: {userPlan.RequestInDays}", 200, createdDate: DateTime.UtcNow, createdBy: userId);
+                    await _logService.LogAsync(userId, "Update", $"Người dùng đã sử dụng 1 lượt từ gói '{userPlan.Plan.PlanName}'. Lượt còn lại: {userPlan.RequestInDays}", 200, modifiedDate: DateTime.UtcNow, modifiedBy: userId);
 
                     await _dbContext.SaveChangesAsync();
                 }
@@ -184,7 +184,7 @@ namespace TripWiseAPI.Services
 
             await _dbContext.UserPlans.AddAsync(newUserPlan);
             await _dbContext.SaveChangesAsync();
-			await _logService.LogAsync(userId, "Update", $"Người dùng đã nâng cấp lên gói '{newPlan.PlanName}' với {newPlan.MaxRequests ?? 0} lượt. Cộng dồn {remainingRequests} lượt còn lại từ gói cũ.", 200, createdBy: userId, createdDate: TimeHelper.GetVietnamTime());
+			await _logService.LogAsync(userId, "Update", $"Người dùng đã nâng cấp lên gói '{newPlan.PlanName}' với {newPlan.MaxRequests ?? 0} lượt. Cộng dồn {remainingRequests} lượt còn lại từ gói cũ.", 200, modifiedBy: userId, modifiedDate: TimeHelper.GetVietnamTime());
 			return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
         }
        
