@@ -477,17 +477,19 @@ namespace TripWiseAPI.Services.PartnerServices
                 }
             }
 
-            if (imageUrls != null)
+            // Upload ảnh từ URL
+            if (imageUrls != null && imageUrls.Any())
             {
                 foreach (var url in imageUrls)
                 {
-                    var uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(url);
-                    var image = new Image { ImageUrl = uploadedUrl };
-                    _dbContext.Images.Add(image);
-                    tour.TourImages.Add(new TourImage { Image = image });
+                    var imageUrl = await _imageUploadService.UploadImageFromUrlAsync(url);
+                    if (!string.IsNullOrEmpty(imageUrl))
+                    {
+                        await AddTourImageAsync(tour.TourId, imageUrl, userId);
+                    }
                 }
             }
-			await _logService.LogAsync(userId, "Update", $"Cập nhật Tour ID {tourId} - {tour.TourName} thành công", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
+            await _logService.LogAsync(userId, "Update", $"Cập nhật Tour ID {tourId} - {tour.TourName} thành công", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
 			await _dbContext.SaveChangesAsync();
             return true;
         }
