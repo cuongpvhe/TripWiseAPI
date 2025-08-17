@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using TripWiseAPI.Models;
+using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Services.AdminServices;
+using TripWiseAPI.Services.PartnerServices;
 
 namespace TripWiseAPI.Controllers.Admin
 {    
@@ -12,10 +15,11 @@ namespace TripWiseAPI.Controllers.Admin
     public class AdminAppSettingsController : ControllerBase
     {
         private readonly IAppSettingsService _service;
-
-        public AdminAppSettingsController(IAppSettingsService service)
+        private readonly IImageUploadService _imageUploadService;
+        public AdminAppSettingsController(IAppSettingsService service, IImageUploadService imageUploadService)
         {
             _service = service;
+            _imageUploadService = imageUploadService;
         }
 
         [HttpGet]
@@ -110,6 +114,67 @@ namespace TripWiseAPI.Controllers.Admin
                 return BadRequest(new { Message = "Cập nhật thất bại" });
 
             return Ok(new { Message = "Cập nhật thời gian OTP thành công" });
+        }
+
+
+        /// <summary>
+        /// Lấy danh sách HotNews
+        /// </summary>
+        [HttpGet("hot-new")]
+        public async Task<IActionResult> GetAllHotNew()
+        {
+            var list = await _service.GetAllHotNewAsync();
+            return Ok(list);
+        }
+
+        /// <summary>
+        /// Lấy chi tiết HotNews theo Id
+        /// </summary>
+        [HttpGet("hot-new-by/{id:int}")]
+        public async Task<IActionResult> GetByIdHotNew(int id)
+        {
+            var item = await _service.GetByIdAsync(id);
+            if (item == null) return NotFound(new { Message = "Không tìm thấy HotNews" });
+
+            return Ok(item);
+        }
+
+        /// <summary>
+        /// Thêm mới HotNews
+        /// </summary>
+        [HttpPost("create-hot-new")]
+        [RequestSizeLimit(10_000_000)] // 10MB cho ảnh
+        public async Task<IActionResult> CreateHotNew([FromForm] HotNewsRequest request)
+        {
+           
+                var id = await _service.CreateAsync(request);
+                return Ok(new { Id = id, Message = "Tạo HotNews thành công" });
+            
+        }
+
+        /// <summary>
+        /// Cập nhật HotNews theo Id
+        /// </summary>
+        [HttpPut("hot-new-update/{id:int}")]
+        [RequestSizeLimit(10_000_000)]
+        public async Task<IActionResult> UpdateHotNew(int id, [FromForm] HotNewsRequest request)
+        {
+            var success = await _service.UpdateAsync(id, request);
+            if (!success) return NotFound(new { Message = "Không tìm thấy HotNews cần cập nhật" });
+
+            return Ok(new { Message = "Cập nhật HotNews thành công" });
+        }
+
+        /// <summary>
+        /// Xoá HotNews theo Id
+        /// </summary>
+        [HttpDelete("hot-new-delete/{id:int}")]
+        public async Task<IActionResult> DeleteHotNew(int id)
+        {
+            var success = await _service.DeleteAsync(id);
+            if (!success) return NotFound(new { Message = "Không tìm thấy HotNews cần xoá" });
+
+            return Ok(new { Message = "Xoá HotNews thành công" });
         }
 
     }

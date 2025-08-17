@@ -1,16 +1,21 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
+using System.Text.Json;
 using TripWiseAPI.Models;
+using TripWiseAPI.Models.DTO;
+using TripWiseAPI.Services.PartnerServices;
+using TripWiseAPI.Utils;
 
 namespace TripWiseAPI.Services.AdminServices
 {
     public class AppSettingsService : IAppSettingsService
     {
         private readonly TripWiseDBContext _dbContext;
-
-        public AppSettingsService(TripWiseDBContext dbContext)
+        private readonly IImageUploadService _imageUploadService;
+        public AppSettingsService(TripWiseDBContext dbContext, IImageUploadService imageUploadService)
         {
             _dbContext = dbContext;
+            _imageUploadService = imageUploadService;
         }
 
         public async Task<List<AppSetting>> GetAllAsync()
@@ -206,6 +211,106 @@ namespace TripWiseAPI.Services.AdminServices
         }
 
 
+
+        public async Task<List<HotNewsDto>> GetAllHotNewAsync()
+        {
+            var data = await _dbContext.AppSettings
+                .Where(x => x.Key.StartsWith("HotNews_"))
+                .ToListAsync();
+
+            return data.Select(x =>
+            {
+                var json = JsonSerializer.Deserialize<Dictionary<string, string>>(x.Value);
+                return new HotNewsDto
+                {
+                    Id = x.Id,
+                    ImageUrl = json.ContainsKey("ImageUrl") ? json["ImageUrl"] : null,
+                    RedirectUrl = json.ContainsKey("RedirectUrl") ? json["RedirectUrl"] : null
+                };
+            }).ToList();
+        }
+
+
+        public async Task<HotNewsDto?> GetByIdAsync(int id)
+        {
+            var setting = await _dbContext.AppSettings.FindAsync(id);
+            if (setting == null) return null;
+
+            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value);
+            dto.Id = setting.Id;
+            return dto;
+        }
+
+        public async Task<int> CreateAsync(HotNewsRequest request)
+        {
+            // --- Upload ảnh ---
+            string? uploadedUrl = null;
+            if (request.ImageFile != null)
+                uploadedUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
+            else if (!string.IsNullOrEmpty(request.ImageUrl))
+                uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(request.ImageUrl);
+
+            if (string.IsNullOrEmpty(uploadedUrl))
+                throw new Exception("Ảnh không hợp lệ!");
+
+            var dto = new HotNewsDto
+            {
+                ImageUrl = uploadedUrl,
+                RedirectUrl = request.RedirectUrl
+            };
+
+            var setting = new AppSetting
+            {
+                Key = $"HotNews_{Guid.NewGuid()}",
+                Value = JsonSerializer.Serialize(dto)
+            };
+
+            _dbContext.AppSettings.Add(setting);
+            await _dbContext.SaveChangesAsync();
+            return setting.Id;
+        }
+
+        public async Task<bool> UpdateAsync(int id, HotNewsRequest request)
+        {
+            var setting = await _dbContext.AppSettings.FindAsync(id);
+            if (setting == null) return false;
+
+            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value);
+
+            // --- Upload ảnh mới nếu có ---
+            if (request.ImageFile != null)
+                dto.ImageUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
+            else if (!string.IsNullOrEmpty(request.ImageUrl))
+                dto.ImageUrl = await _imageUploadService.UploadImageFromUrlAsync(request.ImageUrl);
+
+            // Cập nhật RedirectUrl nếu truyền vào
+            if (!string.IsNullOrEmpty(request.RedirectUrl))
+                dto.RedirectUrl = request.RedirectUrl;
+
+            setting.Value = JsonSerializer.Serialize(dto);
+
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var setting = await _dbContext.AppSettings.FindAsync(id);
+            if (setting == null) return false;
+
+            // Xoá ảnh trên Cloudinary nếu cần
+            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value);
+            if (dto != null && !string.IsNullOrEmpty(dto.ImageUrl))
+            {
+                var publicId = _imageUploadService.GetPublicIdFromUrl(dto.ImageUrl);
+                if (!string.IsNullOrEmpty(publicId))
+                    await _imageUploadService.DeleteImageAsync(publicId);
+            }
+
+            _dbContext.AppSettings.Remove(setting);
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
     }
 
 

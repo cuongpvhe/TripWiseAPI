@@ -1,4 +1,5 @@
 ﻿using TripWiseAPI.Models;
+using TripWiseAPI.Models.DTO;
 
 namespace TripWiseAPI.Services.AdminServices
 {
@@ -16,5 +17,10 @@ namespace TripWiseAPI.Services.AdminServices
         Task<int> GetTimeoutAsync();
         Task<int?> GetOtpTimeoutAsync();
         Task<bool> UpdateOtpTimeoutAsync(int timeoutSeconds);
+        Task<List<HotNewsDto>> GetAllHotNewAsync();
+        Task<HotNewsDto?> GetByIdAsync(int id);
+        Task<int> CreateAsync(HotNewsRequest request);
+        Task<bool> UpdateAsync(int id, HotNewsRequest request);
+        Task<bool> DeleteAsync(int id);
     }
 }
