@@ -46,8 +46,8 @@
         public int BookingId { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        public string UserEmail { get; set; }
-        public string PhoneNumber { get; set; }
+        public string? UserEmail { get; set; }
+        public string? PhoneNumber { get; set; }
         public decimal? PriceAdult { get; set; }
         public decimal? PriceChild5To10 { get; set; }
         public decimal? PriceChildUnder5 { get; set; }

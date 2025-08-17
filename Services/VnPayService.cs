@@ -334,9 +334,12 @@ namespace TripWiseAPI.Services
             // 🔹 Đảm bảo không âm
             var availableSlots = Math.Max(0, (decimal)(booking.Tour.MaxGroupSize - bookedCount));
 
+            // ✅ Tính đúng số lượng người (nếu request có gửi lên thì update, ngược lại giữ nguyên)
+            booking.NumAdults = request.NumAdults ?? booking.NumAdults;
+            booking.NumChildren5To10 = request.NumChildren5To10 ?? booking.NumChildren5To10;
+            booking.NumChildrenUnder5 = request.NumChildrenUnder5 ?? booking.NumChildrenUnder5;
 
-            // ✅ Tính đúng số lượng người từ request
-            var totalPeople = request.NumAdults + request.NumChildren5To10 + request.NumChildrenUnder5;
+            var totalPeople = booking.NumAdults + booking.NumChildren5To10 + booking.NumChildrenUnder5;
 
             if (availableSlots <= 0)
                 throw new Exception("Tour đã hết chỗ.");
@@ -344,38 +347,26 @@ namespace TripWiseAPI.Services
             if (totalPeople > availableSlots)
                 throw new Exception($"Chỉ còn {availableSlots} chỗ trống cho tour này.");
 
-            booking.NumAdults = request.NumAdults;
-            booking.NumChildren5To10 = request.NumChildren5To10;
-            booking.NumChildrenUnder5 = request.NumChildrenUnder5;
             booking.Quantity = (int)totalPeople;
+
+            // ✅ Tính lại Amount khi số lượng thay đổi
             booking.TotalAmount =
-                (decimal)((request.PriceAdult * (booking.Tour.PriceAdult ?? 0)) +
-                (request.PriceChild5To10 * (booking.Tour.PriceChild5To10 ?? 0)) +
-                (request.PriceChildUnder5 * (booking.Tour.PriceChildUnder5 ?? 0)));
+                (decimal)((booking.NumAdults * (booking.Tour.PriceAdult ?? 0)) +
+                (booking.NumChildren5To10 * (booking.Tour.PriceChild5To10 ?? 0)) +
+                (booking.NumChildrenUnder5 * (booking.Tour.PriceChildUnder5 ?? 0)));
+
             booking.ModifiedDate = TimeHelper.GetVietnamTime();
             booking.ModifiedBy = userId;
-            // Kiểm tra các trường bắt buộc
-            var missingFields = new List<string>();
-            if (string.IsNullOrWhiteSpace(request.FirstName)) missingFields.Add("Họ");
-            if (string.IsNullOrWhiteSpace(request.LastName)) missingFields.Add("Tên");
-            if (string.IsNullOrWhiteSpace(request.PhoneNumber)) missingFields.Add("Số điện thoại");
-            if (string.IsNullOrWhiteSpace(request.UserEmail)) missingFields.Add("Email");
-            // Kiểm tra định dạng email nếu không rỗng
-            if (!string.IsNullOrWhiteSpace(request.UserEmail))
-            {
-                var emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
-                if (!emailRegex.IsMatch(request.UserEmail))
-                    throw new Exception("Email không hợp lệ.");
-            }
-            if (missingFields.Any())
-                throw new Exception($"Vui lòng điền đầy đủ thông tin: {string.Join(", ", missingFields)} trước khi thanh toán.");
 
-            // Gán dữ liệu cập nhật, chỉ khi hợp lệ
-            booking.User.FirstName = request.FirstName;
-            booking.User.LastName = request.LastName;
-            booking.User.PhoneNumber = request.PhoneNumber;
-            booking.User.Email = request.UserEmail;
+            // ✅ Cập nhật thông tin User (nếu có truyền thì mới update, ngược lại giữ nguyên)
+            if (!string.IsNullOrWhiteSpace(request.FirstName))
+                booking.User.FirstName = request.FirstName;
 
+            if (!string.IsNullOrWhiteSpace(request.LastName))
+                booking.User.LastName = request.LastName;
+
+            if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+                booking.User.PhoneNumber = request.PhoneNumber;
 
             await _dbContext.SaveChangesAsync();
 
@@ -402,6 +393,7 @@ namespace TripWiseAPI.Services
                 AvailableSlots = (int)(availableSlots - totalPeople)
             };
         }
+
 
         public async Task<string> ConfirmBookingAndPayAsync(int bookingId, int userId, HttpContext context)
         {
