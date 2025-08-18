@@ -62,6 +62,7 @@
     }
     public class PartnerTourStatisticsDto
     {
+        public string MonthYear { get; set; }
         public int PartnerID { get; set; }
         public string CompanyName { get; set; }
         public int TotalTours { get; set; }
