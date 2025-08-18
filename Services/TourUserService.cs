@@ -115,6 +115,7 @@ namespace TripWiseAPI.Services
             {
                 TourId = tour.TourId,
                 StartTime = tour.StartTime,
+                Note = tour.StartTime.HasValue && TimeHelper.GetVietnamTime().Date >= tour.StartTime.Value.Date? "Đã khởi hành": null,
                 TourName = tour.TourName,
                 Description = tour.Description,
                 TravelDate = tour.CreatedDate,
@@ -200,7 +201,10 @@ namespace TripWiseAPI.Services
                     Price = (decimal)w.Tour.PriceAdult,
                     Status = w.Tour.Status,
                     ImageUrls = w.Tour.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
-                    CreatedDate = w.Tour.CreatedDate
+                    CreatedDate = w.Tour.CreatedDate,
+                    Note = w.Tour.StartTime.HasValue && TimeHelper.GetVietnamTime().Date >= w.Tour.StartTime.Value.Date
+                    ? "Đã khởi hành"
+                    : null
                 })
                 .ToListAsync();
         }

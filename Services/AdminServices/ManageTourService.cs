@@ -74,7 +74,10 @@ namespace TripWiseAPI.Services.AdminServices
                     IsUpdatedFromApprovedTour = x.Tour.Status == TourStatuses.PendingApproval && x.Tour.OriginalTourId != null,
                     UpdateNote = x.Tour.Status == TourStatuses.PendingApproval && x.OriginalTour != null
                         ? $"Bản cập nhật của tour {x.OriginalTour.TourName}"
-                        : null
+                        : null,
+                    Note = x.Tour.StartTime.HasValue && TimeHelper.GetVietnamTime().Date >= x.Tour.StartTime.Value.Date
+                    ? "Đã khởi hành"
+                    : null
                 })
                 .ToListAsync();
         }
@@ -226,6 +229,9 @@ namespace TripWiseAPI.Services.AdminServices
             {
                 TourId = tour.TourId,
                 StartTime = tour.StartTime,
+                Note = tour.StartTime.HasValue && TimeHelper.GetVietnamTime().Date >= tour.StartTime.Value.Date
+                ? "Đã khởi hành"
+                : null,
                 TourName = tour.TourName,
                 Description = tour.Description,
                 TravelDate = tour.CreatedDate,
