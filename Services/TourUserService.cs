@@ -5,6 +5,7 @@ using TripWiseAPI.Services.PartnerServices;
 using TripWiseAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using static TripWiseAPI.Services.VnPayService;
+using TripWiseAPI.Utils;
 
 namespace TripWiseAPI.Services
 {
@@ -33,7 +34,10 @@ namespace TripWiseAPI.Services
                     Price = (decimal)t.PriceAdult,
                     Status = t.Status,
                     ImageUrls = t.TourImages.Select(ti => ti.Image.ImageUrl).ToList(),
-                    CreatedDate = t.CreatedDate
+                    CreatedDate = t.CreatedDate,
+                    Note = t.StartTime.HasValue && TimeHelper.GetVietnamTime().Date >= t.StartTime.Value.Date
+                   ? "Đã khởi hành"
+                   : null
                 })
                 .ToListAsync();
         }

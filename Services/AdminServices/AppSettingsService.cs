@@ -188,25 +188,16 @@ namespace TripWiseAPI.Services.AdminServices
             return true;
         }
 
-        public async Task<bool> DeleteAsync(int id, string removedBy, string removedReason)
+        public async Task<bool> DeleteAsync(int id)
         {
             var setting = await _dbContext.AppSettings.FindAsync(id);
             if (setting == null) return false;
 
-            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value) ?? new HotNewsDto();
-
-            // Soft delete trên entity, không lưu vào JSON
-            setting.RemovedDate = TimeHelper.GetVietnamTime();
-            setting.RemovedBy = removedBy;
-            setting.RemovedReason = removedReason;
-
-            // Chỉ serialize các trường cần thiết
-            var valueToStore = new { dto.ImageUrl, dto.RedirectUrl };
-            setting.Value = JsonSerializer.Serialize(valueToStore);
-
+            _dbContext.AppSettings.Remove(setting);
             await _dbContext.SaveChangesAsync();
             return true;
         }
+
 
     }
 }
