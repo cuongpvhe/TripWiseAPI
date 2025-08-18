@@ -1024,13 +1024,15 @@ namespace TripWiseAPI.Services.PartnerServices
             {
                 result = new PartnerTourStatisticsDto
                 {
-                    PartnerID = reader.GetInt32(0),
-                    CompanyName = reader.GetString(1),
-                    TotalTours = reader.GetInt32(2),
-                    TotalBookedTours = reader.GetInt32(3),
-                    TotalRevenue = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4)
+                    PartnerID = reader.GetInt32(0),                               
+                    CompanyName = reader.GetString(1),                            
+                    MonthYear = reader.IsDBNull(2) ? null : reader.GetString(2), 
+                    TotalTours = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),    
+                    TotalBookedTours = reader.IsDBNull(4) ? 0 : reader.GetInt32(4), 
+                    TotalRevenue = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5) 
                 };
             }
+
 
             return result ?? new PartnerTourStatisticsDto();
         }
