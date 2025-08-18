@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
 using System.Text.Json;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
@@ -12,205 +11,81 @@ namespace TripWiseAPI.Services.AdminServices
     {
         private readonly TripWiseDBContext _dbContext;
         private readonly IImageUploadService _imageUploadService;
+
         public AppSettingsService(TripWiseDBContext dbContext, IImageUploadService imageUploadService)
         {
             _dbContext = dbContext;
             _imageUploadService = imageUploadService;
         }
 
-        public async Task<List<AppSetting>> GetAllAsync()
+        #region Helpers
+        private async Task<AppSetting?> GetByKeyInternalAsync(string key) =>
+            await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == key);
+
+        private async Task<bool> SetOrUpdateValueAsync(string key, string value)
         {
-            return await _dbContext.AppSettings
-                .Select(x => new AppSetting
-                {
-                    Id = x.Id,
-                    Key = x.Key,
-                    Value = x.Value
-                })
-                .ToListAsync();
-        }
+            var setting = await GetByKeyInternalAsync(key);
+            if (setting == null)
+                await _dbContext.AppSettings.AddAsync(new AppSetting { Key = key, Value = value });
+            else
+                setting.Value = value;
 
-        public async Task<AppSetting> GetByKeyAsync(string key)
-        {
-            var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == key);
-            if (setting == null) return null;
-
-            return new AppSetting
-            {
-                Id = setting.Id,
-                Key = setting.Key,
-                Value = setting.Value
-            };
-        }
-
-        public async Task<bool> UpdateAsync(AppSetting dto)
-        {
-            var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == dto.Key);
-            if (setting == null) return false;
-
-            setting.Value = dto.Value;
-            _dbContext.AppSettings.Update(setting);
             await _dbContext.SaveChangesAsync();
             return true;
         }
-        public async Task<string?> GetValueAsync(string key)
-        {
-            var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == key);
-            return setting?.Value;
-        }
+        #endregion
+
+        public async Task<List<AppSetting>> GetAllAsync() =>
+            await _dbContext.AppSettings
+                .Select(x => new AppSetting { Id = x.Id, Key = x.Key, Value = x.Value })
+                .ToListAsync();
+
+        public async Task<AppSetting?> GetByKeyAsync(string key) =>
+            await GetByKeyInternalAsync(key);
+
+        public async Task<bool> UpdateAsync(AppSetting dto) =>
+            await SetOrUpdateValueAsync(dto.Key, dto.Value);
+
+        public async Task<string?> GetValueAsync(string key) =>
+            (await GetByKeyInternalAsync(key))?.Value;
+
         public async Task<int> GetIntValueAsync(string key, int defaultValue = 0)
         {
-            var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == key);
-            if (setting == null) return defaultValue;
-
-            return int.TryParse(setting.Value, out int val) ? val : defaultValue;
+            var value = await GetValueAsync(key);
+            return int.TryParse(value, out var val) ? val : defaultValue;
         }
+
         public async Task<bool> SetFreePlanAsync(string planName)
         {
-            // Kiểm tra Plan có tồn tại
             var exists = await _dbContext.Plans
                 .AnyAsync(p => p.PlanName == planName && p.RemovedDate == null);
-
-            if (!exists)
-                return false;
-
-            var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == "FreePlan");
-            if (setting == null)
-            {
-                setting = new AppSetting
-                {
-                    Key = "FreePlan",
-                    Value = planName
-                };
-                await _dbContext.AppSettings.AddAsync(setting);
-            }
-            else
-            {
-                setting.Value = planName;
-                _dbContext.AppSettings.Update(setting);
-            }
-
-            await _dbContext.SaveChangesAsync();
-            return true;
+            return exists && await SetOrUpdateValueAsync("FreePlan", planName);
         }
 
         public async Task<bool> SetTrialPlanAsync(string planName)
         {
-            // Kiểm tra Plan có tồn tại
             var exists = await _dbContext.Plans
                 .AnyAsync(p => p.PlanName == planName && p.RemovedDate == null);
-
-            if (!exists)
-                return false;
-
-            var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == "DefaultTrialPlanName");
-            if (setting == null)
-            {
-                setting = new AppSetting
-                {
-                    Key = "DefaultTrialPlanName",
-                    Value = planName
-                };
-                await _dbContext.AppSettings.AddAsync(setting);
-            }
-            else
-            {
-                setting.Value = planName;
-                _dbContext.AppSettings.Update(setting);
-            }
-
-            await _dbContext.SaveChangesAsync();
-            return true;
-        }
-        public async Task<bool> SetValueAsync(string key, string value)
-        {
-            var setting = await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == key);
-
-            if (setting == null)
-            {
-                setting = new AppSetting { Key = key, Value = value };
-                await _dbContext.AppSettings.AddAsync(setting);
-            }
-            else
-            {
-                setting.Value = value;
-                _dbContext.AppSettings.Update(setting);
-            }
-
-            await _dbContext.SaveChangesAsync();
-            return true;
+            return exists && await SetOrUpdateValueAsync("DefaultTrialPlanName", planName);
         }
 
-        public async Task<int> GetTimeoutAsync()
-        {
-            var setting = await _dbContext.AppSettings
-                .FirstOrDefaultAsync(s => s.Key == "SessionTimeoutMinutes");
+        public async Task<bool> SetValueAsync(string key, string value) =>
+            await SetOrUpdateValueAsync(key, value);
 
-            return setting != null ? int.Parse(setting.Value) : 0;
-        }
+        public async Task<int> GetTimeoutAsync() =>
+            await GetIntValueAsync("SessionTimeoutMinutes");
 
-        public async Task UpdateTimeoutAsync(int minutes)
-        {
-            var setting = await _dbContext.AppSettings
-                .FirstOrDefaultAsync(s => s.Key == "SessionTimeoutMinutes");
+        public async Task UpdateTimeoutAsync(int minutes) =>
+            await SetOrUpdateValueAsync("SessionTimeoutMinutes", minutes.ToString());
 
-            if (setting != null)
-            {
-                setting.Value = minutes.ToString();
-                await _dbContext.SaveChangesAsync();
-            }
-            else
-            {
-                _dbContext.AppSettings.Add(new AppSetting
-                {
-                    Key = "SessionTimeoutMinutes",
-                    Value = minutes.ToString()
-                });
-                await _dbContext.SaveChangesAsync();
-            }
-        }
         public async Task<int?> GetOtpTimeoutAsync()
         {
-            var setting = await _dbContext.AppSettings
-                .FirstOrDefaultAsync(x => x.Key == "OTP_TIMEOUT");
-
-            if (setting == null)
-                return null;
-
-            if (int.TryParse(setting.Value, out int minutes))
-                return minutes;
-
-            return null;
+            var value = await GetValueAsync("OTP_TIMEOUT");
+            return int.TryParse(value, out var minutes) ? minutes : null;
         }
 
-        public async Task<bool> UpdateOtpTimeoutAsync(int timeoutMinutes)
-        {
-
-            if (timeoutMinutes <= 0)
-                return false;
-
-            var setting = await _dbContext.AppSettings
-                .FirstOrDefaultAsync(x => x.Key == "OTP_TIMEOUT");
-
-            if (setting == null)
-            {
-                setting = new AppSetting
-                {
-                    Key = "OTP_TIMEOUT",
-                    Value = timeoutMinutes.ToString()
-                };
-                _dbContext.AppSettings.Add(setting);
-            }
-            else
-            {
-                setting.Value = timeoutMinutes.ToString();
-            }
-
-            await _dbContext.SaveChangesAsync();
-            return true;
-        }
-
-
+        public async Task<bool> UpdateOtpTimeoutAsync(int timeoutMinutes) =>
+            timeoutMinutes > 0 && await SetOrUpdateValueAsync("OTP_TIMEOUT", timeoutMinutes.ToString());
 
         public async Task<List<HotNewsDto>> GetAllHotNewAsync()
         {
@@ -227,10 +102,8 @@ namespace TripWiseAPI.Services.AdminServices
                     ImageUrl = json?.ImageUrl,
                     RedirectUrl = json?.RedirectUrl
                 };
-
             }).ToList();
         }
-
 
         public async Task<HotNewsDto?> GetByIdAsync(int id)
         {
@@ -238,32 +111,29 @@ namespace TripWiseAPI.Services.AdminServices
             if (setting == null) return null;
 
             var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value);
-            dto.Id = setting.Id;
+            if (dto != null) dto.Id = setting.Id;
             return dto;
         }
 
-        public async Task<int> CreateAsync(HotNewsRequest request)
+        public async Task<int> CreateAsync(HotNewsRequest request, string createdBy)
         {
-            // --- Upload ảnh ---
-            string? uploadedUrl = null;
-            if (request.ImageFile != null)
-                uploadedUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
-            else if (!string.IsNullOrEmpty(request.ImageUrl))
-                uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(request.ImageUrl);
+            var uploadedUrl = request.ImageFile != null
+                ? await _imageUploadService.UploadImageFromFileAsync(request.ImageFile)
+                : !string.IsNullOrEmpty(request.ImageUrl)
+                    ? await _imageUploadService.UploadImageFromUrlAsync(request.ImageUrl)
+                    : null;
 
             if (string.IsNullOrEmpty(uploadedUrl))
                 throw new Exception("Ảnh không hợp lệ!");
 
-            var dto = new HotNewsDto
-            {
-                ImageUrl = uploadedUrl,
-                RedirectUrl = request.RedirectUrl
-            };
+            var dto = new HotNewsDto { ImageUrl = uploadedUrl, RedirectUrl = request.RedirectUrl };
 
             var setting = new AppSetting
             {
                 Key = $"HotNews_{Guid.NewGuid()}",
-                Value = JsonSerializer.Serialize(dto)
+                Value = JsonSerializer.Serialize(dto),
+                CreatedBy = createdBy,
+                CreatedDate = TimeHelper.GetVietnamTime()
             };
 
             _dbContext.AppSettings.Add(setting);
@@ -271,48 +141,55 @@ namespace TripWiseAPI.Services.AdminServices
             return setting.Id;
         }
 
-        public async Task<bool> UpdateAsync(int id, HotNewsRequest request)
+        public async Task<bool> UpdateAsync(int id, HotNewsRequest request, string modifiedBy)
         {
             var setting = await _dbContext.AppSettings.FindAsync(id);
             if (setting == null) return false;
 
-            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value);
+            // Deserialize giá trị hiện tại
+            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value) ?? new HotNewsDto();
 
-            // --- Upload ảnh mới nếu có ---
+            // Cập nhật hình ảnh nếu có
             if (request.ImageFile != null)
                 dto.ImageUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
             else if (!string.IsNullOrEmpty(request.ImageUrl))
                 dto.ImageUrl = await _imageUploadService.UploadImageFromUrlAsync(request.ImageUrl);
 
-            // Cập nhật RedirectUrl nếu truyền vào
+            // Cập nhật RedirectUrl nếu có
             if (!string.IsNullOrEmpty(request.RedirectUrl))
                 dto.RedirectUrl = request.RedirectUrl;
 
-            setting.Value = JsonSerializer.Serialize(dto);
+            // Cập nhật audit trên entity, nhưng không lưu vào JSON
+            setting.ModifiedDate = TimeHelper.GetVietnamTime();
+            setting.ModifiedBy = modifiedBy;
+
+            // Chỉ serialize các trường cần thiết
+            var valueToStore = new { dto.ImageUrl, dto.RedirectUrl };
+            setting.Value = JsonSerializer.Serialize(valueToStore);
 
             await _dbContext.SaveChangesAsync();
             return true;
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(int id, string removedBy, string removedReason)
         {
             var setting = await _dbContext.AppSettings.FindAsync(id);
             if (setting == null) return false;
 
-            // Xoá ảnh trên Cloudinary nếu cần
-            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value);
-            if (dto != null && !string.IsNullOrEmpty(dto.ImageUrl))
-            {
-                var publicId = _imageUploadService.GetPublicIdFromUrl(dto.ImageUrl);
-                if (!string.IsNullOrEmpty(publicId))
-                    await _imageUploadService.DeleteImageAsync(publicId);
-            }
+            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value) ?? new HotNewsDto();
 
-            _dbContext.AppSettings.Remove(setting);
+            // Soft delete trên entity, không lưu vào JSON
+            setting.RemovedDate = TimeHelper.GetVietnamTime();
+            setting.RemovedBy = removedBy;
+            setting.RemovedReason = removedReason;
+
+            // Chỉ serialize các trường cần thiết
+            var valueToStore = new { dto.ImageUrl, dto.RedirectUrl };
+            setting.Value = JsonSerializer.Serialize(valueToStore);
+
             await _dbContext.SaveChangesAsync();
             return true;
         }
+
     }
-
-
 }
