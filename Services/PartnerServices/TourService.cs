@@ -378,6 +378,7 @@ namespace TripWiseAPI.Services.PartnerServices
                             Description = a.TourAttractionsName,
                             Address = a.Localtion,
                             EstimatedCost = a.Price,
+                            Category = a.Category,
                             PlaceDetail = a.Description,
                             MapUrl = a.MapUrl,
                             ImageUrls = firstImage?.ImageUrl,  // chỉ lấy 1 ảnh duy nhất

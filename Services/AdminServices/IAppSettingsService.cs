@@ -19,8 +19,8 @@ namespace TripWiseAPI.Services.AdminServices
         Task<bool> UpdateOtpTimeoutAsync(int timeoutSeconds);
         Task<List<HotNewsDto>> GetAllHotNewAsync();
         Task<HotNewsDto?> GetByIdAsync(int id);
-        Task<int> CreateAsync(HotNewsRequest request);
-        Task<bool> UpdateAsync(int id, HotNewsRequest request);
-        Task<bool> DeleteAsync(int id);
+        Task<int> CreateAsync(HotNewsRequest request, string createdBy);
+        Task<bool> UpdateAsync(int id, HotNewsRequest request, string modifiedBy);
+        Task<bool> DeleteAsync(int id, string removedBy, string removedReason);
     }
 }

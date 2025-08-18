@@ -191,6 +191,7 @@ namespace TripWiseAPI.Services.AdminServices
                             EndTime = a.EndTime ?? TimeSpan.Zero,
                             Description = a.TourAttractionsName,
                             Address = a.Localtion,
+                            Category = a.Category,
                             EstimatedCost = a.Price,
                             PlaceDetail = a.Description,
                             MapUrl = a.MapUrl,

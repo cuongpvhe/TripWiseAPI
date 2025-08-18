@@ -21,7 +21,13 @@ namespace TripWiseAPI.Controllers.Admin
             _service = service;
             _imageUploadService = imageUploadService;
         }
-
+        private int? GetUserId()
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+                return userId;
+            return null;
+        }
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -143,13 +149,12 @@ namespace TripWiseAPI.Controllers.Admin
         /// Thêm mới HotNews
         /// </summary>
         [HttpPost("create-hot-new")]
-        [RequestSizeLimit(10_000_000)] // 10MB cho ảnh
+        [RequestSizeLimit(10_000_000)]
         public async Task<IActionResult> CreateHotNew([FromForm] HotNewsRequest request)
         {
-           
-                var id = await _service.CreateAsync(request);
-                return Ok(new { Id = id, Message = "Tạo HotNews thành công" });
-            
+            var createdBy = GetUserId()?.ToString() ?? "system";
+            var id = await _service.CreateAsync(request, createdBy);
+            return Ok(new { Id = id, Message = "Tạo HotNews thành công" });
         }
 
         /// <summary>
@@ -159,23 +164,26 @@ namespace TripWiseAPI.Controllers.Admin
         [RequestSizeLimit(10_000_000)]
         public async Task<IActionResult> UpdateHotNew(int id, [FromForm] HotNewsRequest request)
         {
-            var success = await _service.UpdateAsync(id, request);
+            var modifiedBy = GetUserId()?.ToString() ?? "system";
+            var success = await _service.UpdateAsync(id, request, modifiedBy);
             if (!success) return NotFound(new { Message = "Không tìm thấy HotNews cần cập nhật" });
 
             return Ok(new { Message = "Cập nhật HotNews thành công" });
         }
 
         /// <summary>
-        /// Xoá HotNews theo Id
+        /// Xoá (soft delete) HotNews theo Id
         /// </summary>
         [HttpDelete("hot-new-delete/{id:int}")]
-        public async Task<IActionResult> DeleteHotNew(int id)
+        public async Task<IActionResult> DeleteHotNew(int id, [FromQuery] string reason = "Không rõ")
         {
-            var success = await _service.DeleteAsync(id);
+            var removedBy = GetUserId()?.ToString() ?? "system";
+            var success = await _service.DeleteAsync(id, removedBy, reason);
             if (!success) return NotFound(new { Message = "Không tìm thấy HotNews cần xoá" });
 
-            return Ok(new { Message = "Xoá HotNews thành công" });
+            return Ok(new { Message = "Đã đánh dấu xoá HotNews thành công", Reason = reason });
         }
+
 
     }
 
