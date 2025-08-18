@@ -220,13 +220,14 @@ namespace TripWiseAPI.Services.AdminServices
 
             return data.Select(x =>
             {
-                var json = JsonSerializer.Deserialize<Dictionary<string, string>>(x.Value);
+                var json = JsonSerializer.Deserialize<HotNewsJson>(x.Value);
                 return new HotNewsDto
                 {
                     Id = x.Id,
-                    ImageUrl = json.ContainsKey("ImageUrl") ? json["ImageUrl"] : null,
-                    RedirectUrl = json.ContainsKey("RedirectUrl") ? json["RedirectUrl"] : null
+                    ImageUrl = json?.ImageUrl,
+                    RedirectUrl = json?.RedirectUrl
                 };
+
             }).ToList();
         }
 

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TripWiseAPI.Services;
+using TripWiseAPI.Services.AdminServices;
 using TripWiseAPI.Services.PartnerServices;
 
 namespace TripWiseAPI.Controllers
@@ -11,10 +12,12 @@ namespace TripWiseAPI.Controllers
     {
         private readonly ITourUserService _tourUserService;
         private readonly IVnPayService _vnPayService;
-        public TourUserController(ITourUserService tourUserService, IVnPayService vnPayService)
+        private readonly IAppSettingsService _service;
+        public TourUserController(ITourUserService tourUserService, IVnPayService vnPayService, IAppSettingsService appSettingsService)
         {
             _tourUserService = tourUserService;
             _vnPayService = vnPayService;
+            _service = appSettingsService;
         }
         private int? GetUserId()
         {
@@ -90,6 +93,28 @@ namespace TripWiseAPI.Controllers
                 return Unauthorized("Bạn chưa đăng nhập.");
             var tours = await _tourUserService.GetUserWishlistAsync(userId.Value);
             return Ok(tours);
+        }
+
+        /// <summary>
+        /// Lấy danh sách HotNews
+        /// </summary>
+        [HttpGet("hot-new")]
+        public async Task<IActionResult> GetAllHotNew()
+        {
+            var list = await _service.GetAllHotNewAsync();
+            return Ok(list);
+        }
+
+        /// <summary>
+        /// Lấy chi tiết HotNews theo Id
+        /// </summary>
+        [HttpGet("hot-new-by/{id:int}")]
+        public async Task<IActionResult> GetByIdHotNew(int id)
+        {
+            var item = await _service.GetByIdAsync(id);
+            if (item == null) return NotFound(new { Message = "Không tìm thấy HotNews" });
+
+            return Ok(item);
         }
     }
 }
