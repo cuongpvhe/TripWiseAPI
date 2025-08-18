@@ -199,6 +199,7 @@ namespace TripWiseAPI.Models.DTO
             public DateTime? CreatedDate { get; set; }
             public DateTime? ModifiedDate { get; set; }
             public List<string> ImageUrls { get; set; } = new();
+            public string? Note { get; set; }
         }
     }
 }

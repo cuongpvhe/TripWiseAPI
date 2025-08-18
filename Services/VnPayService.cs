@@ -243,6 +243,11 @@ namespace TripWiseAPI.Services
             if (tour == null)
                 throw new Exception("Tour không tồn tại.");
 
+            // 🔹 Kiểm tra ngày hiện tại có lớn hơn hoặc bằng ngày bắt đầu tour không
+            if (tour.StartTime.HasValue && TimeHelper.GetVietnamTime().Date >= tour.StartTime.Value.Date)
+            {
+                throw new Exception("Tour đã khởi hành không thể đặt trước.");
+            }
             // 🔹 Tính tổng số người đã đặt thành công
             var bookedCount = await _dbContext.Bookings
                 .Where(b => b.TourId == request.TourId && b.BookingStatus == PaymentStatus.Success)

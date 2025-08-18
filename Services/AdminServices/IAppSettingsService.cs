@@ -21,6 +21,6 @@ namespace TripWiseAPI.Services.AdminServices
         Task<HotNewsDto?> GetByIdAsync(int id);
         Task<int> CreateAsync(HotNewsRequest request, string createdBy);
         Task<bool> UpdateAsync(int id, HotNewsRequest request, string modifiedBy);
-        Task<bool> DeleteAsync(int id, string removedBy, string removedReason);
+        Task<bool> DeleteAsync(int id);
     }
 }

@@ -175,13 +175,12 @@ namespace TripWiseAPI.Controllers.Admin
         /// Xoá (soft delete) HotNews theo Id
         /// </summary>
         [HttpDelete("hot-new-delete/{id:int}")]
-        public async Task<IActionResult> DeleteHotNew(int id, [FromQuery] string reason = "Không rõ")
+        public async Task<IActionResult> DeleteHotNew(int id)
         {
-            var removedBy = GetUserId()?.ToString() ?? "system";
-            var success = await _service.DeleteAsync(id, removedBy, reason);
+            var success = await _service.DeleteAsync(id);
             if (!success) return NotFound(new { Message = "Không tìm thấy HotNews cần xoá" });
 
-            return Ok(new { Message = "Đã đánh dấu xoá HotNews thành công", Reason = reason });
+            return Ok(new { Message = "Đã xoá HotNews thành công"});
         }
 
 
