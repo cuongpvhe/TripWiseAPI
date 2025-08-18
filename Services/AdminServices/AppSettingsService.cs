@@ -96,24 +96,40 @@ namespace TripWiseAPI.Services.AdminServices
             return data.Select(x =>
             {
                 var json = JsonSerializer.Deserialize<HotNewsJson>(x.Value);
+
                 return new HotNewsDto
                 {
                     Id = x.Id,
                     ImageUrl = json?.ImageUrl,
-                    RedirectUrl = json?.RedirectUrl
+                    RedirectUrl = json?.RedirectUrl,
+                    CreatedDate = x.CreatedDate
+
                 };
             }).ToList();
         }
+
 
         public async Task<HotNewsDto?> GetByIdAsync(int id)
         {
             var setting = await _dbContext.AppSettings.FindAsync(id);
             if (setting == null) return null;
 
-            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value);
-            if (dto != null) dto.Id = setting.Id;
+            // Deserialize JSON chỉ lấy ImageUrl, RedirectUrl
+            var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value) ?? new HotNewsDto();
+
+            // Gán các thông tin từ DB
+            dto.Id = setting.Id;
+            dto.CreatedBy = setting.CreatedBy;
+            dto.CreatedDate = setting.CreatedDate;
+            dto.ModifiedBy = setting.ModifiedBy;
+            dto.ModifiedDate = setting.ModifiedDate;
+            dto.RemovedBy = setting.RemovedBy;
+            dto.RemovedDate = setting.RemovedDate;
+            dto.RemovedReason = setting.RemovedReason;
+
             return dto;
         }
+
 
         public async Task<int> CreateAsync(HotNewsRequest request, string createdBy)
         {
@@ -131,13 +147,14 @@ namespace TripWiseAPI.Services.AdminServices
             var setting = new AppSetting
             {
                 Key = $"HotNews_{Guid.NewGuid()}",
-                Value = JsonSerializer.Serialize(dto),
+                Value = JsonSerializer.Serialize(new { dto.ImageUrl, dto.RedirectUrl }),
                 CreatedBy = createdBy,
                 CreatedDate = TimeHelper.GetVietnamTime()
             };
 
             _dbContext.AppSettings.Add(setting);
             await _dbContext.SaveChangesAsync();
+
             return setting.Id;
         }
 
