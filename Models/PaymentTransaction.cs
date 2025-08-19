@@ -20,7 +20,11 @@ namespace TripWiseAPI.Models
         public int? ModifiedBy { get; set; }
         public int? RemovedBy { get; set; }
         public string? RemovedReason { get; set; }
+        public int? BookingId { get; set; }
+        public int? PlanId { get; set; }
 
+        public virtual Booking? Booking { get; set; }
+        public virtual Plan? Plan { get; set; }
         public virtual User? User { get; set; }
     }
 }

@@ -30,13 +30,7 @@ namespace TripWiseAPI.Services
 
         public string CreatePaymentUrl(PaymentInformationModel model, HttpContext context)
         {
-            var tick = TimeHelper.GetVietnamTime().Ticks.ToString();
-            var orderCode = model.OrderType switch
-            {
-                "plan" => $"user_{model.UserId}_plan_{model.PlanId}",
-                "booking" => $"user_{model.UserId}_booking_{model.BookingId}",
-                _ => throw new Exception("OrderType không hợp lệ")
-            };
+            var orderCode = Guid.NewGuid().ToString("N");
 
             var pay = new VnPayLibrary();
             var timeNow = TimeHelper.GetVietnamTime();
@@ -75,6 +69,8 @@ namespace TripWiseAPI.Services
                     UserId = model.UserId,
                     Amount = model.Amount,
                     PaymentStatus = PaymentStatus.Pending,
+                    BookingId = model.BookingId,
+                    PlanId = model.PlanId,
                     CreatedDate = timeNow,
                     CreatedBy = model.UserId,
                 };
@@ -132,40 +128,26 @@ namespace TripWiseAPI.Services
                 string? planName = null;
                 string? tourName = null;
                 int? tourId = null;
-                int? bookingId = null;
+                int? bookingId = transaction.BookingId;
 
-                if (!string.IsNullOrEmpty(transaction.OrderCode))
+                if (transaction.PlanId.HasValue)
                 {
-                    if (transaction.OrderCode.Contains("plan"))
-                    {
-                        var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_plan_(\d+)");
-                        if (match.Success)
-                        {
-                            int planId = int.Parse(match.Groups[2].Value);
-                            planName = await _dbContext.Plans
-                                .Where(p => p.PlanId == planId && p.RemovedDate == null)
-                                .Select(p => p.PlanName)
-                                .FirstOrDefaultAsync();
-                        }
-                    }
-                    else if (transaction.OrderCode.Contains("booking"))
-                    {
-                        var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_booking_(\d+)");
-                        if (match.Success)
-                        {
-                            bookingId = int.Parse(match.Groups[2].Value);
-                            var bookingInfo = await _dbContext.Bookings
-                                .Where(b => b.BookingId == bookingId)
-                                .Select(b => new { b.BookingId, b.Tour.TourName, b.TourId })
-                                .FirstOrDefaultAsync();
+                    planName = await _dbContext.Plans
+                        .Where(p => p.PlanId == transaction.PlanId && p.RemovedDate == null)
+                        .Select(p => p.PlanName)
+                        .FirstOrDefaultAsync();
+                }
+                else if (transaction.BookingId.HasValue)
+                {
+                    var bookingInfo = await _dbContext.Bookings
+                        .Where(b => b.BookingId == transaction.BookingId)
+                        .Select(b => new { b.BookingId, b.Tour.TourName, b.TourId })
+                        .FirstOrDefaultAsync();
 
-                            if (bookingInfo != null)
-                            {
-                                tourName = bookingInfo.TourName;
-                                tourId = bookingInfo.TourId;
-                                bookingId = bookingInfo.BookingId;
-                            }
-                        }
+                    if (bookingInfo != null)
+                    {
+                        tourName = bookingInfo.TourName;
+                        tourId = bookingInfo.TourId;
                     }
                 }
 
@@ -184,6 +166,7 @@ namespace TripWiseAPI.Services
                     BookingId = bookingId
                 });
             }
+
 
             return result;
         }
@@ -444,7 +427,6 @@ namespace TripWiseAPI.Services
                 throw new Exception($"Vui lòng điền đầy đủ thông tin: {string.Join(", ", missingFields)} trước khi thanh toán.");
 
             booking.BookingStatus = PaymentStatus.Pending;
-            booking.OrderCode = $"user_{userId}_booking_{booking.BookingId}";
             booking.ModifiedDate = TimeHelper.GetVietnamTime();
             booking.ModifiedBy = userId;
 
@@ -471,7 +453,6 @@ namespace TripWiseAPI.Services
                 OrderDescription = $"Thanh toán tour {booking.Tour.TourName} cho {booking.Quantity} người. Tổng: {booking.TotalAmount:N0} VND",
                 OrderType = "booking",
                 BookingId = booking.BookingId,
-                OrderCode = booking.OrderCode,
             };
 			await _logService.LogAsync(userId: userId, action: "Create", message: $"Người dùng {userId} đặt tour {booking.Tour.TourName} với mã đơn {booking.OrderCode} - Số tiền: {booking.TotalAmount:N0} VND", statusCode: 201, createdBy: userId);
 			return CreatePaymentUrl(paymentModel, context);
@@ -524,45 +505,28 @@ namespace TripWiseAPI.Services
                 }
 
                 // 🔹 Nếu là plan và thanh toán thành công thì nâng cấp plan
-                if (transaction.PaymentStatus == PaymentStatus.Success &&
-                    orderCode.Contains("plan", StringComparison.OrdinalIgnoreCase))
+                if (transaction.PaymentStatus == PaymentStatus.Success && transaction.PlanId.HasValue)
                 {
-                    var match = Regex.Match(orderCode, @"user_(\d+)_plan_(\d+)");
-                    if (match.Success)
-                    {
-                        var userId = int.Parse(match.Groups[1].Value);
-                        var planId = int.Parse(match.Groups[2].Value);
-                        await _planService.UpgradePlanAsync(userId, planId);
-                    }
+                    await _planService.UpgradePlanAsync((int)transaction.UserId, transaction.PlanId.Value);
                 }
 
-                // 🔹 Nếu là booking, update BookingStatus đồng bộ với PaymentStatus
-                if (orderCode.Contains("booking", StringComparison.OrdinalIgnoreCase))
+                if (transaction.BookingId.HasValue)
                 {
-                    var match = Regex.Match(orderCode, @"user_(\d+)_booking_(\d+)");
-                    if (match.Success)
+                    var booking = await _dbContext.Bookings
+                        .FirstOrDefaultAsync(b => b.BookingId == transaction.BookingId.Value);
+
+                    if (booking != null)
                     {
-                        var userId = int.Parse(match.Groups[1].Value);
-                        var bookingId = int.Parse(match.Groups[2].Value);
-
-                        var booking = await _dbContext.Bookings
-                            .FirstOrDefaultAsync(b => b.BookingId == bookingId);
-
-                        if (booking != null)
+                        booking.ModifiedDate = TimeHelper.GetVietnamTime();
+                        booking.ModifiedBy = transaction.UserId;
+                        booking.BookingStatus = transaction.PaymentStatus switch
                         {
-                            booking.ModifiedDate = TimeHelper.GetVietnamTime();
-                            booking.ModifiedBy = userId;
-                            booking.BookingStatus = transaction.PaymentStatus switch
-                            {
-                                PaymentStatus.Success => PaymentStatus.Success,     // hoặc "Confirmed"
-                                PaymentStatus.Canceled => PaymentStatus.Canceled,
-                                PaymentStatus.Failed => PaymentStatus.Failed,
-                                _ => booking.BookingStatus
-                            };
-                            _dbContext.Entry(booking).State = EntityState.Modified;
-                        }
-                        
-
+                            PaymentStatus.Success => PaymentStatus.Success, // hoặc "Confirmed"
+                            PaymentStatus.Canceled => PaymentStatus.Canceled,
+                            PaymentStatus.Failed => PaymentStatus.Failed,
+                            _ => booking.BookingStatus
+                        };
+                        _dbContext.Entry(booking).State = EntityState.Modified;
                     }
                 }
 

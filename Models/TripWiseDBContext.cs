@@ -271,6 +271,8 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.BankCode).HasMaxLength(50);
 
+                entity.Property(e => e.BookingId).HasColumnName("BookingID");
+
                 entity.Property(e => e.CreatedDate)
                     .HasColumnType("datetime")
                     .HasDefaultValueSql("(getdate())");
@@ -285,6 +287,8 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.PaymentTime).HasColumnType("datetime");
 
+                entity.Property(e => e.PlanId).HasColumnName("PlanID");
+
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.RemovedReason).HasMaxLength(255);
@@ -292,6 +296,16 @@ namespace TripWiseAPI.Models
                 entity.Property(e => e.UserId).HasColumnName("UserID");
 
                 entity.Property(e => e.VnpTransactionNo).HasMaxLength(50);
+
+                entity.HasOne(d => d.Booking)
+                    .WithMany(p => p.PaymentTransactions)
+                    .HasForeignKey(d => d.BookingId)
+                    .HasConstraintName("FK_PaymentTransactions_Bookings");
+
+                entity.HasOne(d => d.Plan)
+                    .WithMany(p => p.PaymentTransactions)
+                    .HasForeignKey(d => d.PlanId)
+                    .HasConstraintName("FK_PaymentTransactions_Plans");
 
                 entity.HasOne(d => d.User)
                     .WithMany(p => p.PaymentTransactions)

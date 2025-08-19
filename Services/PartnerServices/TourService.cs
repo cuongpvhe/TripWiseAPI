@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -1012,9 +1013,9 @@ namespace TripWiseAPI.Services.PartnerServices
             await _dbContext.SaveChangesAsync();
             return true;
         }
-        public async Task<PartnerTourStatisticsDto> GetPartnerTourStatisticsAsync(int partnerId, DateTime? fromDate, DateTime? toDate)
+        public async Task<List<PartnerTourStatisticsDto>> GetPartnerTourStatisticsAsync(int partnerId, DateTime? fromDate, DateTime? toDate)
         {
-            PartnerTourStatisticsDto result = null;
+            var results = new List<PartnerTourStatisticsDto>();
 
             using var conn = new SqlConnection(_configuration.GetConnectionString("DBContext"));
             using var command = new SqlCommand("sp_GetPartnerTourStatistics", conn);
@@ -1026,24 +1027,21 @@ namespace TripWiseAPI.Services.PartnerServices
             await conn.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
 
-            if (await reader.ReadAsync())
+            while (await reader.ReadAsync())
             {
-                result = new PartnerTourStatisticsDto
+                results.Add(new PartnerTourStatisticsDto
                 {
-                    PartnerID = reader.GetInt32(0),                               
-                    CompanyName = reader.GetString(1),                            
-                    MonthYear = reader.IsDBNull(2) ? null : reader.GetString(2), 
-                    TotalTours = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),    
-                    TotalBookedTours = reader.IsDBNull(4) ? 0 : reader.GetInt32(4), 
-                    TotalRevenue = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5) 
-                };
+                    PartnerID = reader.GetInt32(0),
+                    CompanyName = reader.GetString(1),
+                    MonthYear = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    TotalTours = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    TotalBookedTours = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                    TotalRevenue = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5)
+                });
             }
 
-
-            return result ?? new PartnerTourStatisticsDto();
+            return results;
         }
-
-
     }
 
     public static class TourStatuses
