@@ -38,7 +38,7 @@ namespace TripWiseAPI.Services
             if (oldRequest == null || oldResponse == null)
                 throw new InvalidOperationException("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
 
-            // Gọi AI để tạo lịch trình mới
+            // Gọi AI để tạo lịch trình mới với userMessage
             var newItinerary = await _aiService.UpdateItineraryAsync(oldRequest, oldResponse, userMessage);
 
             // Thêm thông tin thời tiết cho mỗi ngày

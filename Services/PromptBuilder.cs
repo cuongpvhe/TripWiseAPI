@@ -38,7 +38,37 @@ namespace TripWiseAPI.Services
 
                 === HƯỚNG DẪN TẠO LỊCH TRÌNH ===
                 - Mỗi ngày phải có hoạt động trải đều các khung: sáng, trưa, chiều, tối
-                - Sáng (07:00–10:30), trưa (11:00–13:00), chiều (14:30–17:00), tối (18:00–21:00)
+                **Cấu trúc ngày bắt buộc:**
+                - **07:00-08:00: Hoạt động khởi động ngày** - BẮT BUỘC mỗi ngày phải có
+                  * Ăn sáng tại địa điểm cụ thể (không phải buffet khách sạn)
+                  * Hoặc hoạt động nhẹ nhàng khởi động (cà phê, tản bộ, chợ sáng)
+                  * Hoạt động này giúp du khách chuẩn bị tinh thần cho ngày mới
+
+                - **08:30-10:30: Hoạt động chính buổi sáng** - Hoạt động tốn nhiều sức lực
+                  * Tham quan các điểm đến chính, leo núi, khám phá
+                  * Hoạt động đòi hỏi thể lực và tập trung cao
+                  * Tận dụng thời tiết mát mẻ buổi sáng
+
+                **Khung giờ linh hoạt trong ngày:**
+                - Không bắt buộc phải tuân thủ cứng nhắc các khung giờ cố định
+                - Thời gian có thể điều chỉnh linh hoạt tùy theo:
+                  * Tính chất hoạt động (ăn uống, tham quan, mua sắm, giải trí)
+                  * Thời gian di chuyển giữa các địa điểm
+                  * Giờ mở cửa/đóng cửa của địa điểm
+                  * Thời điểm tốt nhất để trải nghiệm (ví dụ: ngắm hoàng hôn, chợ đêm)
+
+                **Nguyên tắc sắp xếp thời gian:**
+                - Buổi trưa (11:00-14:00): Ăn trưa, nghỉ ngơi, hoạt động trong nhà
+                - Buổi chiều (14:00-18:00): Tham quan, mua sắm, hoạt động ngoài trời
+                - Buổi tối (18:00-22:00): Ăn tối, giải trí, trải nghiệm văn hóa đêm
+
+                **Lưu ý quan trọng:**
+                - Ưu tiên logic thời gian và địa lý khi sắp xếp hoạt động
+                - Tránh di chuyển qua lại nhiều lần trong ngày
+                - Cân nhắc thời gian nghỉ ngơi phù hợp
+                - Có thể kèm mẹo hữu ích: "nên đến sớm để tránh đông", "đặt bàn trước"
+                - Không được lặp lại hoạt động trong cùng một ngày
+                - Cho biết thời điểm tối ưu để trải nghiệm từng địa điểm
                 - Ưu tiên các hoạt động ăn uống, tham quan đặc sắc, nghỉ ngơi hợp lý
                 - Có thể kèm mẹo hữu ích cho du khách như: "nên đến sớm để tránh đông", "nên đặt bàn trước"
                 - Không được lặp lại hoạt động trong cùng một ngày
@@ -65,7 +95,7 @@ namespace TripWiseAPI.Services
                 - Mỗi ngày phải có trường `"weatherNote"`: mô tả thời tiết ngắn gọn dựa trên `"weatherDescription"` và `"temperatureCelsius"`
 
                 === NGUỒN ĐỊA ĐIỂM ===
-                - Ưu tiên địa điểm có trong danh sách `relatedKnowledge` nếu phù hợp logic chuyến đi
+                - Tận dụng tối đa dữ liệu có trong danh sách `relatedKnowledge` nếu phù hợp logic chuyến đi
                 - Nếu cần mở rộng, chỉ lấy địa điểm:
                   - Có thật, có địa chỉ, có trên Google Maps
                   - Nằm trong bài viết/blog/review du lịch uy tín về {{request.Destination}}
@@ -108,7 +138,7 @@ namespace TripWiseAPI.Services
                         }
 
 
-        public string BuildUpdatePrompt(TravelRequest request, ItineraryResponse originalResponse, string userInstruction)
+        public string BuildUpdatePrompt(TravelRequest request, ItineraryResponse originalResponse, string userInstruction, string relatedKnowledge)
         {
             var originalJson = JsonSerializer.Serialize(
                 originalResponse,
@@ -119,98 +149,109 @@ namespace TripWiseAPI.Services
             var travelDate = request.TravelDate.ToString("dd/MM/yyyy");
 
             return $$"""
-        Bạn là một trợ lý du lịch AI. Nhiệm vụ của bạn là **cập nhật lịch trình dưới đây một cách chính xác theo yêu cầu người dùng**, đồng thời **tuân thủ đầy đủ các tiêu chuẩn dữ liệu đầu ra**.
+                Bạn là một trợ lý du lịch AI. Nhiệm vụ của bạn là **cập nhật lịch trình dưới đây một cách chính xác theo yêu cầu người dùng**, đồng thời **tuân thủ đầy đủ các tiêu chuẩn dữ liệu đầu ra**.
 
-        ### Yêu cầu người dùng:
-        {{userInstruction}}
+                ### Yêu cầu người dùng:
+                {{userInstruction}}
 
-        ### Hướng dẫn cập nhật:
-        - Phân tích kỹ yêu cầu người dùng để xác định rõ **ngày nào và hoạt động nào cần được thay đổi**.
-        - Nếu yêu cầu chỉ rõ một ngày (ví dụ: "ngày 2") thì chỉ cập nhật đúng ngày đó.
-        - Nếu yêu cầu mang tính khái quát hoặc không nêu rõ thời gian cụ thể (ví dụ: "tôi muốn ăn bún chả vào buổi sáng"), bạn phải **chủ động xác định vị trí phù hợp nhất để thay đổi hoặc chèn thêm hoạt động hợp lý**.
-        - Nếu lịch trình gốc chưa có hoạt động phù hợp, bạn có thể thêm hoạt động mới vào khung giờ thích hợp (ví dụ sáng: 07:00–09:00).
-        - **Với mỗi ngày, nếu chỉ một số hoạt động được yêu cầu thay đổi, hãy giữ nguyên tất cả các hoạt động còn lại như lịch trình gốc. Tuyệt đối không được viết lại toàn bộ danh sách hoạt động nếu không cần thiết.**
-        - **Chỉ thay đổi những phần cần thiết**, giữ nguyên phần khác.
-        - Không viết lại toàn bộ lịch trình nếu không có yêu cầu cụ thể.
-        - Nếu món ăn, địa điểm hoặc yêu cầu không có trong dữ liệu gốc, hãy **chủ động đề xuất một địa điểm phù hợp, thực tế và phổ biến trong khu vực** (Google Maps).
-        - **Nếu không chắc vị trí thay đổi ở đâu, hãy chèn vào thời điểm hợp lý nhất dựa trên ngữ cảnh.**
-        - Nếu không có thay đổi nào được yêu cầu rõ ràng hoặc hợp lý để chèn, hãy giữ nguyên toàn bộ lịch trình gốc.
+                ### Hướng dẫn cập nhật:
+                - Phân tích kỹ yêu cầu người dùng để xác định rõ **ngày nào và hoạt động nào cần được thay đổi**.
+                - Nếu yêu cầu chỉ rõ một ngày (ví dụ: "ngày 2") thì chỉ cập nhật đúng ngày đó.
+                - Nếu yêu cầu mang tính khái quát hoặc không nêu rõ thời gian cụ thể (ví dụ: "tôi muốn ăn bún chả vào buổi sáng"), bạn phải **chủ động xác định vị trí phù hợp nhất để thay đổi hoặc chèn thêm hoạt động hợp lý**.
+                - Nếu lịch trình gốc chưa có hoạt động phù hợp, bạn có thể thêm hoạt động mới vào khung giờ thích hợp (ví dụ sáng: 07:00–09:00).
+                - **Với mỗi ngày, nếu chỉ một số hoạt động được yêu cầu thay đổi, hãy giữ nguyên tất cả các hoạt động còn lại như lịch trình gốc. Tuyệt đối không được viết lại toàn bộ danh sách hoạt động nếu không cần thiết.**
+                - **Chỉ thay đổi những phần cần thiết**, giữ nguyên phần khác.
+                - Không viết lại toàn bộ lịch trình nếu không có yêu cầu cụ thể.
+                - Nếu món ăn, địa điểm hoặc yêu cầu không có trong dữ liệu gốc, hãy **chủ động đề xuất một địa điểm phù hợp, thực tế và phổ biến trong khu vực** (Google Maps).
+                - **Nếu không chắc vị trí thay đổi ở đâu, hãy chèn vào thời điểm hợp lý nhất dựa trên ngữ cảnh.**
+                - Nếu không có thay đổi nào được yêu cầu rõ ràng hoặc hợp lý để chèn, hãy giữ nguyên toàn bộ lịch trình gốc.
 
-        ### Yêu cầu định dạng dữ liệu:
-        - Mỗi ngày (chỉ những ngày có thay đổi) cần bao gồm:
-          - dayNumber
-          - title
-          - dailyCost
-          - weatherNote (gợi ý dựa trên thời tiết và nhiệt độ)
-          - activities: Danh sách hoạt động trong ngày, mỗi hoạt động bao gồm:
-            - starttime (định dạng "HH:mm")
-            - endtime (định dạng "HH:mm")
-            - description (mô tả ngắn gọn)
-            - estimatedCost (số nguyên, đơn vị: VND)
-            - transportation (phương tiện di chuyển)
-            - address (tên địa điểm + địa chỉ cụ thể)
-            - placeDetail (mô tả điểm đến, nét đặc biệt, thời điểm nên đi: sáng/chiều/tối)
-            - mapUrl (nếu có)
-            - image (dùng thumbnail từ dữ liệu gốc nếu có, nếu không thì để chuỗi rỗng "")
+                ### Nguồn địa điểm tham khảo:
+                - **Ưu tiên địa điểm có trong danh sách relatedKnowledge bên dưới** nếu phù hợp với yêu cầu cập nhật
+                - Nếu cần mở rộng, chỉ lấy địa điểm:
+                  - Có thật, có địa chỉ, có trên Google Maps
+                  - Nằm trong bài viết/blog/review du lịch uy tín về {{request.Destination}}
+                - **Không được tự nghĩ ra hoặc phỏng đoán địa điểm không kiểm chứng**
 
-        ### Tiêu chuẩn địa điểm:
-        - Tên địa điểm **phải cụ thể và thực tế**, xuất hiện phổ biến trên Google Maps.
-        - Địa chỉ phải đầy đủ: tên địa điểm + số nhà (nếu có) + đường + phường/xã + quận/huyện + tỉnh/thành.
-        - Tuyệt đối không dùng mô tả mơ hồ như: "quán ăn địa phương", "chợ trung tâm", "gần khu du lịch", "tùy chọn".
-        - **Không được ghi "chưa xác định", "địa điểm cụ thể chưa xác định", hoặc bất kỳ cụm từ nào ám chỉ địa điểm chưa rõ ràng.** Nếu không xác định được từ dữ liệu gốc thì phải đề xuất một địa điểm cụ thể, phổ biến và hợp lý với ngữ cảnh.
+                ### Yêu cầu định dạng dữ liệu:
+                - Mỗi ngày (chỉ những ngày có thay đổi) cần bao gồm:
+                  - dayNumber
+                  - title
+                  - dailyCost
+                  - weatherNote (gợi ý dựa trên thời tiết và nhiệt độ)
+                  - activities: Danh sách hoạt động trong ngày, mỗi hoạt động bao gồm:
+                    - starttime (định dạng "HH:mm")
+                    - endtime (định dạng "HH:mm")
+                    - description (mô tả ngắn gọn)
+                    - estimatedCost (số nguyên, đơn vị: VND)
+                    - transportation (phương tiện di chuyển)
+                    - address (tên địa điểm + địa chỉ cụ thể)
+                    - placeDetail (mô tả điểm đến, nét đặc biệt, thời điểm nên đi: sáng/chiều/tối)
+                    - mapUrl (nếu có)
+                    - image (dùng thumbnail từ dữ liệu gốc nếu có, nếu không thì để chuỗi rỗng "")
 
-        ### Thông tin chuyến đi:
-        - Địa điểm: {{request.Destination}}
-        - Ngày khởi hành: {{travelDate}}
-        - Số ngày: {{request.Days}}
-        - Ngân sách: {{budget}} VND
-        - Nhóm: {{request.GroupType}}
-        - Phong cách ăn uống: {{request.DiningStyle}}
-        - Di chuyển: {{request.Transportation}}
-        - Nơi ở mong muốn: {{request.Accommodation}}
+                ### Tiêu chuẩn địa điểm:
+                - Tên địa điểm **phải cụ thể và thực tế**, xuất hiện phổ biến trên Google Maps.
+                - Địa chỉ phải đầy đủ: tên địa điểm + số nhà (nếu có) + đường + phường/xã + quận/huyện + tỉnh/thành.
+                - Tuyệt đối không dùng mô tả mơ hồ như: "quán ăn địa phương", "chợ trung tâm", "gần khu du lịch", "tùy chọn".
+                - **Không được ghi "chưa xác định", "địa điểm cụ thể chưa xác định", hoặc bất kỳ cụm từ nào ám chỉ địa điểm chưa rõ ràng.** Nếu không xác định được từ dữ liệu gốc thì phải đề xuất một địa điểm cụ thể, phổ biến và hợp lý với ngữ cảnh.
 
-        ### Lịch trình gốc:
-        {{originalJson}}
+                ### Thông tin chuyến đi:
+                - Địa điểm: {{request.Destination}}
+                - Ngày khởi hành: {{travelDate}}
+                - Số ngày: {{request.Days}}
+                - Ngân sách: {{budget}} VND
+                - Nhóm: {{request.GroupType}}
+                - Phong cách ăn uống: {{request.DiningStyle}}
+                - Di chuyển: {{request.Transportation}}
+                - Nơi ở mong muốn: {{request.Accommodation}}
 
-        ### Kết quả mong muốn:
-        - Trả về dữ liệu JSON hợp lệ theo định dạng dưới đây.
-        - Nếu có thay đổi, chỉ bao gồm các ngày có thay đổi trong danh sách "days".
-        - Nếu không có thay đổi gì, vẫn PHẢI trả về days chứa đầy đủ dữ liệu gốc.
-        - ⚠️ Tuyệt đối không được trả về "days": []
-        + Trả về JSON với field bắt buộc "days" (array), kể cả khi chỉ có một ngày.
-        + Không trả về "Itinerary". Tất cả dữ liệu phải nằm trong "days".
-        + Nếu có hoạt động mới được chèn, giữ nguyên các hoạt động cũ và chỉ thêm phần cần thay đổi.
-        
+                ### Lịch trình gốc:
+                {{originalJson}}
 
-        ```json
-        {
-          "version": "v1.0",
-          "totalCost": 123456,
-          "days": [
-            {
-              "dayNumber": 2,
-              "title": "string",
-              "dailyCost": 123456,
-              "weatherNote": "string",
-              "activities": [
+                ### Kết quả mong muốn:
+                - Trả về dữ liệu JSON hợp lệ theo định dạng dưới đây.
+                - Nếu có thay đổi, chỉ bao gồm các ngày có thay đổi trong danh sách "days".
+                - Nếu không có thay đổi gì, vẫn PHẢI trả về days chứa đầy đủ dữ liệu gốc.
+                - ⚠️ Tuyệt đối không được trả về "days": []
+                + Trả về JSON với field bắt buộc "days" (array), kể cả khi chỉ có một ngày.
+                + Không trả về "Itinerary". Tất cả dữ liệu phải nằm trong "days".
+                + Nếu có hoạt động mới được chèn, giữ nguyên các hoạt động cũ và chỉ thêm phần cần thay đổi.
+    
+
+                ```json
                 {
-                  "starttime": "08:00",
-                  "endtime": "10:00",
-                  "description": "string",
-                  "estimatedCost": 123456,
-                  "transportation": "string",
-                  "address": "string",
-                  "placeDetail": "string",
-                  "mapUrl": "string",
-                  "image": "string"
+                  "version": "v1.0",
+                  "totalCost": 123456,
+                  "days": [
+                    {
+                      "dayNumber": 2,
+                      "title": "string",
+                      "dailyCost": 123456,
+                      "weatherNote": "string",
+                      "activities": [
+                        {
+                          "starttime": "08:00",
+                          "endtime": "10:00",
+                          "description": "string",
+                          "estimatedCost": 123456,
+                          "transportation": "string",
+                          "address": "string",
+                          "placeDetail": "string",
+                          "mapUrl": "string",
+                          "image": "string"
+                        }
+                      ]
+                    }
+                  ]
                 }
-              ]
+                ```
+
+                === DANH SÁCH ĐỊA ĐIỂM THAM KHẢO ===
+                {{relatedKnowledge}}
+                === KẾT THÚC DANH SÁCH ===
+                """;
             }
-          ]
-        }
-        ```
-        """;
-}
 
 
     }
