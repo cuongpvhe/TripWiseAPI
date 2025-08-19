@@ -5,6 +5,11 @@ namespace TripWiseAPI.Models
 {
     public partial class Booking
     {
+        public Booking()
+        {
+            PaymentTransactions = new HashSet<PaymentTransaction>();
+        }
+
         public int BookingId { get; set; }
         public string OrderCode { get; set; } = null!;
         public int UserId { get; set; }
@@ -26,5 +31,6 @@ namespace TripWiseAPI.Models
 
         public virtual Tour Tour { get; set; } = null!;
         public virtual User User { get; set; } = null!;
+        public virtual ICollection<PaymentTransaction> PaymentTransactions { get; set; }
     }
 }

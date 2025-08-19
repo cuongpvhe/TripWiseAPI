@@ -6,7 +6,6 @@ namespace TripWiseAPI.Models
     {
         [JsonIgnore] // Để Swagger không yêu cầu nhập
         public int UserId { get; set; }
-
         public string OrderType { get; set; }
         public decimal Amount { get; set; }
         public string OrderDescription { get; set; }

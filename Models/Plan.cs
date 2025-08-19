@@ -7,6 +7,7 @@ namespace TripWiseAPI.Models
     {
         public Plan()
         {
+            PaymentTransactions = new HashSet<PaymentTransaction>();
             UserPlans = new HashSet<UserPlan>();
         }
 
@@ -23,6 +24,7 @@ namespace TripWiseAPI.Models
         public string? Description { get; set; }
         public int? MaxRequests { get; set; }
 
+        public virtual ICollection<PaymentTransaction> PaymentTransactions { get; set; }
         public virtual ICollection<UserPlan> UserPlans { get; set; }
     }
 }
