@@ -5,6 +5,11 @@ using TripWiseAPI.Services;
 
 namespace TripWiseAPI.Controllers
 {
+    /// <summary>
+    /// Controller quản lý hồ sơ người dùng (USER).
+    /// - Lấy thông tin hồ sơ
+    /// - Cập nhật hồ sơ
+    /// </summary>
     [Authorize(Roles = "USER")]
     [Route("api/user")]
     [ApiController]
@@ -17,6 +22,9 @@ namespace TripWiseAPI.Controllers
             _userService = userService;
         }
 
+        /// <summary>
+        /// Lấy UserId từ Claims của người dùng hiện tại.
+        /// </summary>
         private int? GetUserId()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
@@ -25,6 +33,9 @@ namespace TripWiseAPI.Controllers
             return null;
         }
 
+        /// <summary>
+        /// Lấy thông tin hồ sơ người dùng hiện tại.
+        /// </summary>
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
         {
@@ -39,6 +50,10 @@ namespace TripWiseAPI.Controllers
             return Ok(profile);
         }
 
+        /// <summary>
+        /// Cập nhật thông tin hồ sơ người dùng.
+        /// </summary>
+        /// <param name="dto">Thông tin hồ sơ cần cập nhật.</param>
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromForm] UserProfileUpdateDTO dto)
         {

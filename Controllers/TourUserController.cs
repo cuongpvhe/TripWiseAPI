@@ -6,6 +6,13 @@ using TripWiseAPI.Services.PartnerServices;
 
 namespace TripWiseAPI.Controllers
 {
+    /// <summary>
+    /// Controller quản lý các chức năng tour dành cho người dùng:
+    /// - Xem tour đã phê duyệt
+    /// - Đặt tour và xem chi tiết booking
+    /// - Quản lý danh sách yêu thích
+    /// - Lấy tin tức (HotNews)
+    /// </summary>
     [Route("api/[controller]")]
     [ApiController]
     public class TourUserController : ControllerBase
@@ -19,6 +26,10 @@ namespace TripWiseAPI.Controllers
             _vnPayService = vnPayService;
             _service = appSettingsService;
         }
+
+        /// <summary>
+        /// Lấy UserId từ Claims của người dùng hiện tại.
+        /// </summary>
         private int? GetUserId()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
@@ -26,7 +37,10 @@ namespace TripWiseAPI.Controllers
                 return userId;
             return null;
         }
-        // GET: api/public/tours/approved
+
+        /// <summary>
+        /// Lấy danh sách tour đã được phê duyệt.
+        /// </summary>
         [HttpGet("approved")]
         public async Task<IActionResult> GetApprovedTours()
         {
@@ -35,7 +49,10 @@ namespace TripWiseAPI.Controllers
         }
 
 
-        // GET: api/public/tours/approved/{tourId}
+        /// <summary>
+        /// Lấy chi tiết tour đã được phê duyệt theo ID.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
         [HttpGet("approved/{tourId}")]
         public async Task<IActionResult> GetApprovedTourDetail(int tourId)
         {
@@ -44,6 +61,10 @@ namespace TripWiseAPI.Controllers
                 return NotFound("Không tìm thấy tour.");
             return Ok(detail);
         }
+
+        /// <summary>
+        /// Lấy danh sách tour mà người dùng đã đặt thành công.
+        /// </summary>
         [HttpGet("booked-tours")]
         public async Task<IActionResult> GetBookedTours()
         {
@@ -54,6 +75,11 @@ namespace TripWiseAPI.Controllers
             var result = await _tourUserService.GetSuccessfulBookedToursAsync(userId.Value);
             return Ok(result);
         }
+
+        /// <summary>
+        /// Lấy chi tiết booking theo ID.
+        /// </summary>
+        /// <param name="bookingId">ID của booking.</param>
         [HttpGet("{bookingId}")]
         public async Task<IActionResult> GetBookingDetail(int bookingId)
         {
@@ -63,6 +89,11 @@ namespace TripWiseAPI.Controllers
 
             return Ok(detail);
         }
+
+        /// <summary>
+        /// Thêm tour vào danh sách yêu thích.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
         [HttpPost("addWishlist")]
         public async Task<IActionResult> AddToWishlist(int tourId)
         {
@@ -74,6 +105,10 @@ namespace TripWiseAPI.Controllers
             return Ok("Đã thêm vào danh sách yêu thích.");
         }
 
+        /// <summary>
+        /// Xóa tour khỏi danh sách yêu thích.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
         [HttpDelete("removeFromWishlist")]
         public async Task<IActionResult> RemoveFromWishlist( int tourId)
         {
@@ -85,6 +120,9 @@ namespace TripWiseAPI.Controllers
             return Ok("Đã xoá khỏi danh sách yêu thích.");
         }
 
+        /// <summary>
+        /// Lấy danh sách tour yêu thích của người dùng.
+        /// </summary>
         [HttpGet("Wishlist")]
         public async Task<IActionResult> GetUserWishlist()
         {
@@ -106,8 +144,9 @@ namespace TripWiseAPI.Controllers
         }
 
         /// <summary>
-        /// Lấy chi tiết HotNews theo Id
+        /// Lấy chi tiết HotNews theo ID.
         /// </summary>
+        /// <param name="id">ID của HotNews.</param>
         [HttpGet("hot-new-by/{id:int}")]
         public async Task<IActionResult> GetByIdHotNew(int id)
         {

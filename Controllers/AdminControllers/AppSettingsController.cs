@@ -7,7 +7,10 @@ using TripWiseAPI.Services.AdminServices;
 using TripWiseAPI.Services.PartnerServices;
 
 namespace TripWiseAPI.Controllers.Admin
-{    
+{
+    /// <summary>
+    /// Quản lý hệ thống dành cho Admin.
+    /// </summary>
     [Authorize(Roles = "ADMIN")]
     [Route("api/admin/appsettings")]
     [ApiController]
@@ -21,6 +24,11 @@ namespace TripWiseAPI.Controllers.Admin
             _service = service;
             _imageUploadService = imageUploadService;
         }
+
+        /// <summary>
+        /// Lấy UserId từ claims của người dùng hiện tại.
+        /// Trả về null nếu không tồn tại hoặc không hợp lệ.
+        /// </summary>
         private int? GetUserId()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
@@ -28,6 +36,10 @@ namespace TripWiseAPI.Controllers.Admin
                 return userId;
             return null;
         }
+
+        /// <summary>
+        /// Lấy ra tất cả dữ liệu của appsetting
+        /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -35,6 +47,9 @@ namespace TripWiseAPI.Controllers.Admin
             return Ok(settings);
         }
 
+        /// <summary>
+        /// Lấy ra thông tin chi tiết teo key
+        /// </summary>
         [HttpGet("{key}")]
         public async Task<IActionResult> GetByKey(string key)
         {
@@ -43,6 +58,9 @@ namespace TripWiseAPI.Controllers.Admin
             return Ok(setting);
         }
 
+        /// <summary>
+        /// Cập nhật key cho bảng appsetting
+        /// </summary>
         [HttpPut("{key}")]
         public async Task<IActionResult> Update(string key, [FromBody] AppSetting dto)
         {
@@ -53,6 +71,10 @@ namespace TripWiseAPI.Controllers.Admin
 
             return Ok(new { message = "Cập nhật thành công." });
         }
+
+        /// <summary>
+        /// Đặt gói thành gói Free
+        /// </summary>
         [HttpPost("set-free-plan")]
         public async Task<IActionResult> SetFreePlan([FromBody] string planName)
         {
@@ -62,6 +84,10 @@ namespace TripWiseAPI.Controllers.Admin
 
             return Ok(new { success = true, message = "Đã đặt gói này làm gói Free." });
         }
+
+        /// <summary>
+        /// Đặt gói thành gói trial
+        /// </summary>
         [HttpPost("set-trial-plan")]
         public async Task<IActionResult> SetTrialPlan([FromBody] string planName)
         {
@@ -71,6 +97,10 @@ namespace TripWiseAPI.Controllers.Admin
 
             return Ok(new { success = true, message = "Đã đặt gói này làm gói Trial." });
         }
+
+        /// <summary>
+        /// Cập nhật thời gian trải nghiệm gói trial
+        /// </summary>
         [HttpPut("trial-duration")]
         public async Task<IActionResult> UpdateTrialDuration([FromBody] int days)
         {
@@ -80,6 +110,9 @@ namespace TripWiseAPI.Controllers.Admin
             return Ok(new { message = $"Đã cập nhật TrialDurationInDays = {days}" });
         }
 
+        /// <summary>
+        /// Lấy thời gian cho mỗi phiên đăng nhập
+        /// </summary>
         [HttpGet("timeout")]
         public async Task<IActionResult> GetTimeout()
         {
@@ -87,12 +120,16 @@ namespace TripWiseAPI.Controllers.Admin
             return Ok(new { TimeoutMinutes = timeout });
         }
 
+        /// <summary>
+        /// Cập nhật thời gian cho mỗi phiên đăng nhập
+        /// </summary>
         [HttpPost("upadte-timeout")]
         public async Task<IActionResult> UpdateTimeout([FromBody] int minutes)
         {
             await _service.UpdateTimeoutAsync(minutes);
             return Ok(new { Message = "Đã cập nhật thời gian hết hạn phiên thành công", TimeoutMinutes = minutes });
         }
+
         /// <summary>
         /// Lấy thời gian timeout của OTP
         /// </summary>
@@ -121,7 +158,6 @@ namespace TripWiseAPI.Controllers.Admin
 
             return Ok(new { Message = "Cập nhật thời gian OTP thành công" });
         }
-
 
         /// <summary>
         /// Lấy danh sách HotNews
@@ -182,8 +218,5 @@ namespace TripWiseAPI.Controllers.Admin
 
             return Ok(new { Message = "Đã xoá HotNews thành công"});
         }
-
-
     }
-
 }

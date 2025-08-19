@@ -4,6 +4,9 @@ using TripWiseAPI.Services.AdminServices;
 
 namespace TripWiseAPI.Controllers.AdminControllers
 {
+    /// <summary>
+    /// API báo cáo thống kê và xuất Excel cho Admin.
+    /// </summary>
     [ApiController]
     [Route("api/reports")]
     public class ReportsController : ControllerBase
@@ -11,7 +14,6 @@ namespace TripWiseAPI.Controllers.AdminControllers
         private readonly IReportService _reportService;
         private readonly ExcelExportService _excelExportService;
         private readonly IWebHostEnvironment _env;
-
         public ReportsController(
         IReportService reportService,
         ExcelExportService excelExportService,
@@ -21,12 +23,23 @@ namespace TripWiseAPI.Controllers.AdminControllers
             _excelExportService = excelExportService;
             _env = env;
         }
+
+        /// <summary>
+        /// Lấy thống kê tổng quan theo năm cho Admin.
+        /// </summary>
+        /// <param name="year">Năm cần thống kê (nếu không truyền sẽ lấy mặc định là năm hiện tại).</param>
         [HttpGet("total-statistic")]
         public async Task<IActionResult> GetAnnualAdminStats([FromQuery] int? year)
         {
             var data = await _reportService.GetAnnualAdminStatsAsync(year);
             return Ok(data);
         }
+
+        /// <summary>
+        /// Lấy báo cáo tổng hợp doanh thu trong khoảng thời gian.
+        /// </summary>
+        /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         [HttpGet("get-revenue-summary")]
         public async Task<IActionResult> GetRevenueSummary([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)
         {
@@ -37,6 +50,12 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 Totals = totals
             });
         }
+
+        /// <summary>
+        /// Xuất báo cáo doanh thu ra file Excel theo khoảng thời gian.
+        /// </summary>
+        /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         [HttpGet("revenue-summary/export")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -68,6 +87,12 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 fileName);
         }
+
+        /// <summary>
+        /// Lấy hiệu suất của đối tác (Partner Performance) theo khoảng thời gian.
+        /// </summary>
+        /// /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         [HttpGet("get-partner-performance")]
         public async Task<IActionResult> GetPartnerPerformance([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)
         {
@@ -75,6 +100,11 @@ namespace TripWiseAPI.Controllers.AdminControllers
             return Ok(performanceList);
         }
 
+        /// <summary>
+        /// Xuất báo cáo hiệu suất đối tác ra file Excel.
+        /// </summary>
+        /// /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         [HttpGet("partner-performance/export")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -104,6 +134,12 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 fileName);
         }
+
+        /// <summary>
+        /// Lấy thống kê đặt tour trong khoảng thời gian.
+        /// </summary>
+        /// /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         [HttpGet("get-tour-booking-stats")]
         public async Task<IActionResult> GetTourBookingStats([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)
         {
@@ -111,6 +147,11 @@ namespace TripWiseAPI.Controllers.AdminControllers
             return Ok(tourBookingStats);
         }
 
+        /// <summary>
+        /// Xuất thống kê đặt tour ra file Excel.
+        /// </summary>
+        /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         [HttpGet("tour-booking-stats/export")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -150,13 +191,14 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 fileName);
         }
 
+        /// <summary>
+        /// Lấy thống kê tổng quan để hiển thị trên Dashboard.
+        /// </summary>
         [HttpGet("get-dashboard-statistics")]
         public async Task<IActionResult> GetDashboardStatistics()
         {
             var statisticsList = await _reportService.GetDashboardStatistics();
             return Ok(statisticsList);
         }
-
     }
-
 }

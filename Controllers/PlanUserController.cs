@@ -5,6 +5,11 @@ using TripWiseAPI.Services;
 
 namespace TripWiseAPI.Controllers
 {
+    /// <summary>
+    /// Controller dành cho người dùng thao tác với các gói dịch vụ (Plan).
+    /// Bao gồm lấy gói khả dụng, gói hiện tại, gói đã mua, nâng cấp gói,
+    /// kiểm tra số request còn lại và số ngày dùng thử.
+    /// </summary>
     [Authorize]
     [ApiController]
     [Route("api/plan")]
@@ -17,12 +22,20 @@ namespace TripWiseAPI.Controllers
             _planService = planService;
         }
 
+        /// <summary>
+        /// Lấy danh sách các gói (Plan) khả dụng.
+        /// </summary>
         [HttpGet("available")]
         public async Task<IActionResult> GetPlans()
         {
             var plans = await _planService.GetAvailablePlansAsync();
             return Ok(plans);
         }
+
+        /// <summary>
+        /// Lấy gói hiện tại của người dùng theo UserId.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         [HttpGet("current-plan/{userId}")]
         public async Task<IActionResult> GetCurrentPlan(int userId)
         {
@@ -32,6 +45,11 @@ namespace TripWiseAPI.Controllers
 
             return Ok(plan);
         }
+
+        /// <summary>
+        /// Lấy danh sách các gói mà người dùng đã mua.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         [HttpGet("purchased/{userId}")]
         public async Task<IActionResult> GetPurchasedPlans(int userId)
         {
@@ -39,7 +57,10 @@ namespace TripWiseAPI.Controllers
             return Ok(plans);
         }
 
-
+        /// <summary>
+        /// Nâng cấp gói dịch vụ của người dùng lên gói mới.
+        /// </summary>
+        /// <param name="planId">ID gói nâng cấp.</param>
         [HttpPost("upgrade/{planId}")]
         public async Task<IActionResult> UpgradePlan(int planId)
         {
@@ -51,6 +72,10 @@ namespace TripWiseAPI.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        /// <summary>
+        /// Lấy số lượng request còn lại của người dùng.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         [HttpGet("requests-remaining/{userId}")]
         public async Task<IActionResult> GetRemainingRequests(int userId)
         {
@@ -64,6 +89,11 @@ namespace TripWiseAPI.Controllers
                 return NotFound(new { Message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Lấy số ngày dùng thử còn lại của người dùng.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         [HttpGet("trial-days-left/{userId}")]
         public async Task<IActionResult> GetTrialDaysLeft(int userId)
         {
