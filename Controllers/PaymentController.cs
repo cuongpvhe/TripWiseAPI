@@ -9,6 +9,11 @@ using TripWiseAPI.Models.DTO;
 
 namespace TripWiseAPI.Controllers
 {
+    /// <summary>
+    /// Controller xử lý các chức năng thanh toán qua VNPay.
+    /// Bao gồm mua gói dịch vụ, đặt tour, cập nhật draft booking,
+    /// xác nhận thanh toán, callback từ VNPay và quản lý lịch sử thanh toán.
+    /// </summary>
     [Route("api/payment")]
     [ApiController]
     public class PaymentController : ControllerBase
@@ -22,8 +27,11 @@ namespace TripWiseAPI.Controllers
             _vnPayService = vnPayService;
             _configuration = configuration;
             _dbContext = dbContext;
-        }   
+        }
 
+        /// <summary>
+        /// Lấy UserId từ Claims của người dùng hiện tại.
+        /// </summary>
         private int? GetUserId()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
@@ -32,6 +40,10 @@ namespace TripWiseAPI.Controllers
             return null;
         }
 
+        /// <summary>
+        /// Người dùng mua gói dịch vụ (Plan).
+        /// </summary>
+        /// <param name="request">Thông tin yêu cầu mua gói.</param>
         [HttpPost("buy-plan")]
         public async Task<IActionResult> BuyPlan([FromBody] BuyPlanRequest request)
         {
@@ -49,6 +61,11 @@ namespace TripWiseAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        /// <summary>
+        /// Tạo draft booking cho tour trước khi thanh toán.
+        /// </summary>
+        /// <param name="request">Thông tin yêu cầu đặt tour.</param>
         [HttpPost("create-draft")]
         public async Task<IActionResult> CreateBookingDraft([FromBody] BuyTourRequest request)
         {
@@ -67,6 +84,10 @@ namespace TripWiseAPI.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật booking draft trước khi thanh toán.
+        /// </summary>
+        /// <param name="request">Thông tin cập nhật booking.</param>
         [HttpPut("update-draft")]
         public async Task<IActionResult> UpdateBookingDraft([FromBody] UpdateBookingRequest request)
         {
@@ -85,6 +106,10 @@ namespace TripWiseAPI.Controllers
             }
         }
 
+        /// <summary>
+        /// Xác nhận booking và tiến hành thanh toán qua VNPay.
+        /// </summary>
+        /// <param name="bookingId">ID của booking cần thanh toán.</param>
         [HttpPost("confirm-and-pay/{bookingId}")]
         public async Task<IActionResult> ConfirmBookingAndPay(int bookingId)
         {
@@ -102,23 +127,11 @@ namespace TripWiseAPI.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-        //[HttpPost("booking")]
-        //public async Task<IActionResult> PayBooking([FromBody] BuyTourRequest request)
-        //{
-        //    var userId = GetUserId();
-        //    if (userId == null)
-        //        return Unauthorized("Bạn chưa đăng nhập.");
 
-        //    try
-        //    {
-        //        var paymentUrl = await _vnPayService.CreateBookingAndPayAsync(request, userId.Value, HttpContext);
-        //        return Ok(new { url = paymentUrl });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(ex.Message);
-        //    }
-        //}
+        /// <summary>
+        /// Lấy lịch sử thanh toán của người dùng.
+        /// </summary>
+        /// <param name="status">Trạng thái thanh toán (tùy chọn).</param>
         [HttpGet("payment-history")]
         public async Task<IActionResult> PaymentHistory([FromQuery] string? status)
         {
@@ -130,6 +143,9 @@ namespace TripWiseAPI.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Callback từ VNPay sau khi thanh toán.
+        /// </summary>
         [HttpGet("callback")]
         public async Task<IActionResult> PaymentCallback()
         {
@@ -151,6 +167,11 @@ namespace TripWiseAPI.Controllers
 
             return Redirect(url);
         }
+
+        /// <summary>
+        /// Lấy thông báo tương ứng với mã trả về từ VNPay.
+        /// </summary>
+        /// <param name="code">Mã phản hồi từ VNPay.</param>
         private string GetVnpMessage(string code)
         {
             return code switch
@@ -163,6 +184,10 @@ namespace TripWiseAPI.Controllers
             };
         }
 
+        /// <summary>
+        /// Lấy chi tiết booking theo ID.
+        /// </summary>
+        /// <param name="bookingId">ID của booking.</param>
         [HttpGet("{bookingId}")]
         public async Task<IActionResult> GetBookingDetail(int bookingId)
         {

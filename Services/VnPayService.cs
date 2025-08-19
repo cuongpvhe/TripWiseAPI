@@ -138,7 +138,7 @@ namespace TripWiseAPI.Services
                 {
                     if (transaction.OrderCode.Contains("plan"))
                     {
-                        var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_plan_(\d+)_");
+                        var match = Regex.Match(transaction.OrderCode, @"user_(\d+)_plan_(\d+)");
                         if (match.Success)
                         {
                             int planId = int.Parse(match.Groups[2].Value);
@@ -283,7 +283,7 @@ namespace TripWiseAPI.Services
                 BookingStatus = PaymentStatus.Draft,
                 CreatedDate = now,
                 CreatedBy = userId,
-                OrderCode = $"draft_{Guid.NewGuid()}",
+                OrderCode = $"{Guid.NewGuid()}",
                 ExpiredDate = now.AddMinutes(5) 
             };
 
@@ -527,7 +527,7 @@ namespace TripWiseAPI.Services
                 if (transaction.PaymentStatus == PaymentStatus.Success &&
                     orderCode.Contains("plan", StringComparison.OrdinalIgnoreCase))
                 {
-                    var match = Regex.Match(orderCode, @"user_(\d+)_plan_(\d+)_");
+                    var match = Regex.Match(orderCode, @"user_(\d+)_plan_(\d+)");
                     if (match.Success)
                     {
                         var userId = int.Parse(match.Groups[1].Value);

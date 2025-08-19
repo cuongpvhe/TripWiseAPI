@@ -3,7 +3,15 @@ using TripWiseAPI.Models.APIModel;
 
 namespace TripWiseAPI.Controllers
 {
-	[ApiController]
+    /// <summary>
+    /// Controller quản lý log trong hệ thống.
+    /// Cung cấp các chức năng:
+    /// - Kiểm tra kết nối Firebase
+    /// - Lấy log có phân trang
+    /// - Xóa log thủ công
+    /// - Dọn dẹp log hết hạn
+    /// </summary>
+    [ApiController]
 	[Route("api/logs")]
 	public class LogsController : ControllerBase
 	{
@@ -14,8 +22,10 @@ namespace TripWiseAPI.Controllers
 			_logService = logService;
 		}
 
-		// Health check kết nối Firebase
-		[HttpGet("Check")]
+        //// <summary>
+        /// Kiểm tra tình trạng kết nối đến Firebase.
+        /// </summary>
+        [HttpGet("Check")]
 		public async Task<IActionResult> Health()
 		{
 			if (!await _logService.PingAsync())
@@ -23,7 +33,12 @@ namespace TripWiseAPI.Controllers
 			return Ok("Firebase reachable");
 		}
 
-		[HttpGet("filtered")]
+        /// <summary>
+        /// Lấy danh sách log đã được lọc và phân trang.
+        /// </summary>
+        /// <param name="page">Trang hiện tại (mặc định = 1).</param>
+        /// <param name="pageSize">Số lượng log trên mỗi trang (mặc định = 1000).</param>
+        [HttpGet("filtered")]
 		public async Task<IActionResult> GetFilteredLogs(
 		[FromQuery] int page = 1,
 		[FromQuery] int pageSize = 1000)
@@ -63,19 +78,21 @@ namespace TripWiseAPI.Controllers
 			}
 		}
 
-
-
-
-		// Xoá thủ công một log
-		[HttpDelete("{id:int}")]
+        /// <summary>
+        /// Xóa thủ công một log theo ID.
+        /// </summary>
+        /// <param name="id">ID của log cần xóa.</param>
+        [HttpDelete("{id:int}")]
 		public async Task<IActionResult> DeleteLog(int id)
 		{
 			await _logService.DeleteLogByIdAsync(id);
 			return Ok(new { message = $"Deleted log {id}" });
 		}
 
-		// Dọn các log hết hạn ngay
-		[HttpPost("cleanup")]
+        /// <summary>
+        /// Dọn dẹp ngay các log đã hết hạn trong Firebase.
+        /// </summary>
+        [HttpPost("cleanup")]
 		public async Task<IActionResult> CleanupExpired()
 		{
 			await _logService.CleanupExpiredLogsAsync();

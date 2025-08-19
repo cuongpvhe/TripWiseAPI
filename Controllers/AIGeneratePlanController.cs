@@ -12,6 +12,10 @@ using TripWiseAPI.Utils;
 
 namespace SimpleChatboxAI.Controllers
 {
+    /// <summary>
+    /// Controller quản lý các API sinh lịch trình du lịch bằng AI.
+    /// Bao gồm tạo, cập nhật, lưu, và lấy chi tiết lịch trình.
+    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -44,6 +48,11 @@ namespace SimpleChatboxAI.Controllers
                 return userId;
             return null;
         }
+
+        /// <summary>
+        /// Tạo lịch trình du lịch dựa trên thông tin đầu vào (AI Generate).
+        /// </summary>
+        /// <param name="request">Thông tin yêu cầu tạo lịch trình (điểm đến, ngày đi, số ngày, ngân sách...)</param>
         [HttpPost("CreateItinerary")]
         [ProducesResponseType(typeof(ItineraryResponse), 200)]
         [ProducesResponseType(400)]
@@ -185,6 +194,10 @@ namespace SimpleChatboxAI.Controllers
             }
         }
 
+        /// <summary>
+        /// Sinh thêm một phần lịch trình (chunk) dựa trên yêu cầu gốc.
+        /// </summary>
+        /// <param name="request">Thông tin chunk cần sinh (ngày bắt đầu, số ngày, danh sách địa điểm đã dùng...)</param>
         [HttpPost("GenerateItineraryChunk")]
         [ProducesResponseType(typeof(ItineraryChunkResponse), 200)]
         [ProducesResponseType(400)]
@@ -255,7 +268,11 @@ namespace SimpleChatboxAI.Controllers
             }
         }
 
-
+        /// <summary>
+        /// Cập nhật toàn bộ lịch trình đã sinh từ AI.
+        /// </summary>
+        /// <param name="generatePlanId">ID của lịch trình đã sinh trước đó.</param>
+        /// <param name="userInput">Tin nhắn yêu cầu cập nhật từ người dùng.</param>
         [HttpPost("UpdateItinerary/{generatePlanId}")]
         public async Task<IActionResult> UpdateItinerary(int generatePlanId, [FromBody] ChatUpdateRequest userInput)
         {
@@ -288,6 +305,11 @@ namespace SimpleChatboxAI.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật một phần (chunk) của lịch trình đã sinh.
+        /// </summary>
+        /// <param name="generatePlanId">ID của lịch trình.</param>
+        /// <param name="request">Thông tin cập nhật chunk (ngày bắt đầu, số ngày, yêu cầu mới...)</param>
         [HttpPost("UpdateItineraryChunk/{generatePlanId}")]
         public async Task<IActionResult> UpdateItineraryChunk(int generatePlanId, [FromBody] UpdateChunkRequest request)
         {
@@ -315,33 +337,45 @@ namespace SimpleChatboxAI.Controllers
             }
         }
 
+        /// <summary>
+        /// Lưu một tour được tạo từ lịch trình AI.
+        /// </summary>
+        /// <param name="generatePlanId">ID của lịch trình đã sinh.</param>
         [HttpPost("SaveTourFromGenerated/{generatePlanId}")]
         public async Task<IActionResult> SaveTourFromGenerated(int generatePlanId)
         {
             var result = await _iAIGeneratePlanService.SaveTourFromGeneratedAsync(generatePlanId, GetUserId());
-            return Ok(new { success = true, message = "✅ Lưu tour thành công.", data = result });
+            return Ok(new { success = true, message = "Lưu tour thành công.", data = result });
         }
 
-
+        /// <summary>
+        /// Lấy danh sách tour do một người dùng đã tạo.
+        /// </summary>
+        /// <param name="userId">ID của người dùng.</param>
         [HttpGet("GetToursByUserId")]
         public async Task<IActionResult> GetToursByUserId([FromQuery] int userId)
         {
             var result = await _iAIGeneratePlanService.GetToursByUserIdAsync(userId);
-            return Ok(new { message = "✅ Lấy danh sách tour theo user thành công.", data = result });
+            return Ok(new { message = "Lấy danh sách tour theo user thành công.", data = result });
         }
-        
 
-
+        /// <summary>
+        /// Lấy chi tiết tour theo ID.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
         [HttpGet("GetTourDetailById")]
         public async Task<IActionResult> GetTourDetailById([FromQuery] int tourId)
         {
             var result = await _iAIGeneratePlanService.GetTourDetailByIdAsync(tourId);
             if (result == null)
-                return NotFound(new { success = false, message = "❌ Không tìm thấy tour với ID đã cho." });
+                return NotFound(new { success = false, message = "Không tìm thấy tour với ID đã cho." });
 
-            return Ok(new { success = true, message = "✅ Lấy chi tiết tour thành công.", data = result });
+            return Ok(new { success = true, message = "Lấy chi tiết tour thành công.", data = result });
         }
 
+        /// <summary>
+        /// Lấy lịch sử các lịch trình đã sinh bởi người dùng.
+        /// </summary>
         [HttpGet("GetHistoryByUser")]
         public async Task<IActionResult> GetHistoryByUser()
         {
@@ -355,6 +389,10 @@ namespace SimpleChatboxAI.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Lấy chi tiết lịch sử lịch trình theo ID.
+        /// </summary>
+        /// <param name="id">ID của lịch sử lịch trình.</param>
         [HttpGet("GetHistoryDetailById/{id}")]
         public async Task<IActionResult> GetHistoryDetailById(int id)
         {
@@ -368,24 +406,33 @@ namespace SimpleChatboxAI.Controllers
 
             return Ok(result);
         }
+
+        /// <summary>
+        /// Xoá một lịch trình du lịch đã sinh bằng AI.
+        /// </summary>
+        /// <param name="id">ID của lịch trình cần xoá.</param>
         [HttpDelete("DeleteGenerateTravelPlan/{id}")]
         public async Task<IActionResult> DeleteGenerateTravelPlan(int id)
         {
             var userId = GetUserId();
             var result = await _iAIGeneratePlanService.DeleteGenerateTravelPlansAsync(id, userId);
             if (!result)
-                return NotFound(new { success = false, message = "❌ Không tìm thấy tour hoặc không có quyền xoá." });
-            return Ok(new { success = true, message = "✅ Tour đã được xoá thành công." });
+                return NotFound(new { success = false, message = "Không tìm thấy tour hoặc không có quyền xoá." });
+            return Ok(new { success = true, message = "Tour đã được xoá thành công." });
         }
 
+        /// <summary>
+        /// Xoá một tour đã lưu.
+        /// </summary>
+        /// <param name="id">ID của tour cần xoá.</param>
         [HttpDelete("DeleteTour/{id}")]
         public async Task<IActionResult> DeleteTour(int id)
         {
             var userId = GetUserId();
             var result = await _iAIGeneratePlanService.DeleteTourAsync(id, userId);
             if (!result)
-                return NotFound(new { success = false, message = "❌ Không tìm thấy tour hoặc không có quyền xoá." });
-            return Ok(new { success = true, message = "✅ Tour đã được xoá thành công." });
+                return NotFound(new { success = false, message = "Không tìm thấy tour hoặc không có quyền xoá." });
+            return Ok(new { success = true, message = "Tour đã được xoá thành công." });
         }
     }
 }

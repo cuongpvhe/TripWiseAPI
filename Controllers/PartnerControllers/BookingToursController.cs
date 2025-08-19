@@ -7,6 +7,9 @@ using TripWiseAPI.Services.PartnerServices;
 
 namespace TripWiseAPI.Controllers.PartnerControllers
 {
+    /// <summary>
+    /// Quản lý booking (thuộc quyền sở hữu của Partner).
+    /// </summary>
     [Route("api/[controller]")]
     [ApiController]
     public class BookingToursController : ControllerBase
@@ -14,13 +17,16 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         private readonly IBookingService _bookingService;
         private readonly TripWiseDBContext _dbContext;
         private readonly IVnPayService _vnPayService;
-
         public BookingToursController(IBookingService bookingService, TripWiseDBContext dbContext, IVnPayService vnPayService)
         {
             _bookingService = bookingService;
             _dbContext = dbContext;
             _vnPayService = vnPayService;
         }
+
+        /// <summary>
+        /// Lấy UserId từ claim trong token.
+        /// </summary>
         private int? GetUserId()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
@@ -29,6 +35,9 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return null;
         }
 
+        /// <summary>
+        /// Lấy danh sách tất cả booking của Partner hiện tại.
+        /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetPartnerBookings()
         {
@@ -48,6 +57,11 @@ namespace TripWiseAPI.Controllers.PartnerControllers
 
             return Ok(bookings);
         }
+
+        /// <summary>
+        /// Lấy chi tiết một booking theo ID.
+        /// </summary>
+        /// <param name="bookingId">ID của booking cần xem chi tiết.</param>
         [HttpGet("booking-detail/{bookingId}")]
         public async Task<IActionResult> GetBookingDetail(int bookingId)
         {
@@ -58,6 +72,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(detail);
         }
 
+        /// <summary>
+        /// Lấy danh sách booking theo tourId (thuộc quyền sở hữu của Partner).
+        /// </summary>
+        /// <param name="tourId">ID của tour cần lấy danh sách booking.</param>
         [HttpGet("by-tour/{tourId}")]
         public async Task<IActionResult> GetBookingsByTourId(int tourId)
         {
@@ -84,6 +102,5 @@ namespace TripWiseAPI.Controllers.PartnerControllers
 
             return Ok(bookings);
         }
-
     }
 }

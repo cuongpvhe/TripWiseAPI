@@ -10,6 +10,9 @@ using static TripWiseAPI.Models.DTO.UpdateTourDto;
 
 namespace TripWiseAPI.Controllers.PartnerControllers
 {
+    /// <summary>
+    /// Quản lý Tour (thuộc quyền sở hữu của Partner).
+    /// </summary>
     [ApiController]
     [Route("api/partner/tours")]
     public class PartnerToursController : ControllerBase
@@ -24,12 +27,24 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             _dbContext = dbContext;
             _aIGeneratePlanService = aIGeneratePlanService;
         }
+
+        /// <summary>
+        /// Lấy danh sách top địa điểm được tìm kiếm nhiều nhất.
+        /// </summary>
+        /// <param name="top">Số lượng địa điểm cần lấy (mặc định 10).</param>
         [HttpGet("top-destinations")]
         public async Task<IActionResult> GetTopDestinations([FromQuery] int top = 10)
         {
             var result = await _aIGeneratePlanService.GetTopSearchedDestinationsAsync(top);
             return Ok(result);
         }
+
+        /// <summary>
+        /// Lấy tất cả tour theo trạng thái hoặc ngày.
+        /// </summary>
+        /// <param name="status">Trạng thái tour (draft, pending, approved,...).</param>
+        /// <param name="fromDate">Ngày bắt đầu lọc.</param>
+        /// <param name="toDate">Ngày kết thúc lọc.</param>
         [HttpGet]
         public async Task<IActionResult> GetAllTours([FromQuery] string? status, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
@@ -48,7 +63,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(tours);
         }
 
-
+        /// <summary>
+        /// Tạo mới một tour.
+        /// </summary>
+        /// <param name="request">Thông tin tour cần tạo.</param>
         [HttpPost("create-tour")]
         public async Task<IActionResult> CreateTour([FromForm] CreateTourDto request)
         {
@@ -68,10 +86,14 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         }
 
 
-        // POST: Create itinerary for a tour
+        /// <summary>
+        /// Tạo lịch trình cho tour.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
+        /// <param name="request">Thông tin lịch trình.</param>
         [HttpPost("{tourId}/create-itinerary")]
-    public async Task<IActionResult> CreateItinerary(int tourId, [FromBody] CreateItineraryDto request)
-    {
+        public async Task<IActionResult> CreateItinerary(int tourId, [FromBody] CreateItineraryDto request)
+        {
             var userId = GetUserId();
 
             // Lấy PartnerId từ UserId
@@ -83,13 +105,17 @@ namespace TripWiseAPI.Controllers.PartnerControllers
                 return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
             }
             var data = await _tourService.CreateItineraryAsync(tourId, request, partner.PartnerId);
-        return Ok(new { message = "Tạo lịch trình thành công", data });
-    }
+            return Ok(new { message = "Tạo lịch trình thành công", data });
+        }
 
-    // POST: Create activity (TourAttraction) and update Itinerary with TourAttractionId
-    [HttpPost("itinerary/{itineraryId}/create-activity")]
-    public async Task<IActionResult> CreateActivity(int itineraryId, [FromForm] ActivityDayDto request)
-    {
+        /// <summary>
+        /// Tạo hoạt động trong lịch trình.
+        /// </summary>
+        /// <param name="itineraryId">ID lịch trình.</param>
+        /// <param name="request">Thông tin hoạt động.</param>
+        [HttpPost("itinerary/{itineraryId}/create-activity")]
+        public async Task<IActionResult> CreateActivity(int itineraryId, [FromForm] ActivityDayDto request)
+        {
             var userId = GetUserId();
 
             // Lấy PartnerId từ UserId
@@ -101,10 +127,13 @@ namespace TripWiseAPI.Controllers.PartnerControllers
                 return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
             }
             var data = await _tourService.CreateActivityAsync(itineraryId, request, partner.PartnerId);
-        return Ok(new { message = "Tạo hoạt động thành công", data });
-    }
+            return Ok(new { message = "Tạo hoạt động thành công", data });
+        }
 
-        // POST: Submit existing draft tour for approval
+        /// <summary>
+        /// Gửi tour nháp lên chờ phê duyệt.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
         [HttpPost("{tourId}/submit")]
         public async Task<IActionResult> SubmitTour(int tourId)
         {
@@ -123,6 +152,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok("Tour submitted.");
         }
 
+        /// <summary>
+        /// Lấy chi tiết một tour.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
         [HttpGet("{tourId}")]
         public async Task<IActionResult> GetTourDetail(int tourId)
         {
@@ -143,7 +176,14 @@ namespace TripWiseAPI.Controllers.PartnerControllers
 
             return Ok(tour);
         }
-        // 
+
+        /// <summary>
+        /// Cập nhật thông tin tour.
+        /// </summary>
+        /// <param name="tourId">ID tour cần cập nhật.</param>
+        /// <param name="request">Thông tin cập nhật.</param>
+        /// <param name="imageFiles">Danh sách ảnh mới tải lên từ file.</param>
+        /// <param name="imageUrls">Danh sách ảnh mới tải lên từ url.</param>
         [HttpPut("update-tour/{tourId}")]
         public async Task<IActionResult> UpdateTour(
         int tourId,
@@ -168,6 +208,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(new { message = "Tour updated successfully" });
         }
 
+        /// <summary>
+        /// Xoá nhiều ảnh của tour.
+        /// </summary>
+        /// <param name="imageIds">Danh sách ID ảnh cần xoá.</param>
         [HttpDelete("delete-multiple-images")]
         public async Task<IActionResult> DeleteMultipleImages([FromBody] List<int> imageIds)
         {
@@ -186,6 +230,11 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return NotFound("Không tìm thấy ảnh nào để xoá.");
         }
 
+        /// <summary>
+        /// Cập nhật lịch trình.
+        /// </summary>
+        /// <param name="itineraryId">ID lịch trình.</param>
+        /// <param name="request">Thông tin cập nhật lịch trình.</param>
         [HttpPut("update-itinerary/{itineraryId}")]
         public async Task<IActionResult> UpdateItinerary(int itineraryId, [FromBody] CreateItineraryDto request)
         {
@@ -206,18 +255,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(new { message = "Itinerary updated successfully" });
         }
 
-        //[HttpPost("add-itinerary/{tourId}")]
-        //public async Task<IActionResult> AddItinerary(int tourId, [FromBody] CreateItineraryDto request)
-        //{
-        //    var userId = GetUserId();
-        //    if (userId == null) return Unauthorized();
-
-        //    var result = await _tourService.AddItineraryAsync(tourId, userId.Value, request);
-        //    if (!result) return NotFound("Tour not found");
-
-        //    return Ok(new { message = "Itinerary added successfully" });
-        //}
-
+        /// <summary>
+        /// Xoá một lịch trình.
+        /// </summary>
+        /// <param name="itineraryId">ID lịch trình.</param>
         [HttpDelete("delete-itinerary/{itineraryId}")]
         public async Task<IActionResult> DeleteItinerary(int itineraryId)
         {
@@ -238,6 +279,13 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(new { message = "Itinerary deleted successfully" });
         }
 
+        /// <summary>
+        /// Cập nhật một hoạt động.
+        /// </summary>
+        /// <param name="activityId">ID hoạt động.</param>
+        /// <param name="request">Thông tin cập nhật.</param>
+        /// <param name="imageFiles">Danh sách ảnh mới tải lên từ file.</param>
+        /// <param name="imageUrls">Danh sách ảnh mới tải lên từ url.</param>
         [HttpPut("update-activity/{activityId}")]
         public async Task<IActionResult> UpdateActivity(
         int activityId,
@@ -262,21 +310,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(new { message = "Activity updated successfully" });
         }
 
-        //[HttpPost("add-activity/{itineraryId}")]
-        //public async Task<IActionResult> AddActivity(int itineraryId,
-        //[FromForm] ActivityDayDto request,
-        //[FromForm] List<IFormFile>? imageFiles,
-        //[FromForm] List<string>? imageUrls)
-        //{
-        //    var userId = GetUserId();
-        //    if (userId == null) return Unauthorized();
-
-        //    var result = await _tourService.AddActivityAsync(itineraryId, userId.Value, request, imageFiles, imageUrls);
-        //    if (!result) return NotFound("Itinerary not found");
-
-        //    return Ok(new { message = "Activity added successfully" });
-        //}
-
+        /// <summary>
+        /// Xoá một hoạt động.
+        /// </summary>
+        /// <param name="activityId">ID hoạt động.</param>
         [HttpDelete("delete-activity/{activityId}")]
         public async Task<IActionResult> DeleteActivity(int activityId)
         {
@@ -295,6 +332,11 @@ namespace TripWiseAPI.Controllers.PartnerControllers
 
             return Ok(new { message = "Activity deleted successfully" });
         }
+
+        /// <summary>
+        /// Xoá nhiều ảnh của hoạt động tham quan.
+        /// </summary>
+        /// <param name="imageIds">Danh sách ID ảnh.</param>
         [HttpDelete("attraction/delete-multiple-images")]
         public async Task<IActionResult> DeleteMultipleAttractionImages([FromBody] List<int> imageIds)
         {
@@ -312,8 +354,11 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return result ? Ok("Xoá thành công") : NotFound("Không tìm thấy ảnh cần xoá");
         }
 
-
-
+        /// <summary>
+        /// Xoá hoặc chuyển tour thành nháp.
+        /// </summary>
+        /// <param name="tourId">ID tour.</param>
+        /// <param name="action">Hành động (delete hoặc draft).</param>
         [HttpDelete("delete-or-draft-tour/{tourId}")]
         public async Task<IActionResult> DeleteOrDraftTour(int tourId, [FromQuery] string action)
         {
@@ -332,6 +377,9 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok($"Tour {action} successful.");
         }
 
+        /// <summary>
+        /// Lấy UserId từ JWT token.
+        /// </summary>
         private int? GetUserId()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;
@@ -340,6 +388,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return null;
         }
 
+        /// <summary>
+        /// Lấy hoặc tạo bản nháp của tour.
+        /// </summary>
+        /// <param name="tourId">ID tour gốc.</param>
         [HttpPost("{tourId}/create-or-get")]
         public async Task<IActionResult> GetOrCreateDraft(int tourId)
         {
@@ -351,6 +403,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(draft);
         }
 
+        /// <summary>
+        /// Gửi bản nháp cho admin phê duyệt.
+        /// </summary>
+        /// <param name="tourId">ID tour gốc.</param>
         [HttpPost("{tourId}/send-to-admin")]
         public async Task<IActionResult> SendToAdmin(int tourId)
         {
@@ -368,7 +424,10 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok(new { message = "Bản nháp đã được gửi cho admin phê duyệt." });
         }
 
-
+        /// <summary>
+        /// Gửi lại bản cập nhật tour đã bị từ chối.
+        /// </summary>
+        /// <param name="tourId">ID tour gốc.</param>
         [HttpPost("resubmit-rejected/{tourId}")]
         public async Task<IActionResult> ResubmitRejectedTour(int tourId)
         {
@@ -390,6 +449,11 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             return Ok("Đã gửi lại bản cập nhật thành công");
         }
 
+        /// <summary>
+        /// Lấy thống kê tour của partner trong khoảng thời gian.
+        /// </summary>
+        /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         [HttpGet("statistics")]
         public async Task<IActionResult> GetStatistics(DateTime? fromDate, DateTime? toDate)
         {
@@ -403,8 +467,5 @@ namespace TripWiseAPI.Controllers.PartnerControllers
             var stats = await _tourService.GetPartnerTourStatisticsAsync(partner.PartnerId, fromDate, toDate);
             return Ok(stats);
         }
-
-
     }
-
 }
