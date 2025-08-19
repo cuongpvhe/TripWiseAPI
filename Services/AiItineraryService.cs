@@ -15,8 +15,16 @@ namespace TripWiseAPI.Services
         private readonly IWikimediaImageService _WikimediaImageService;
         private const int MaxDaysPerChunk = 3;
         private readonly IGoogleMapsPlaceService _googleMapsPlaceService;
+        private readonly VectorSearchService _vectorSearchService; // Thêm VectorSearchService
 
-        public AiItineraryService(IHttpClientFactory httpClientFactory, IConfiguration config, IPromptBuilder promptBuilder, IJsonRepairService repairService, IWikimediaImageService imageService, IGoogleMapsPlaceService googleMapsPlaceService)
+        public AiItineraryService(
+            IHttpClientFactory httpClientFactory, 
+            IConfiguration config, 
+            IPromptBuilder promptBuilder, 
+            IJsonRepairService repairService, 
+            IWikimediaImageService imageService, 
+            IGoogleMapsPlaceService googleMapsPlaceService,
+            VectorSearchService vectorSearchService) // Inject VectorSearchService
         {
             _httpClient = httpClientFactory.CreateClient("Gemini");
             _apiKey = config["Gemini:ApiKey"];
@@ -24,11 +32,12 @@ namespace TripWiseAPI.Services
             _repairService = repairService;
             _WikimediaImageService = imageService;
             _googleMapsPlaceService = googleMapsPlaceService;
+            _vectorSearchService = vectorSearchService;
             Console.OutputEncoding = Encoding.UTF8;
         }
 
 
-        public async Task<ItineraryResponse> GenerateItineraryAsync(TravelRequest request, string relatedKnowledge)
+            public async Task<ItineraryResponse> GenerateItineraryAsync(TravelRequest request, string relatedKnowledge)
         {
             int budgetVND = (int)request.BudgetVND;
             string budgetFormatted = budgetVND.ToString("N0", CultureInfo.InvariantCulture);
@@ -104,7 +113,7 @@ namespace TripWiseAPI.Services
             {
         "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg",
         "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
-        "https://www.ticgroup.vn/uploads/images/images/cat_ba.jpg",
+        "https://static.vinwonders.com/2022/12/du-lich-viet-nam-05.jpg",
         "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
         "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
     };
@@ -292,7 +301,7 @@ namespace TripWiseAPI.Services
             {
         "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg",
         "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
-        "https://www.ticgroup.vn/uploads/images/images/cat_ba.jpg",
+        "https://static.vinwonders.com/2022/12/du-lich-viet-nam-05.jpg",
         "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
         "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
     };
@@ -400,100 +409,244 @@ namespace TripWiseAPI.Services
     TravelRequest originalRequest,
     ItineraryResponse originalResponse,
     string userInstruction)
+{
+    try
+    {
+        // Validate input parameters
+        if (originalRequest == null)
+            throw new ArgumentNullException(nameof(originalRequest), "Original request cannot be null");
+
+        if (originalResponse == null)
+            throw new ArgumentNullException(nameof(originalResponse), "Original response cannot be null");
+
+        if (string.IsNullOrWhiteSpace(userInstruction))
+            throw new ArgumentException("User instruction cannot be empty", nameof(userInstruction));
+
+        if (string.IsNullOrWhiteSpace(originalRequest.Destination))
+            throw new ArgumentException("Destination cannot be empty", nameof(originalRequest.Destination));
+
+        Console.WriteLine($"[UpdateItinerary] Starting update for destination: {originalRequest.Destination}");
+        Console.WriteLine($"[UpdateItinerary] User instruction: {userInstruction}");
+
+        // Lấy relatedKnowledge với timeout và retry
+        string relatedKnowledge;
+        try
         {
-            string prompt = _promptBuilder.BuildUpdatePrompt(originalRequest, originalResponse, userInstruction);
+            relatedKnowledge = await _vectorSearchService.RetrieveRelevantJsonEntriesForUpdate(
+                originalRequest.Destination, 
+                userInstruction,
+                3,
+                originalRequest.GroupType ?? "", 
+                originalRequest.DiningStyle ?? "", 
+                originalRequest.Preferences ?? "");
 
-            var payload = new
+            Console.WriteLine($"[UpdateItinerary] RelatedKnowledge retrieved successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] Warning: Failed to retrieve related knowledge: {ex.Message}");
+            relatedKnowledge = ""; // Continue with empty knowledge if vector search fails
+        }
+
+        // Build prompt
+        string prompt;
+        try
+        {
+            prompt = _promptBuilder.BuildUpdatePrompt(originalRequest, originalResponse, userInstruction, relatedKnowledge);
+            Console.WriteLine($"[UpdateItinerary] Prompt built successfully, length: {prompt.Length}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] Error building prompt: {ex.Message}");
+            throw new InvalidOperationException("Failed to build update prompt", ex);
+        }
+
+        // Call Gemini API with timeout
+        var payload = new
+        {
+            contents = new[] {
+                new {
+                    parts = new[] {
+                        new { text = prompt }
+                    }
+                }
+            },
+            generationConfig = new
             {
-                contents = new[] {
-            new {
-                parts = new[] {
-                    new { text = prompt }
-                }
+                maxOutputTokens = 40000,
+                temperature = 0.7
             }
-        },
-                generationConfig = new
-                {
-                    maxOutputTokens = 25000,
-                    temperature = 0.7
-                }
-            };
+        };
 
-            var response = await _httpClient.PostAsJsonAsync(
-                $"v1beta/models/gemini-1.5-flash:generateContent?key={_apiKey}", payload);
+        HttpResponseMessage response;
+        string text, raw;
+        
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2)); // 2 minute timeout
+            
+            response = await _httpClient.PostAsJsonAsync(
+                $"v1beta/models/gemini-1.5-flash:generateContent?key={_apiKey}", 
+                payload, 
+                cts.Token);
 
             if (!response.IsSuccessStatusCode)
-                throw new Exception($"Gemini API failed: {await response.Content.ReadAsStringAsync()}");
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[UpdateItinerary] Gemini API error: {response.StatusCode} - {errorContent}");
+                throw new HttpRequestException($"Gemini API failed with status {response.StatusCode}: {errorContent}");
+            }
 
-            string text = await response.Content.ReadAsStringAsync();
-            string raw = JsonDocument.Parse(text)
-                .RootElement.GetProperty("candidates")[0]
+            text = await response.Content.ReadAsStringAsync();
+            
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                throw new InvalidOperationException("Gemini API returned empty response");
+            }
+
+            var jsonDoc = JsonDocument.Parse(text);
+            if (!jsonDoc.RootElement.TryGetProperty("candidates", out var candidates) ||
+                candidates.GetArrayLength() == 0)
+            {
+                throw new InvalidOperationException("Invalid Gemini API response format");
+            }
+
+            raw = candidates[0]
                 .GetProperty("content").GetProperty("parts")[0]
                 .GetProperty("text").GetString();
 
-            Console.WriteLine(" Prompt gửi lên:\n" + prompt);
-            Console.WriteLine(" Kết quả Gemini trả về:\n" + raw);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                throw new InvalidOperationException("Gemini API returned empty content");
+            }
 
-            string cleanedJson = ExtractJson(raw);
+            Console.WriteLine($"[UpdateItinerary] Gemini response received, length: {raw.Length}");
+        }
+        catch (TaskCanceledException ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] Gemini API timeout: {ex.Message}");
+            throw new TimeoutException("Gemini API request timed out", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] HTTP error: {ex.Message}");
+            throw;
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] JSON parsing error: {ex.Message}");
+            throw new InvalidOperationException("Failed to parse Gemini API response", ex);
+        }
 
-            JsonDocument doc;
+        Console.WriteLine(" Prompt gửi lên:\n" + prompt);
+        Console.WriteLine(" Kết quả Gemini trả về:\n" + raw);
+
+        // Extract and parse JSON
+        string cleanedJson;
+        JsonDocument doc;
+        JsonItineraryFormat parsed;
+
+        try
+        {
+            cleanedJson = ExtractJson(raw);
+            
+            if (string.IsNullOrWhiteSpace(cleanedJson))
+            {
+                throw new InvalidOperationException("Could not extract valid JSON from Gemini response");
+            }
+
+            Console.WriteLine($"[UpdateItinerary] Cleaned JSON length: {cleanedJson.Length}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] JSON extraction error: {ex.Message}");
+            throw new InvalidOperationException("Failed to extract JSON from response", ex);
+        }
+
+        try
+        {
+            doc = JsonDocument.Parse(cleanedJson);
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] JSON parsing failed, attempting repair: {ex.Message}");
+            
             try
             {
-                doc = JsonDocument.Parse(cleanedJson);
-            }
-            catch
-            {
                 string? repaired = await _repairService.TryRepairAsync(cleanedJson);
-                if (repaired == null) throw new Exception("JSON repair failed");
+                if (string.IsNullOrWhiteSpace(repaired))
+                {
+                    throw new InvalidOperationException("JSON repair service failed to fix the response");
+                }
                 doc = JsonDocument.Parse(repaired);
+                Console.WriteLine("[UpdateItinerary] JSON successfully repaired");
             }
-
-            var parsed = JsonSerializer.Deserialize<JsonItineraryFormat>(doc.RootElement.GetRawText());
-            if (parsed?.Days == null)
-                throw new Exception("Invalid itinerary format: days == null");
-
-            if (parsed.Days.Count == 0)
+            catch (Exception repairEx)
             {
-                Console.WriteLine(" Gemini không trả về bất kỳ ngày nào được cập nhật. Giữ nguyên lịch trình gốc.");
+                Console.WriteLine($"[UpdateItinerary] JSON repair failed: {repairEx.Message}");
+                throw new InvalidOperationException("Failed to parse and repair JSON response", repairEx);
+            }
+        }
+
+        try
+        {
+            parsed = JsonSerializer.Deserialize<JsonItineraryFormat>(doc.RootElement.GetRawText());
+            
+            if (parsed?.Days == null)
+            {
+                Console.WriteLine("[UpdateItinerary] Warning: Parsed itinerary has null days, returning original response");
                 return originalResponse;
             }
 
-            Console.WriteLine($"Gemini trả về {parsed.Days.Count} ngày được cập nhật:");
-            foreach (var d in parsed.Days)
-                Console.WriteLine($"- Ngày {d.DayNumber}: {d.Title} với {d.Activities.Count} hoạt động");
-
-            var imageUrlsUsed = new HashSet<string>();
-            var fallbackImages = new[]
+            if (parsed.Days.Count == 0)
             {
-        "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg",
-        "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
-        "https://www.ticgroup.vn/uploads/images/images/cat_ba.jpg",
-        "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
-        "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
-    };
-            var random = new Random();
-
-            List<string> wikimediaImages;
-            try
-            {
-                wikimediaImages = await _WikimediaImageService.SearchImageUrlsAsync(originalRequest.Destination);
-                Console.WriteLine($"[Image] Wikimedia image pool size: {wikimediaImages.Count}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Image] Wikimedia fetch error: {ex.Message}");
-                wikimediaImages = new List<string>();
+                Console.WriteLine("[UpdateItinerary] Gemini returned no updated days, keeping original itinerary");
+                return originalResponse;
             }
 
-            var mergedDays = new List<ItineraryDay>();
+            Console.WriteLine($"[UpdateItinerary] Successfully parsed {parsed.Days.Count} updated days");
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] Deserialization error: {ex.Message}");
+            throw new InvalidOperationException("Failed to deserialize itinerary format", ex);
+        }
 
+        // Process images and build response
+        var imageUrlsUsed = new HashSet<string>();
+        var fallbackImages = new[]
+        {
+            "https://cdn.thuvienphapluat.vn/uploads/tintuc/2024/02/23/viet-nam-nam-tren-ban-dao-nao.jpg",
+            "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
+            "https://static.vinwonders.com/2022/12/du-lich-viet-nam-05.jpg",
+            "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
+            "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
+        };
+        var random = new Random();
+
+        List<string> wikimediaImages;
+        try
+        {
+            wikimediaImages = await _WikimediaImageService.SearchImageUrlsAsync(originalRequest.Destination);
+            Console.WriteLine($"[UpdateItinerary] Retrieved {wikimediaImages.Count} Wikimedia images");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] Wikimedia fetch error: {ex.Message}");
+            wikimediaImages = new List<string>();
+        }
+
+        var mergedDays = new List<ItineraryDay>();
+
+        try
+        {
             foreach (var originalDay in originalResponse.Itinerary)
             {
                 var updatedDay = parsed.Days.FirstOrDefault(d => d.DayNumber == originalDay.DayNumber);
 
                 if (updatedDay == null)
                 {
-                    mergedDays.Add(originalDay); // giữ nguyên nếu không có thay đổi
+                    mergedDays.Add(originalDay); // Keep original if no changes
                 }
                 else
                 {
@@ -509,56 +662,24 @@ namespace TripWiseAPI.Services
                             {
                                 imageUrl = availableImages[random.Next(availableImages.Count)];
                                 imageUrlsUsed.Add(imageUrl);
-                                Console.WriteLine($"[Image] Wikimedia image used: {imageUrl}");
+                                Console.WriteLine($"[UpdateItinerary] Wikimedia image used: {imageUrl}");
                             }
                             else
                             {
                                 imageUrl = fallbackImages[random.Next(fallbackImages.Length)];
-                                Console.WriteLine("[Image] Fallback image used.");
+                                Console.WriteLine("[UpdateItinerary] Fallback image used");
                             }
-
-                            /*
-                            // ======= xử lý ảnh từ Google Maps =======
-                            string searchKeyword = !string.IsNullOrWhiteSpace(a.Address)
-                                ? a.Address
-                                : !string.IsNullOrWhiteSpace(a.PlaceDetail)
-                                    ? a.PlaceDetail
-                                    : originalRequest.Destination;
-
-                            try
-                            {
-                                var (lat, lng, googleImage) = await _googleMapsPlaceService.GetPlaceInfoAsync(searchKeyword);
-
-                                if (!string.IsNullOrWhiteSpace(googleImage) && !imageUrlsUsed.Contains(googleImage))
-                                {
-                                    imageUrl = googleImage;
-                                    imageUrlsUsed.Add(imageUrl);
-                                    Console.WriteLine($"[Image] Google Maps image used: {imageUrl}");
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"[Image] Google Maps fallback for: {searchKeyword}");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"[Image] Google Maps error: {ex.Message}");
-                            }
-
-                            imageUrl ??= fallbackImage;
-                            ==========================================================
-                            */
                         }
 
                         return new ItineraryActivity
                         {
-                            StartTime = a.StartTime,
-                            EndTime = a.EndTime,
-                            Description = a.Description,
+                            StartTime = a.StartTime ?? "08:00",
+                            EndTime = a.EndTime ?? "09:00",
+                            Description = a.Description ?? "Hoạt động",
                             EstimatedCost = a.EstimatedCost,
-                            Transportation = a.Transportation,
-                            Address = a.Address,
-                            PlaceDetail = a.PlaceDetail,
+                            Transportation = a.Transportation ?? "Đi bộ",
+                            Address = a.Address ?? "",
+                            PlaceDetail = a.PlaceDetail ?? "",
                             Image = imageUrl,
                             MapUrl = string.IsNullOrWhiteSpace(a.Address)
                                 ? null
@@ -569,15 +690,26 @@ namespace TripWiseAPI.Services
                     mergedDays.Add(new ItineraryDay
                     {
                         DayNumber = updatedDay.DayNumber,
-                        Title = updatedDay.Title,
+                        Title = updatedDay.Title ?? $"Ngày {updatedDay.DayNumber}",
                         DailyCost = updatedDay.DailyCost,
-                        WeatherNote = updatedDay.WeatherNote,
+                        WeatherNote = updatedDay.WeatherNote ?? "Thời tiết không xác định",
                         Activities = updatedActivities.ToList()
                     });
                 }
             }
 
-            return new ItineraryResponse
+            Console.WriteLine($"[UpdateItinerary] Successfully processed {mergedDays.Count} days");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] Error processing activities: {ex.Message}");
+            throw new InvalidOperationException("Failed to process updated activities", ex);
+        }
+
+        // Build final response
+        try
+        {
+            var finalResponse = new ItineraryResponse
             {
                 Destination = originalRequest.Destination,
                 Days = originalRequest.Days,
@@ -594,8 +726,23 @@ namespace TripWiseAPI.Services
                 HasMore = false,
                 NextStartDate = null
             };
-        }
 
+            Console.WriteLine($"[UpdateItinerary] Update completed successfully. Total cost: {finalResponse.TotalEstimatedCost}");
+            return finalResponse;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpdateItinerary] Error building final response: {ex.Message}");
+            throw new InvalidOperationException("Failed to build final response", ex);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[UpdateItinerary] Unexpected error: {ex.GetType().Name} - {ex.Message}");
+        Console.WriteLine($"[UpdateItinerary] Stack trace: {ex.StackTrace}");
+        throw;
+    }
+}
 
 
         private string ExtractJson(string raw)

@@ -46,6 +46,43 @@ namespace TripWiseAPI.Services
             return await response.Content.ReadAsStringAsync();
         }
 
+        // Overload method cho update với userInstruction
+        public async Task<string> RetrieveRelevantJsonEntriesForUpdate(
+            string destination,
+            string userInstruction,
+            int topK = 3,
+            string groupType = "",
+            string diningStyle = "",
+            string preferences = "")
+        {
+            // Query cho update sẽ là userInstruction + destination
+            string query = BuildQueryForUpdate(destination, userInstruction);
+
+            // Tạo request payload
+            var request = new
+            {
+                destination = destination,
+                query = query,
+                top_k = topK,
+                group_type = groupType,
+                dining_style = diningStyle,
+                preferences = preferences
+            };
+
+            // Thực hiện gọi API tới Flask
+            var response = await _httpClient.PostAsJsonAsync("http://localhost:5005/search", request);
+
+            // Kiểm tra phản hồi của API và log lỗi chi tiết nếu cần
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorDetail = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Vector API query failed. Error: {errorDetail}");
+            }
+
+            // Trả về kết quả từ API dưới dạng chuỗi
+            return await response.Content.ReadAsStringAsync();
+        }
+
         private string BuildQuery(string destination, string preferences)
         {
             // Xử lý chuỗi query nếu preferences có giá trị
@@ -55,6 +92,18 @@ namespace TripWiseAPI.Services
             }
 
             // Nếu preferences trống, chỉ trả về destination
+            return destination.Trim();
+        }
+
+        private string BuildQueryForUpdate(string destination, string userInstruction)
+        {
+            // Query cho update = userInstruction + destination
+            if (!string.IsNullOrWhiteSpace(userInstruction))
+            {
+                return $"{userInstruction} tại {destination}".Trim();
+            }
+
+            // Nếu userInstruction trống, chỉ trả về destination
             return destination.Trim();
         }
     }
