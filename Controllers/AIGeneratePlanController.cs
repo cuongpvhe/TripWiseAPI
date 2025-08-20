@@ -269,10 +269,10 @@ namespace SimpleChatboxAI.Controllers
         }
 
         /// <summary>
-        /// Cập nhật toàn bộ lịch trình đã sinh từ AI.
+        /// Cập nhật lịch trình đã sinh từ AI - Hỗ trợ cả message và activity selection.
         /// </summary>
         /// <param name="generatePlanId">ID của lịch trình đã sinh trước đó.</param>
-        /// <param name="userInput">Tin nhắn yêu cầu cập nhật từ người dùng.</param>
+        /// <param name="userInput">Tin nhắn yêu cầu cập nhật từ người dùng, có thể kèm thông tin hoạt động được chọn.</param>
         [HttpPost("UpdateItinerary/{generatePlanId}")]
         public async Task<IActionResult> UpdateItinerary(int generatePlanId, [FromBody] ChatUpdateRequest userInput)
         {
@@ -280,18 +280,141 @@ namespace SimpleChatboxAI.Controllers
             if (!int.TryParse(userIdClaim, out int userId))
                 return Unauthorized();
 
+            // Validate basic input
+            if (userInput == null || string.IsNullOrWhiteSpace(userInput.Message))
+                return BadRequest(new { success = false, error = "Vui lòng nhập yêu cầu cập nhật." });
+
+            // ✅ KHAI BÁO currentRequest NGOÀI TRY BLOCK
+            TravelRequest? currentRequest = null;
+
             try
             {
-                var updated = await _iAIGeneratePlanService.UpdateItineraryAsync(generatePlanId, userId, userInput.Message);
+                // Lấy thông tin lịch trình hiện tại để check destination
+                var existingPlan = await _dbContext.GenerateTravelPlans
+                    .FirstOrDefaultAsync(p => p.Id == generatePlanId && p.UserId == userId);
+
+                if (existingPlan == null)
+                    return NotFound("Không tìm thấy lịch trình với ID đã cung cấp.");
+
+                currentRequest = JsonSerializer.Deserialize<TravelRequest>(existingPlan.MessageRequest);
+                if (currentRequest == null)
+                    return BadRequest(new { success = false, error = "Không thể đọc thông tin lịch trình hiện tại." });
+
+                // Sử dụng LocationValidator từ Utils
+                if (LocationValidator.IsLocationChangeRequest(userInput.Message, currentRequest.Destination))
+                {
+                    var mentionedLocations = LocationValidator.ExtractMentionedLocations(userInput.Message);
+                    
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = "Không thể thay đổi địa điểm trong lịch trình hiện tại.",
+                        message = "Để đi đến một địa điểm khác, vui lòng tạo hành trình mới thay vì cập nhật hành trình này.",
+                        suggestion = "Tạo hành trình mới",
+                        currentDestination = currentRequest.Destination,
+                        detectedLocations = mentionedLocations,
+                        actionRequired = "CREATE_NEW_ITINERARY"
+                    });
+                }
+
+                // Xác định cách sử dụng: message-only hoặc activity selection
+                bool isActivitySelection = userInput.DayNumber.HasValue && 
+                          userInput.DayNumber.Value > 0 && 
+                          userInput.ActivityIndex.HasValue && 
+                          userInput.ActivityIndex.Value >= 0;
+
+                ItineraryResponse? updated;
+
+                if (isActivitySelection)
+                {
+                    Console.WriteLine($"[UpdateItinerary] Using activity selection mode");
+                    
+                    updated = await _iAIGeneratePlanService.UpdateItineraryWithActivitySelectionAsync(
+                        generatePlanId, 
+                        userId, 
+                        userInput.DayNumber.Value,
+                        userInput.ActivityIndex.Value,
+                        userInput.Message,
+                        userInput.SelectedActivityDescription);
+                }
+                else
+                {
+                    Console.WriteLine($"[UpdateItinerary] Using message-only mode");
+                    
+                    updated = await _iAIGeneratePlanService.UpdateItineraryAsync(
+                        generatePlanId, 
+                        userId, 
+                        userInput.Message);
+                }
 
                 if (updated == null)
                     return NotFound("Không tìm thấy lịch trình với ID đã cung cấp.");
-                
+
+                // KIỂM TRA AI RESPONSE CÓ LỖI LOCATION CONFLICT KHÔNG
+                try
+                {
+                    var responseJson = JsonSerializer.Serialize(updated);
+                    if (responseJson.Contains("LOCATION_CONFLICT") || 
+                        responseJson.Contains("\"error\"") ||
+                        updated.Destination?.Contains("LOCATION_CONFLICT") == true)
+                    {
+                        Console.WriteLine($"[UpdateItinerary] AI detected location conflict in response");
+                        
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = "Yêu cầu của bạn liên quan đến địa điểm khác ngoài lịch trình hiện tại.",
+                            message = "Để đi đến địa điểm mới, vui lòng tạo hành trình mới thay vì cập nhật hành trình này.",
+                            suggestion = "Tạo hành trình mới",
+                            currentDestination = currentRequest.Destination,
+                            actionRequired = "CREATE_NEW_ITINERARY",
+                            source = "AI_DETECTED"
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[UpdateItinerary] Error checking AI response: {ex.Message}");
+                    // Continue với normal flow nếu không check được
+                }
+
+                await _firebaseLogService.LogAsync(
+                    userId: userId, 
+                    action: "Update", 
+                    message: $"Cập nhật lịch trình ID {generatePlanId}: {userInput.Message}", 
+                    statusCode: 200,
+                    createdBy: userId,
+                    createdDate: DateTime.Now);
+
                 return Ok(new
                 {
                     success = true,
                     message = "Đã cập nhật lịch trình thành công.",
-                    data = updated
+                    data = updated,
+                    updateMode = isActivitySelection ? "activity_selection" : "message_only"
+                });
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("AI_DETECTED_LOCATION_CONFLICT"))
+            {
+                Console.WriteLine($"[UpdateItinerary] AI detected location conflict: {ex.Message}");
+                
+                return BadRequest(new
+                {
+                    success = false,
+                    error = "Yêu cầu của bạn liên quan đến địa điểm khác ngoài lịch trình hiện tại.",
+                    message = "Để đi đến địa điểm mới, vui lòng tạo hành trình mới thay vì cập nhật hành trình này.",
+                    suggestion = "Tạo hành trình mới",
+                    currentDestination = currentRequest?.Destination ?? "Không xác định", // ✅ SỬ DỤNG NULL-CONDITIONAL OPERATOR
+                    actionRequired = "CREATE_NEW_ITINERARY",
+                    source = "AI_DETECTED"
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
                 });
             }
             catch (Exception ex)

@@ -1,6 +1,8 @@
 ﻿using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions; // THÊM DÒNG NÀY
 using TripWiseAPI.Model;
+
 namespace TripWiseAPI.Services
 {
     public class PromptBuilder : IPromptBuilder
@@ -148,53 +150,140 @@ namespace TripWiseAPI.Services
             var budget = request.BudgetVND.ToString("N0", CultureInfo.InvariantCulture);
             var travelDate = request.TravelDate.ToString("dd/MM/yyyy");
 
+            // Phân tích format input để xử lý đúng
+            bool isTimeSpecificUpdate = Regex.IsMatch(userInstruction, @"ngày\s*\d+,?\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}", RegexOptions.IgnoreCase);
+            bool isDaySpecificUpdate = Regex.IsMatch(userInstruction, @"ngày\s*\d+", RegexOptions.IgnoreCase);
+            bool isActivitySpecificUpdate = userInstruction.Contains("Trong ngày") && 
+                                           userInstruction.Contains("hoạt động '") && 
+                                           userInstruction.Contains("cần được thay đổi");
+
+            string specificUpdateGuidance = "";
+
+            if (isTimeSpecificUpdate)
+            {
+                specificUpdateGuidance = """
+                ### ⚠️ QUAN TRỌNG - CẬP NHẬT THEO THỜI GIAN CỤ THỂ:
+                - Người dùng đã chỉ định rõ ngày và khung thời gian cần thay đổi.
+                - Tìm hoạt động trong khung thời gian được chỉ định và thay thế.
+                - Nếu không tìm thấy hoạt động chính xác trong khung giờ đó, tìm hoạt động gần nhất trong ngày.
+                - CHỈ thay đổi hoạt động được chỉ định, GIỮ NGUYÊN TẤT CẢ hoạt động khác.
+                - Đảm bảo thời gian của hoạt động mới phù hợp với khung giờ được yêu cầu.
+                """;
+            }
+            else if (isDaySpecificUpdate)
+            {
+                specificUpdateGuidance = """
+                ### ⚠️ QUAN TRỌNG - CẬP NHẬT THEO NGÀY:
+                - Người dùng đã chỉ định ngày cần thay đổi.
+                - Phân tích yêu cầu để xác định hoạt động nào trong ngày cần thay đổi.
+                - Nếu không rõ hoạt động cụ thể, đề xuất thay đổi hợp lý nhất.
+                """;
+            }
+            else if (isActivitySpecificUpdate)
+            {
+                specificUpdateGuidance = """
+                ### ⚠️ QUAN TRỌNG - CẬP NHẬT HOẠT ĐỘNG CỤ THỂ:
+                - Yêu cầu này đã xác định rõ hoạt động cần thay đổi.
+                - CHỈ thay đổi hoạt động được chỉ định, GIỮ NGUYÊN TẤT CẢ hoạt động khác trong ngày đó.
+                """;
+            }
+            else
+            {
+                specificUpdateGuidance = """
+                ### HƯỚNG DẪN CẬP NHẬT CHUNG:
+                - Phân tích kỹ yêu cầu để xác định chính xác phần nào cần thay đổi.
+                - Nếu không rõ vị trí cụ thể, hãy đề xuất thay đổi hợp lý nhất.
+                """;
+            }
+
             return $$"""
-                Bạn là một trợ lý du lịch AI. Nhiệm vụ của bạn là **cập nhật lịch trình dưới đây một cách chính xác theo yêu cầu người dùng**, đồng thời **tuân thủ đầy đủ các tiêu chuẩn dữ liệu đầu ra**.
+                Bạn là một trợ lý du lịch AI chuyên nghiệp. Nhiệm vụ của bạn là **cập nhật lịch trình dưới đây một cách chính xác theo yêu cầu người dùng**, đồng thời **tuân thủ đầy đủ các tiêu chuẩn dữ liệu đầu ra**.
+
+                ### ⚠️ KIỂM TRA CONFLICT ĐỊA ĐIỂM TRƯỚC KHI XỬ LÝ - BẮT BUỘC:
+                **BƯỚC KIỂM TRA:**
+                - Lịch trình hiện tại: {{request.Destination}}
+                - Yêu cầu người dùng: {{userInstruction}}
+                
+                **Nếu trong yêu cầu có đề cập đến thành phố/tỉnh/vùng KHÁC** ngoài {{request.Destination}} (ví dụ: "ở Hà Nội", "tại Sài Gòn", "đi Huế", "sang Nha Trang", "ở TP.HCM"), thì:
+                  
+                **DỪNG XỬ LÝ NGAY** và chỉ trả về JSON này:
+                ```json
+                {
+                  "error": "LOCATION_CONFLICT",
+                  "message": "Yêu cầu của bạn liên quan đến địa điểm khác ngoài {{request.Destination}}. Để đi đến địa điểm mới, vui lòng tạo hành trình mới thay vì cập nhật hành trình hiện tại.",
+                  "currentDestination": "{{request.Destination}}",
+                  "suggestion": "Tạo hành trình mới",
+                  "actionRequired": "CREATE_NEW_ITINERARY"
+                }
+                ```
+                
+                **CHỈ tiếp tục xử lý nếu KHÔNG có conflict địa điểm.**
+
+                ### ⚠️ RÀNG BUỘC VỀ ĐỊA ĐIỂM - QUAN TRỌNG:
+                - **ĐIỂM ĐẾN CỐ ĐỊNH**: Lịch trình này được tạo cho {{request.Destination}} và KHÔNG THỂ thay đổi
+                - **TẤT CẢ hoạt động mới phải nằm trong khu vực {{request.Destination}}** hoặc các điểm tham quan lân cận thuộc cùng tỉnh/thành
+                - **CHỈ cập nhật hoạt động, thời gian, nội dung** - KHÔNG thay đổi địa điểm tỉnh/thành phố
 
                 ### Yêu cầu người dùng:
                 {{userInstruction}}
 
-                ### Hướng dẫn cập nhật:
-                - Phân tích kỹ yêu cầu người dùng để xác định rõ **ngày nào và hoạt động nào cần được thay đổi**.
-                - Nếu yêu cầu chỉ rõ một ngày (ví dụ: "ngày 2") thì chỉ cập nhật đúng ngày đó.
-                - Nếu yêu cầu mang tính khái quát hoặc không nêu rõ thời gian cụ thể (ví dụ: "tôi muốn ăn bún chả vào buổi sáng"), bạn phải **chủ động xác định vị trí phù hợp nhất để thay đổi hoặc chèn thêm hoạt động hợp lý**.
-                - Nếu lịch trình gốc chưa có hoạt động phù hợp, bạn có thể thêm hoạt động mới vào khung giờ thích hợp (ví dụ sáng: 07:00–09:00).
-                - **Với mỗi ngày, nếu chỉ một số hoạt động được yêu cầu thay đổi, hãy giữ nguyên tất cả các hoạt động còn lại như lịch trình gốc. Tuyệt đối không được viết lại toàn bộ danh sách hoạt động nếu không cần thiết.**
-                - **Chỉ thay đổi những phần cần thiết**, giữ nguyên phần khác.
-                - Không viết lại toàn bộ lịch trình nếu không có yêu cầu cụ thể.
-                - Nếu món ăn, địa điểm hoặc yêu cầu không có trong dữ liệu gốc, hãy **chủ động đề xuất một địa điểm phù hợp, thực tế và phổ biến trong khu vực** (Google Maps).
-                - **Nếu không chắc vị trí thay đổi ở đâu, hãy chèn vào thời điểm hợp lý nhất dựa trên ngữ cảnh.**
-                - Nếu không có thay đổi nào được yêu cầu rõ ràng hoặc hợp lý để chèn, hãy giữ nguyên toàn bộ lịch trình gốc.
+                {{specificUpdateGuidance}}
+
+                ### Hướng dẫn xử lý input formats:
+                - **Format "ngày X, HH:mm - HH:mm [action]"**: Tìm hoạt động trong khung thời gian chỉ định và thay thế
+                - **Format "ngày X [action]"**: Xác định hoạt động phù hợp nhất trong ngày để thay đổi
+                - **Format "Trong ngày X, hoạt động '...' cần thay đổi"**: Thay đổi hoạt động cụ thể được chỉ định
+
+                ### Nguyên tắc cập nhật:
+                - **CHÍNH XÁC**: Chỉ thay đổi những gì được yêu cầu, không thay đổi thêm bất kỳ phần nào khác
+                - **BẢO TOÀN**: Giữ nguyên tất cả hoạt động, thời gian, địa điểm không liên quan đến yêu cầu
+                - **ĐỊA LÝ**: Tất cả địa điểm mới phải thuộc {{request.Destination}} hoặc lân cận gần
+                - **LOGIC**: Đảm bảo thời gian và địa lý hợp lý sau khi thay đổi
+                - **CỤ THỂ**: Mọi địa điểm phải có tên và địa chỉ thực tế, có thể tìm thấy trên Google Maps
+
+                ### Hướng dẫn cập nhật chi tiết:
+                - Khi có chỉ định thời gian cụ thể (HH:mm - HH:mm), ưu tiên tìm hoạt động trong khung giờ đó
+                - Nếu không tìm thấy hoạt động chính xác, tìm hoạt động gần nhất về thời gian
+                - Khi thay thế hoạt động, có thể điều chỉnh nhẹ thời gian cho phù hợp với yêu cầu
+                - **Tuyệt đối không viết lại toàn bộ danh sách hoạt động nếu không cần thiết**
+
+                ### Xử lý thời gian:
+                - Nếu user chỉ định thời gian cụ thể, sử dụng thời gian đó hoặc gần đó
+                - Đảm bảo không bị trùng lặp thời gian với các hoạt động khác trong ngày
+                - Ưu tiên giữ nguyên flow thời gian tự nhiên của ngày
 
                 ### Nguồn địa điểm tham khảo:
                 - **Ưu tiên địa điểm có trong danh sách relatedKnowledge bên dưới** nếu phù hợp với yêu cầu cập nhật
+                - **CHỈ sử dụng địa điểm thuộc {{request.Destination}} hoặc lân cận gần**
                 - Nếu cần mở rộng, chỉ lấy địa điểm:
                   - Có thật, có địa chỉ, có trên Google Maps
+                  - Nằm trong {{request.Destination}} hoặc khu vực lân cận cùng tỉnh/thành
                   - Nằm trong bài viết/blog/review du lịch uy tín về {{request.Destination}}
                 - **Không được tự nghĩ ra hoặc phỏng đoán địa điểm không kiểm chứng**
 
-                ### Yêu cầu định dạng dữ liệu:
+                ### Yêu cầu định dạng dữ liệu (CHỈ KHI KHÔNG CÓ LOCATION CONFLICT):
                 - Mỗi ngày (chỉ những ngày có thay đổi) cần bao gồm:
                   - dayNumber
                   - title
-                  - dailyCost
-                  - weatherNote (gợi ý dựa trên thời tiết và nhiệt độ)
-                  - activities: Danh sách hoạt động trong ngày, mỗi hoạt động bao gồm:
+                  - dailyCost (tính lại nếu có thay đổi chi phí)
+                  - weatherNote (giữ nguyên từ dữ liệu gốc)
+                  - activities: Danh sách ĐẦY ĐỦ hoạt động trong ngày, bao gồm:
                     - starttime (định dạng "HH:mm")
                     - endtime (định dạng "HH:mm")
                     - description (mô tả ngắn gọn)
                     - estimatedCost (số nguyên, đơn vị: VND)
                     - transportation (phương tiện di chuyển)
-                    - address (tên địa điểm + địa chỉ cụ thể)
-                    - placeDetail (mô tả điểm đến, nét đặc biệt, thời điểm nên đi: sáng/chiều/tối)
-                    - mapUrl (nếu có)
-                    - image (dùng thumbnail từ dữ liệu gốc nếu có, nếu không thì để chuỗi rỗng "")
+                    - address (tên địa điểm + địa chỉ cụ thể TRONG {{request.Destination}})
+                    - placeDetail (mô tả điểm đến, nét đặc biệt)
+                    - mapUrl (nếu có, hoặc tạo từ address)
+                    - image (giữ nguyên từ dữ liệu gốc nếu có, nếu không thì để chuỗi rỗng "")
 
                 ### Tiêu chuẩn địa điểm:
-                - Tên địa điểm **phải cụ thể và thực tế**, xuất hiện phổ biến trên Google Maps.
-                - Địa chỉ phải đầy đủ: tên địa điểm + số nhà (nếu có) + đường + phường/xã + quận/huyện + tỉnh/thành.
-                - Tuyệt đối không dùng mô tả mơ hồ như: "quán ăn địa phương", "chợ trung tâm", "gần khu du lịch", "tùy chọn".
-                - **Không được ghi "chưa xác định", "địa điểm cụ thể chưa xác định", hoặc bất kỳ cụm từ nào ám chỉ địa điểm chưa rõ ràng.** Nếu không xác định được từ dữ liệu gốc thì phải đề xuất một địa điểm cụ thể, phổ biến và hợp lý với ngữ cảnh.
+                - Tên địa điểm **phải cụ thể và thực tế**, xuất hiện phổ biến trên Google Maps
+                - Địa chỉ phải đầy đủ: tên địa điểm + số nhà (nếu có) + đường + phường/xã + quận/huyện + {{request.Destination}}
+                - **Address phải kết thúc bằng {{request.Destination}}** (ví dụ: "123 Đường ABC, Quận XYZ, {{request.Destination}}")
+                - Tuyệt đối không dùng mô tả mơ hồ như: "quán ăn địa phương", "chợ trung tâm", "gần khu du lịch", "tùy chọn"
+                - **Không được ghi "chưa xác định", "địa điểm cụ thể chưa xác định"**
 
                 ### Thông tin chuyến đi:
                 - Địa điểm: {{request.Destination}}
@@ -209,15 +298,14 @@ namespace TripWiseAPI.Services
                 ### Lịch trình gốc:
                 {{originalJson}}
 
-                ### Kết quả mong muốn:
-                - Trả về dữ liệu JSON hợp lệ theo định dạng dưới đây.
-                - Nếu có thay đổi, chỉ bao gồm các ngày có thay đổi trong danh sách "days".
-                - Nếu không có thay đổi gì, vẫn PHẢI trả về days chứa đầy đủ dữ liệu gốc.
-                - ⚠️ Tuyệt đối không được trả về "days": []
-                + Trả về JSON với field bắt buộc "days" (array), kể cả khi chỉ có một ngày.
-                + Không trả về "Itinerary". Tất cả dữ liệu phải nằm trong "days".
-                + Nếu có hoạt động mới được chèn, giữ nguyên các hoạt động cũ và chỉ thêm phần cần thay đổi.
-    
+                ### ⚠️ YÊU CẦU ĐẦU RA:
+                - **Nếu có LOCATION CONFLICT**: Trả về error JSON như hướng dẫn ở trên
+                - **Nếu KHÔNG có conflict**: Trả về dữ liệu JSON cập nhật theo format bên dưới
+                - **Bao gồm TẤT CẢ các hoạt động trong ngày được cập nhật**, không chỉ hoạt động thay đổi
+                - Nếu cập nhật ngày 2, phải trả về đầy đủ tất cả hoạt động của ngày 2
+                - Tuyệt đối không được trả về "days": [] rỗng
+                - Không trả về "Itinerary". Tất cả dữ liệu phải nằm trong "days"
+                - **Tất cả address phải thuộc {{request.Destination}}**
 
                 ```json
                 {
@@ -236,7 +324,7 @@ namespace TripWiseAPI.Services
                           "description": "string",
                           "estimatedCost": 123456,
                           "transportation": "string",
-                          "address": "string",
+                          "address": "string (phải kết thúc bằng {{request.Destination}})",
                           "placeDetail": "string",
                           "mapUrl": "string",
                           "image": "string"

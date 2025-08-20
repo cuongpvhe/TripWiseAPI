@@ -4,9 +4,9 @@ using TripWiseAPI.Models.DTO;
 namespace TripWiseAPI.Services
 {
     public interface IAIGeneratePlanService
-    {
-
+    { 
         Task<ItineraryResponse?> UpdateItineraryAsync(int generatePlanId, int userId, string userMessage);
+        Task<ItineraryResponse?> UpdateItineraryWithActivitySelectionAsync(int generatePlanId, int userId, int dayNumber, int activityIndex, string userMessage, string? selectedActivityDescription = null);
         Task<int> SaveGeneratedPlanAsync(int? userId, TravelRequest request, ItineraryResponse response);
         Task<object?> SaveTourFromGeneratedAsync(int generatePlanId, int? userId);
         Task SaveChunkToPlanAsync(int planId, List<ItineraryDay> newDays);

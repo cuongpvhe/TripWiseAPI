@@ -408,7 +408,7 @@ namespace TripWiseAPI.Services
         public async Task<ItineraryResponse> UpdateItineraryAsync(
     TravelRequest originalRequest,
     ItineraryResponse originalResponse,
-    string userInstruction)
+    string userInstruction, string originalUserMessage)
 {
     try
     {
@@ -426,29 +426,31 @@ namespace TripWiseAPI.Services
             throw new ArgumentException("Destination cannot be empty", nameof(originalRequest.Destination));
 
         Console.WriteLine($"[UpdateItinerary] Starting update for destination: {originalRequest.Destination}");
-        Console.WriteLine($"[UpdateItinerary] User instruction: {userInstruction}");
+        Console.WriteLine($"[UpdateItinerary] Full instruction: {userInstruction}");
+        Console.WriteLine($"[UpdateItinerary] Original user message: {originalUserMessage}");
 
-        // Lấy relatedKnowledge với timeout và retry
+        // Lấy relatedKnowledge - SỬ DỤNG CHỈ ORIGINAL USER MESSAGE
         string relatedKnowledge;
         try
         {
             relatedKnowledge = await _vectorSearchService.RetrieveRelevantJsonEntriesForUpdate(
                 originalRequest.Destination, 
-                userInstruction,
+                originalUserMessage,  // CHỈ GỬI USER MESSAGE GỐC
                 3,
                 originalRequest.GroupType ?? "", 
                 originalRequest.DiningStyle ?? "", 
                 originalRequest.Preferences ?? "");
 
+            Console.WriteLine($"[UpdateItinerary] Vector search query: {originalUserMessage} tại {originalRequest.Destination}");
             Console.WriteLine($"[UpdateItinerary] RelatedKnowledge retrieved successfully");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[UpdateItinerary] Warning: Failed to retrieve related knowledge: {ex.Message}");
-            relatedKnowledge = ""; // Continue with empty knowledge if vector search fails
+            relatedKnowledge = "";
         }
 
-        // Build prompt
+        // Build prompt - SỬ DỤNG FULL INSTRUCTION CHO AI
         string prompt;
         try
         {
@@ -461,7 +463,7 @@ namespace TripWiseAPI.Services
             throw new InvalidOperationException("Failed to build update prompt", ex);
         }
 
-        // Call Gemini API with timeout
+        // Phần còn lại giữ nguyên như cũ...
         var payload = new
         {
             contents = new[] {
@@ -473,7 +475,7 @@ namespace TripWiseAPI.Services
             },
             generationConfig = new
             {
-                maxOutputTokens = 40000,
+                maxOutputTokens = 60000,
                 temperature = 0.7
             }
         };
@@ -483,7 +485,7 @@ namespace TripWiseAPI.Services
         
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2)); // 2 minute timeout
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
             
             response = await _httpClient.PostAsJsonAsync(
                 $"v1beta/models/gemini-1.5-flash:generateContent?key={_apiKey}", 
@@ -538,14 +540,12 @@ namespace TripWiseAPI.Services
             throw new InvalidOperationException("Failed to parse Gemini API response", ex);
         }
 
-        Console.WriteLine(" Prompt gửi lên:\n" + prompt);
-        Console.WriteLine(" Kết quả Gemini trả về:\n" + raw);
+        Console.WriteLine($" Prompt gửi lên:\n" + prompt);
+        Console.WriteLine($" Kết quả Gemini trả về:\n" + raw);
 
         // Extract and parse JSON
         string cleanedJson;
-        JsonDocument doc;
-        JsonItineraryFormat parsed;
-
+        
         try
         {
             cleanedJson = ExtractJson(raw);
@@ -556,12 +556,28 @@ namespace TripWiseAPI.Services
             }
 
             Console.WriteLine($"[UpdateItinerary] Cleaned JSON length: {cleanedJson.Length}");
+            
+            // ✅ THÊM LOGIC NÀY - KIỂM TRA AI ERROR RESPONSE TRƯỚC KHI PARSE
+            if (cleanedJson.Contains("LOCATION_CONFLICT") || cleanedJson.Contains("\"error\""))
+            {
+                Console.WriteLine("[UpdateItinerary] AI detected location conflict, throwing exception");
+                throw new ArgumentException("AI_DETECTED_LOCATION_CONFLICT: " + cleanedJson);
+            }
+        }
+        catch (ArgumentException)
+        {
+            // Re-throw ArgumentException (location conflict)
+            throw;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[UpdateItinerary] JSON extraction error: {ex.Message}");
             throw new InvalidOperationException("Failed to extract JSON from response", ex);
         }
+
+        // ✅ TIẾP TỤC PARSE CHỈ KHI KHÔNG CÓ ERROR
+        JsonDocument doc;
+        JsonItineraryFormat parsed;
 
         try
         {
@@ -646,7 +662,7 @@ namespace TripWiseAPI.Services
 
                 if (updatedDay == null)
                 {
-                    mergedDays.Add(originalDay); // Keep original if no changes
+                    mergedDays.Add(originalDay);
                 }
                 else
                 {
@@ -744,6 +760,91 @@ namespace TripWiseAPI.Services
     }
 }
 
+// Thêm method này vào AiItineraryService (3 tham số - backward compatibility)
+public async Task<ItineraryResponse> UpdateItineraryAsync(
+    TravelRequest originalRequest,
+    ItineraryResponse originalResponse,
+    string userInstruction)
+{
+    // Extract user message từ userInstruction
+    string extractedUserMessage = ExtractUserMessageFromInstruction(userInstruction);
+    
+    // Gọi method 4 tham số
+    return await UpdateItineraryAsync(originalRequest, originalResponse, userInstruction, extractedUserMessage);
+}
+
+// Helper method để extract user message - CẬP NHẬT
+private string ExtractUserMessageFromInstruction(string userInstruction)
+{
+    if (string.IsNullOrWhiteSpace(userInstruction))
+        return "";
+
+    // Các pattern để extract user message - THÊM PATTERN MỚI
+    var patterns = new[]
+    {
+        // Pattern mới: "ngày X, HH:mm - HH:mm [action]"
+        @"ngày\s*(\d+),?\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*(.+?)(?:\.|$)",
+        
+        // Pattern mới: "ngày X [action]" (không có thời gian)
+        @"ngày\s*(\d+),?\s*(.+?)(?:\.|$)",
+        
+        // Pattern cũ: "Trong ngày X, tôi muốn..."
+        @"Trong ngày \d+,?\s*tôi muốn\s*(.+?)(?:\.|$)",
+        
+        // Pattern cũ: "Ngày X tôi muốn..."  
+        @"Ngày \d+\s*tôi muốn\s*(.+?)(?:\.|$)", 
+        
+        // Pattern cũ: "tôi muốn..."
+        @"tôi muốn\s*(.+?)(?:\.|$)",
+        
+        // Pattern cũ: "thay đổi ... thành ..."
+        @"thay đổi.*?thành\s*(.+?)(?:\.|$)",
+        
+        // Pattern cũ: Fallback - tìm text sau "muốn"
+        @"muốn\s*(.+?)(?:\.|$)"
+    };
+
+    foreach (var pattern in patterns)
+    {
+        var match = Regex.Match(userInstruction.Trim(), pattern, RegexOptions.IgnoreCase);
+        if (match.Success)
+        {
+            string extracted = "";
+            
+            // Handle pattern đặc biệt cho format "ngày X, HH:mm - HH:mm [action]"
+            if (pattern.Contains(@"(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})") && match.Groups.Count >= 5)
+            {
+                // Trích xuất action từ group 4 (sau thời gian)
+                extracted = match.Groups[4].Value.Trim();
+                Console.WriteLine($"[ExtractUserMessage] Time-specific pattern matched");
+                Console.WriteLine($"[ExtractUserMessage] Day: {match.Groups[1].Value}, Time: {match.Groups[2].Value}-{match.Groups[3].Value}");
+            }
+            // Handle pattern "ngày X [action]" (không có thời gian)
+            else if (pattern.Contains(@"ngày\s*(\d+),?\s*(.+?)") && match.Groups.Count >= 3)
+            {
+                extracted = match.Groups[2].Value.Trim();
+                Console.WriteLine($"[ExtractUserMessage] Day-specific pattern matched");
+                Console.WriteLine($"[ExtractUserMessage] Day: {match.Groups[1].Value}");
+            }
+            // Handle các pattern khác (group 1)
+            else if (match.Groups.Count > 1)
+            {
+                extracted = match.Groups[1].Value.Trim();
+                Console.WriteLine($"[ExtractUserMessage] General pattern matched");
+            }
+
+            if (!string.IsNullOrWhiteSpace(extracted))
+            {
+                Console.WriteLine($"[ExtractUserMessage] Pattern: {pattern}");
+                Console.WriteLine($"[ExtractUserMessage] Extracted: {extracted}");
+                return extracted;
+            }
+        }
+    }
+
+    Console.WriteLine($"[ExtractUserMessage] No pattern matched, using full instruction");
+    return userInstruction;
+}
 
         private string ExtractJson(string raw)
         {

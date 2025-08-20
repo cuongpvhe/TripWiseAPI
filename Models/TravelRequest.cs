@@ -42,6 +42,8 @@ namespace TripWiseAPI.Model
     public class ChatUpdateRequest
     {
         public string Message { get; set; }
+        public int? DayNumber { get; set; }  // Required: which day to update
+        public int? ActivityIndex { get; set; }  // Required: which activity in that day
+        public string? SelectedActivityDescription { get; set; }  // Optional: for validation
     }
-
 }
