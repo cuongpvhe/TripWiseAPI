@@ -38,8 +38,8 @@ namespace TripWiseAPI.Services
             if (oldRequest == null || oldResponse == null)
                 throw new InvalidOperationException("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
 
-            // Gọi AI để tạo lịch trình mới với userMessage
-            var newItinerary = await _aiService.UpdateItineraryAsync(oldRequest, oldResponse, userMessage);
+            // Gọi AI với 4 tham số: truyền userMessage làm cả instruction và originalUserMessage
+            var newItinerary = await _aiService.UpdateItineraryAsync(oldRequest, oldResponse, userMessage, userMessage);
 
             // Thêm thông tin thời tiết cho mỗi ngày
             DateTime startDate = oldRequest.TravelDate;
@@ -113,8 +113,8 @@ namespace TripWiseAPI.Services
                     .ToList()
             };
 
-            // Gọi AI update một phần
-            var newChunk = await _aiService.UpdateItineraryAsync(oldRequest, partialResponse, userMessage);
+            // Gọi AI update một phần với 4 tham số
+            var newChunk = await _aiService.UpdateItineraryAsync(oldRequest, partialResponse, userMessage, userMessage);
 
             // Merge phần update vào full lịch trình
             foreach (var updatedDay in newChunk.Itinerary)
@@ -602,5 +602,96 @@ namespace TripWiseAPI.Services
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
         }
 
+        public async Task<ItineraryResponse?> UpdateItineraryWithActivitySelectionAsync(
+    int generatePlanId, 
+    int userId, 
+    int dayNumber, 
+    int activityIndex, 
+    string userMessage,  // User message gốc
+    string? selectedActivityDescription = null)
+{
+    var existingPlan = await _dbContext.GenerateTravelPlans
+        .FirstOrDefaultAsync(p => p.Id == generatePlanId && p.UserId == userId);
+
+    if (existingPlan == null) 
+        return null;
+
+    var oldRequest = JsonSerializer.Deserialize<TravelRequest>(existingPlan.MessageRequest);
+    var oldResponse = JsonSerializer.Deserialize<ItineraryResponse>(existingPlan.MessageResponse);
+
+    if (oldRequest == null || oldResponse == null)
+        throw new InvalidOperationException("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
+
+    // Validate that the selected day exists
+    var targetDay = oldResponse.Itinerary.FirstOrDefault(d => d.DayNumber == dayNumber);
+    if (targetDay == null)
+        throw new ArgumentException($"Không tìm thấy ngày {dayNumber} trong lịch trình.");
+
+    // Validate that the selected activity exists
+    if (activityIndex >= targetDay.Activities.Count)
+        throw new ArgumentException($"Không tìm thấy hoạt động tại vị trí {activityIndex} trong ngày {dayNumber}.");
+
+    var targetActivity = targetDay.Activities[activityIndex];
+
+    // Optional: Validate selected activity description matches (if provided)
+    if (!string.IsNullOrWhiteSpace(selectedActivityDescription) && 
+        !targetActivity.Description.Contains(selectedActivityDescription, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new ArgumentException("Hoạt động được chọn không khớp với dữ liệu hiện tại. Vui lòng chọn lại.");
+    }
+
+    // Create specific instruction for AI (this goes to prompt)
+    string specificInstruction = $"Trong ngày {dayNumber}, hoạt động '{targetActivity.Description}' " +
+                               $"(thời gian: {targetActivity.StartTime} - {targetActivity.EndTime}, " +
+                               $"địa điểm: {targetActivity.Address}) " +
+                               $"cần được thay đổi như sau: {userMessage}. " +
+                               $"Chỉ thay đổi hoạt động này, giữ nguyên các hoạt động khác trong ngày.";
+
+    // Call AI với cả 2 tham số: instruction đầy đủ và user message gốc
+    var newItinerary = await _aiService.UpdateItineraryAsync(
+        oldRequest, 
+        oldResponse, 
+        specificInstruction,    // Full instruction cho AI prompt
+        userMessage            // User message gốc cho vector search
+    );
+
+    // Add weather information for each day
+    DateTime startDate = oldRequest.TravelDate;
+    for (int i = 0; i < newItinerary.Itinerary.Count; i++)
+    {
+        var weather = await _weatherService.GetDailyWeatherAsync(oldRequest.Destination, startDate.AddDays(i));
+        newItinerary.Itinerary[i].WeatherDescription = weather?.description ?? "Không có dữ liệu";
+        newItinerary.Itinerary[i].TemperatureCelsius = weather?.temperature ?? 0;
+    }
+
+    // Create updated response
+    var updatedResponse = new ItineraryResponse
+    {
+        Destination = oldRequest.Destination,
+        Days = oldRequest.Days,
+        Preferences = oldRequest.Preferences,
+        TravelDate = oldRequest.TravelDate,
+        Transportation = oldRequest.Transportation,
+        DiningStyle = oldRequest.DiningStyle,
+        GroupType = oldRequest.GroupType,
+        Accommodation = oldRequest.Accommodation,
+        TotalEstimatedCost = newItinerary.TotalEstimatedCost,
+        Budget = oldRequest.BudgetVND,
+        Itinerary = newItinerary.Itinerary,
+        SuggestedAccommodation = newItinerary.SuggestedAccommodation
+    };
+
+    // Save the updated result
+    existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        WriteIndented = true
+    });
+    existingPlan.ResponseTime = DateTime.UtcNow;
+
+    await _dbContext.SaveChangesAsync();
+
+    return updatedResponse;
+}
     }
 }
