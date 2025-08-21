@@ -439,6 +439,179 @@ namespace TripWiseAPI.Services.AdminServices
 			await _dbContext.SaveChangesAsync();
             return true;
         }
+        public async Task<bool> ConfirmRefundAsync(int bookingId, int adminId)
+        {
+            var booking = await _dbContext.Bookings
+                .Include(b => b.User)
+                .Include(b => b.Tour)
+                    .ThenInclude(t => t.Partner)
+                        .ThenInclude(p => p.User)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null
+                || booking.BookingStatus != BookingStatus.CancelPending
+                || booking.RefundStatus != RefundStatus.Pending)
+                return false;
+
+            booking.BookingStatus = BookingStatus.Cancelled;
+            booking.RefundStatus = RefundStatus.Approved;
+            booking.ModifiedDate = TimeHelper.GetVietnamTime();
+            booking.ModifiedBy = adminId;
+
+            _dbContext.Bookings.Update(booking);
+            await _dbContext.SaveChangesAsync();
+
+            // Email cho user
+            var emailBody = $@"
+Xin chào {booking.User.FirstName} {booking.User.LastName},
+
+Yêu cầu hoàn tiền cho booking #{booking.BookingId} đã được DUYỆT.
+Số tiền: {booking.RefundAmount:#,0} VND
+Hình thức: {booking.RefundMethod}
+";
+            await EmailHelper.SendEmailAsync(booking.User.Email, "Yêu cầu hoàn tiền đã được duyệt", emailBody);
+
+            // Email cho partner (chỉ gửi nếu có thông tin partner & user)
+            if (booking.Tour?.Partner?.User != null)
+            {
+                var emailPartner = $@"
+Xin chào đối tác {booking.Tour.Partner.CompanyName},
+
+Booking #{booking.BookingId} cho tour {booking.Tour.TourName} đã bị hủy.
+Số tiền hoàn lại cho khách: {booking.RefundAmount:#,0} VND
+Lý do: {booking.CancelReason}
+";
+                await EmailHelper.SendEmailAsync(
+                    booking.Tour.Partner.User.Email,
+                    "Thông báo huỷ booking",
+                    emailPartner
+                );
+            }
+
+            return true;
+        }
+
+
+        public async Task<bool> CompleteRefundAsync(int bookingId, int adminId)
+        {
+            var booking = await _dbContext.Bookings
+                .Include(b => b.User)
+                .Include(b => b.Tour)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null || booking.RefundStatus != RefundStatus.Approved)
+                return false;
+
+            booking.BookingStatus = BookingStatus.Cancelled;
+            booking.RefundStatus = RefundStatus.Refunded;
+            booking.RefundDate = TimeHelper.GetVietnamTime();
+            booking.ModifiedDate = TimeHelper.GetVietnamTime();
+            booking.ModifiedBy = adminId;
+            _dbContext.Bookings.Update(booking);
+            await _dbContext.SaveChangesAsync();
+
+            // Email cho user
+            var emailUser = $@"
+Xin chào {booking.User.FirstName} {booking.User.LastName},
+
+Hoàn tiền cho booking #{booking.BookingId} đã được thực hiện thành công.
+Số tiền: {booking.RefundAmount:#,0} VND
+Hình thức: {booking.RefundMethod}
+Ngày hoàn: {booking.RefundDate:dd/MM/yyyy}
+";
+            await EmailHelper.SendEmailAsync(booking.User.Email, "Hoàn tiền thành công", emailUser);
+
+            return true;
+        }
+
+        public async Task<bool> RejectRefundAsync(int bookingId, string rejectReason, int adminId)
+        {
+            var booking = await _dbContext.Bookings
+                .Include(b => b.User)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null
+                || booking.BookingStatus != BookingStatus.CancelPending
+                || booking.RefundStatus != RefundStatus.Pending)
+                return false;
+
+            booking.BookingStatus = BookingStatus.Success;
+            booking.RefundStatus = RefundStatus.Rejected;
+            booking.CancelReason = rejectReason;
+            booking.ModifiedDate = TimeHelper.GetVietnamTime();
+            booking.ModifiedBy = adminId;
+
+            _dbContext.Bookings.Update(booking);
+            await _dbContext.SaveChangesAsync();
+
+            var emailBody = $@"
+Xin chào {booking.User.FirstName} {booking.User.LastName},
+
+Yêu cầu huỷ booking #{booking.BookingId} đã bị từ chối.
+Lý do: {rejectReason}
+";
+            await EmailHelper.SendEmailAsync(booking.User.Email, "Từ chối huỷ booking", emailBody);
+
+            return true;
+        }
+        public async Task<List<BookingDto>> GetBookingsForAdminAsync(int? partnerId, DateTime? fromDate, DateTime? toDate, string? status)
+        {
+            var query = _dbContext.Bookings
+                .Include(b => b.Tour)
+                .Include(b => b.User)
+                .AsQueryable();
+
+            // Filter partnerId
+            if (partnerId.HasValue)
+            {
+                query = query.Where(b => b.Tour.PartnerId == partnerId.Value);
+            }
+
+            // Filter fromDate
+            if (fromDate.HasValue)
+            {
+                query = query.Where(b => b.CreatedDate >= fromDate.Value);
+            }
+
+            // Filter toDate (+1 ngày để không bỏ sót)
+            if (toDate.HasValue)
+            {
+                query = query.Where(b => b.CreatedDate < toDate.Value.AddDays(1));
+            }
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(b => b.BookingStatus == status);
+
+                if (status == "Cancelled")
+                {
+                    query = query.Where(b => b.CancelType != null);
+                }
+            }
+            else
+            {
+                query = query.Where(b => !(b.BookingStatus == "Cancelled" && b.CancelType == null));
+            }
+
+
+            var bookings = await query
+                .OrderByDescending(b => b.CreatedDate)
+                .Select(b => new BookingDto
+                {
+                    BookingId = b.BookingId,
+                    TourId = b.TourId,
+                    TourName = b.Tour.TourName,
+                    UserId = b.UserId,
+                    UserName = b.User.FirstName + " " + b.User.LastName,
+                    TotalAmount = b.TotalAmount,
+                    BookingStatus = b.BookingStatus,
+                    CancelType = b.CancelType,
+                    CreatedDate = b.CreatedDate ?? TimeHelper.GetVietnamTime(),
+                })
+                .ToListAsync();
+
+            return bookings;
+        }
 
     }
 }

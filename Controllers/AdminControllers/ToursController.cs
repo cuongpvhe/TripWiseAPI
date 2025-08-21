@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
+using TripWiseAPI.Models.DTO;
 using TripWiseAPI.Services;
 using TripWiseAPI.Services.AdminServices;
 using TripWiseAPI.Services.PartnerServices;
@@ -17,10 +18,12 @@ namespace TripWiseAPI.Controllers.AdminControllers
     {
         private readonly IManageTourService _manageTourService;
         private readonly IAIGeneratePlanService _aIGeneratePlanService;
-        public AdminToursController(IManageTourService manageTourService, IAIGeneratePlanService aIGeneratePlanService)
-        { 
+        private readonly IVnPayService _vnPayService;
+        public AdminToursController(IManageTourService manageTourService, IAIGeneratePlanService aIGeneratePlanService, IVnPayService vnPayService)
+        {
             _aIGeneratePlanService = aIGeneratePlanService;
-            _manageTourService = manageTourService; 
+            _manageTourService = manageTourService;
+            _vnPayService = vnPayService;
         }
 
         /// <summary>
@@ -115,6 +118,81 @@ namespace TripWiseAPI.Controllers.AdminControllers
                 return NotFound("Không tìm thấy bản nháp tương ứng");
 
             return Ok("Đã từ chối bản nháp thành công");
+        }
+
+        // ============================
+        // ADMIN CONFIRM REFUND
+        // ============================
+        [HttpPost("confirm-refund/{bookingId}")]
+        public async Task<IActionResult> ConfirmRefundAsync(int bookingId)
+        {
+            var userId = GetAdminId();
+            if (userId == null)
+                return Unauthorized("Bạn chưa đăng nhập.");
+            var success = await _manageTourService.ConfirmRefundAsync(bookingId, userId.Value);
+            if (!success)
+                return BadRequest(new { message = "Không thể duyệt hoàn tiền. Vui lòng kiểm tra trạng thái booking." });
+
+            return Ok(new { message = "Đã duyệt hoàn tiền và gửi email thông báo cho khách + đối tác." });
+        }
+
+        // ============================
+        // ADMIN COMPLETE REFUND
+        // ============================
+        [HttpPost("complete-refund/{bookingId}")]
+        public async Task<IActionResult> CompleteRefundAsync(int bookingId)
+        {
+            var userId = GetAdminId();
+            if (userId == null)
+                return Unauthorized("Bạn chưa đăng nhập.");
+            var success = await _manageTourService.CompleteRefundAsync(bookingId, userId.Value);
+            if (!success)
+                return BadRequest(new { message = "Không thể hoàn tất hoàn tiền. Booking chưa được duyệt hoặc không tồn tại." });
+
+            return Ok(new { message = "Hoàn tiền thành công và đã gửi email cho khách hàng." });
+        }
+
+        // ============================
+        // ADMIN REJECT REFUND
+        // ============================
+        [HttpPost("reject-cancelbooking/{bookingId}")]
+        public async Task<IActionResult> RejectRefundAsync(int bookingId, [FromBody] RejectRefundRequest request)
+        {
+            var userId = GetAdminId();
+            if (userId == null)
+                return Unauthorized("Bạn chưa đăng nhập.");
+            var success = await _manageTourService.RejectRefundAsync(bookingId, request.RejectReason, userId.Value);
+            if (!success)
+                return BadRequest(new { message = "Không thể từ chối hoàn tiền. Vui lòng kiểm tra trạng thái booking." });
+
+            return Ok(new { message = "Đã từ chối yêu cầu huỷ booking và gửi email cho khách hàng." });
+        }
+
+        /// <summary>
+        /// Lấy danh sách bookings cho Admin (có filter PartnerId, FromDate, ToDate).
+        /// </summary>
+        [HttpGet("get-booking")]
+        public async Task<ActionResult<List<BookingDto>>> GetBookingsForAdmin(
+            [FromQuery] int? partnerId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] string? status)
+        {
+            var result = await _manageTourService.GetBookingsForAdminAsync(partnerId, fromDate, toDate, status);
+            return Ok(result);
+        }
+        /// <summary>
+        /// Lấy chi tiết booking theo ID.
+        /// </summary>
+        /// <param name="bookingId">ID của booking.</param>
+        [HttpGet("booking-detail/{bookingId}")]
+        public async Task<IActionResult> GetBookingDetail(int bookingId)
+        {
+            var detail = await _vnPayService.GetBookingDetailAsync(bookingId);
+            if (detail == null)
+                return NotFound(new { Message = "Không tìm thấy booking" });
+
+            return Ok(detail);
         }
     }
 }

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Utils;
 using Microsoft.AspNetCore.WebUtilities;
 using TripWiseAPI.Models.DTO;
+using Microsoft.AspNetCore.Authorization;
 
 namespace TripWiseAPI.Controllers
 {
@@ -197,5 +198,40 @@ namespace TripWiseAPI.Controllers
 
             return Ok(detail);
         }
+
+        // ============================
+        // USER CANCEL BOOKING
+        // ============================
+        [HttpPost("{bookingId}/cancel")]
+        public async Task<IActionResult> CancelBookingAsync(
+            int bookingId,
+            [FromBody] CancelBookingRequest request)
+        {
+            try
+            {
+                var userId = GetUserId();
+                if (userId == null)
+                    return Unauthorized("Bạn chưa đăng nhập.");
+                var result = await _vnPayService.CancelBookingAsync(
+                    bookingId,
+                    userId.Value,
+                    request.RefundMethod,
+                    request.CancelReason
+                );
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+        [HttpGet("preview/{bookingId}")]
+        public async Task<ActionResult<CancelResultDto>> PreviewCancel(int bookingId)
+        {
+            var result = await _vnPayService.PreviewCancelAsync(bookingId);
+            return Ok(result);
+        }
     }
+
 }

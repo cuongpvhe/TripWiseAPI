@@ -12,5 +12,9 @@ namespace TripWiseAPI.Services.AdminServices
         Task<TourDetailDto?> GetTourDetailForAdminAsync(int tourId);
         Task SubmitDraftAsync(int tourId, int adminId);
         Task<bool> RejectDraftAsync(int tourId, string reason, int adminId);
+        Task<bool> ConfirmRefundAsync(int bookingId, int adminId);
+        Task<bool> CompleteRefundAsync(int bookingId, int adminId);
+        Task<bool> RejectRefundAsync(int bookingId, string rejectReason, int adminId);
+        Task<List<BookingDto>> GetBookingsForAdminAsync(int? partnerId, DateTime? fromDate, DateTime? toDate, string? status);
     }
 }

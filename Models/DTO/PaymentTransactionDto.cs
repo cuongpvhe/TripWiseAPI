@@ -35,6 +35,12 @@
         public int? NumChildren5To10 { get; set; }
         public int? NumChildrenUnder5 { get; set; }
         public decimal Amount { get; set; }
+        public string? CancelType { get; set; }
+        public decimal? RefundAmount { get; set; }
+        public string? RefundStatus { get; set; }
+        public DateTime? RefundDate { get; set; }
+        public string? RefundMethod { get; set; }
+        public string? CancelReason { get; set; }
         public DateTime? PaymentTime { get; set; }
         public DateTime? CreatedDate { get; set; }
         public DateTime? ExpiredDate { get; set; }
@@ -64,6 +70,12 @@
         public string? UserName { get; set; }
         public decimal TotalAmount { get; set; }
         public string BookingStatus { get; set; }
+        public string? CancelType { get; set; }
+        public decimal? RefundAmount { get; set; }
+        public string? RefundStatus { get; set; }
+        public DateTime? RefundDate { get; set; }
+        public string? RefundMethod { get; set; }
+        public string? CancelReason { get; set; }
         public DateTime CreatedDate { get; set; }
     }
 }
