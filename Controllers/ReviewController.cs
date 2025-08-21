@@ -11,7 +11,6 @@ namespace TripWiseAPI.Controllers
     /// </summary>
     [Route("api/[controller]")]
 	[ApiController]
-	[Authorize] // 👈 bắt buộc user phải đăng nhập
 	public class ReviewController : ControllerBase
 	{
 		private readonly IReviewService _reviewService;
@@ -21,12 +20,13 @@ namespace TripWiseAPI.Controllers
 			_reviewService = reviewService;
 		}
 
-        /// <summary>
-        /// Người dùng đánh giá tour AI.
-        /// </summary>
-        /// <param name="dto">Thông tin đánh giá tour AI.</param>
-        [HttpPost("tour-ai")]
-		public async Task<IActionResult> ReviewTourAI([FromBody] ReviewTourAIDto dto)
+		/// <summary>
+		/// Người dùng đánh giá tour AI.
+		/// </summary>
+		/// <param name="dto">Thông tin đánh giá tour AI.</param>
+		[Authorize]
+        [HttpPost("Reviewchatbot")]
+		public async Task<IActionResult> ReviewChatbotAI([FromBody] ReviewTourAIDto dto)
 		{
 			var userIdClaim = User.FindFirst("UserId")?.Value;
 			if (!int.TryParse(userIdClaim, out int userId))
@@ -39,8 +39,8 @@ namespace TripWiseAPI.Controllers
         /// <summary>
         /// Lấy danh sách đánh giá cho tour AI.
         /// </summary>
-        [HttpGet("tour-ai")]
-		public async Task<IActionResult> GetReviewsForTourAI()
+        [HttpGet("Chatbot")]
+		public async Task<IActionResult> GetReviewsForChatbotAI()
 		{
 			var reviews = await _reviewService.GetReviewsForTourAIAsync();
 			if (reviews == null || !reviews.Any())
@@ -51,19 +51,20 @@ namespace TripWiseAPI.Controllers
         /// <summary>
         /// Lấy điểm trung bình của tất cả đánh giá.
         /// </summary>
-        [HttpGet("GetAVGReview")]
+        [HttpGet("GetAVGchatbot")]
 		public async Task<IActionResult> GetAVGreview()
 		{
-			var result = await _reviewService.AVGRating();
+			var result = await _reviewService.AVGRatingAI();
 			return Ok(result);
 		}
 
-        /// <summary>
-        /// Xóa một đánh giá theo userId và reviewId.
-        /// </summary>
-        /// <param name="userid">ID người dùng thực hiện xóa.</param>
-        /// <param name="reviewid">ID đánh giá cần xóa.</param>
-        [HttpDelete]
+		/// <summary>
+		/// Xóa một đánh giá theo userId và reviewId.
+		/// </summary>
+		/// <param name="userid">ID người dùng thực hiện xóa.</param>
+		/// <param name="reviewid">ID đánh giá cần xóa.</param>
+		[Authorize]
+		[HttpDelete]
 		public async Task<IActionResult> Deletereview(int userid,int reviewid)
 		{
 			var userIdClaim = User.FindFirst("UserId")?.Value;
@@ -72,5 +73,36 @@ namespace TripWiseAPI.Controllers
 			var result = await _reviewService.DeleteReview(userId, reviewid);
 			return StatusCode(result.StatusCode, result);
 		}
+
+
+		// POST: api/Review/tour
+		[Authorize]
+		[HttpPost("tour-partner")]
+		public async Task<IActionResult> ReviewTour([FromBody] ReviewTourDto dto)
+		{
+			var userIdClaim = User.FindFirst("UserId")?.Value;
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized("Không xác định được người dùng.");
+
+			var result = await _reviewService.ReviewTourPartnerAsync(userId, dto);
+			return StatusCode(result.StatusCode, result);
+		}
+
+
+		[HttpGet("tour-partner/{tourId}")]
+		public async Task<IActionResult> GetReviewsForTour(int tourId)
+		{
+			var reviews = await _reviewService.GetReviewsForTourPartnerAsync(tourId);
+			if (reviews == null || !reviews.Any())
+				return NotFound("Không tìm thấy đánh giá cho tour này.");
+			return Ok(reviews);
+		}
+		[HttpGet("GetAVGReview-partner/{tourId}")]
+		public async Task<IActionResult> GetAVGTourPartnerreview(int tourId)
+		{
+			var result = await _reviewService.AVGRatingTourPartner(tourId);
+			return Ok(result);
+		}
+
 	}
 }

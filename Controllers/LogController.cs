@@ -64,6 +64,7 @@ namespace TripWiseAPI.Controllers
 					};
 				})
 				.Where(r => r.DateTime.HasValue) // chỉ lấy log có DateTime
+				.OrderByDescending(r => r.DateTime.Value) // sắp xếp theo thời gian giảm dần
 				.ToList();
 
 				// Phân trang
