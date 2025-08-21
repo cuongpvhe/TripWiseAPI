@@ -131,6 +131,10 @@ namespace TripWiseAPI.Models
                     .HasMaxLength(20)
                     .HasDefaultValueSql("('Pending')");
 
+                entity.Property(e => e.CancelReason).HasMaxLength(225);
+
+                entity.Property(e => e.CancelType).HasMaxLength(50);
+
                 entity.Property(e => e.CreatedDate)
                     .HasColumnType("datetime")
                     .HasDefaultValueSql("(getdate())");
@@ -140,6 +144,14 @@ namespace TripWiseAPI.Models
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.OrderCode).HasMaxLength(50);
+
+                entity.Property(e => e.RefundAmount).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.RefundDate).HasColumnType("datetime");
+
+                entity.Property(e => e.RefundMethod).HasMaxLength(50);
+
+                entity.Property(e => e.RefundStatus).HasMaxLength(50);
 
                 entity.Property(e => e.RemovedDate).HasColumnType("datetime");
 

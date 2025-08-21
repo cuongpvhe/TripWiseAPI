@@ -28,6 +28,12 @@ namespace TripWiseAPI.Models
         public int? NumAdults { get; set; }
         public int? NumChildren5To10 { get; set; }
         public int? NumChildrenUnder5 { get; set; }
+        public string? CancelType { get; set; }
+        public decimal? RefundAmount { get; set; }
+        public string? RefundStatus { get; set; }
+        public DateTime? RefundDate { get; set; }
+        public string? RefundMethod { get; set; }
+        public string? CancelReason { get; set; }
 
         public virtual Tour Tour { get; set; } = null!;
         public virtual User User { get; set; } = null!;

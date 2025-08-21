@@ -30,7 +30,9 @@ namespace TripWiseAPI.Services
 
         public string CreatePaymentUrl(PaymentInformationModel model, HttpContext context)
         {
-            var orderCode = Guid.NewGuid().ToString("N");
+            var orderCode = string.IsNullOrEmpty(model.OrderCode)
+                ? Guid.NewGuid().ToString("N")   
+                : model.OrderCode;               
 
             var pay = new VnPayLibrary();
             var timeNow = TimeHelper.GetVietnamTime();
@@ -204,7 +206,14 @@ namespace TripWiseAPI.Services
                                      NumChildrenUnder5 = b.NumChildrenUnder5,
                                      Amount = b.TotalAmount,
                                      PaymentTime = pt != null ? pt.PaymentTime : null,
-                                     CreatedDate = b.CreatedDate
+                                     CreatedDate = b.CreatedDate,
+
+                                     RefundAmount = b.RefundAmount,
+                                     RefundMethod = b.RefundMethod,
+                                     RefundStatus = b.RefundStatus,
+                                     RefundDate = b.RefundDate,
+                                     CancelReason = b.CancelReason
+                                     
                                  })
                                  .FirstOrDefaultAsync();
 
@@ -432,19 +441,6 @@ namespace TripWiseAPI.Services
 
             await _dbContext.SaveChangesAsync();
 
-            var transaction = new PaymentTransaction
-            {
-                OrderCode = booking.OrderCode,
-                UserId = userId,
-                Amount = booking.TotalAmount,
-                PaymentStatus = PaymentStatus.Pending,
-                CreatedDate = TimeHelper.GetVietnamTime(),
-                CreatedBy = userId
-            };
-
-            _dbContext.PaymentTransactions.Add(transaction);
-            await _dbContext.SaveChangesAsync();
-
             var paymentModel = new PaymentInformationModel
             {
                 UserId = userId,
@@ -453,6 +449,7 @@ namespace TripWiseAPI.Services
                 OrderDescription = $"Thanh toán tour {booking.Tour.TourName} cho {booking.Quantity} người. Tổng: {booking.TotalAmount:N0} VND",
                 OrderType = "booking",
                 BookingId = booking.BookingId,
+                OrderCode = booking.OrderCode,
             };
 			await _logService.LogAsync(userId: userId, action: "Create", message: $"Người dùng {userId} đặt tour {booking.Tour.TourName} với mã đơn {booking.OrderCode} - Số tiền: {booking.TotalAmount:N0} VND", statusCode: 201, createdBy: userId);
 			return CreatePaymentUrl(paymentModel, context);
@@ -541,14 +538,124 @@ namespace TripWiseAPI.Services
             }
         }
 
+        // Preview hoàn tiền mà không cần submit
+        public async Task<CancelResultDto> PreviewCancelAsync(int bookingId)
+        {
+            var booking = await _dbContext.Bookings
+                .Include(b => b.Tour)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null)
+                throw new Exception("Booking không tồn tại.");
+
+            if (booking.BookingStatus != BookingStatus.Success)
+                throw new Exception("Chỉ những booking thành công mới được hủy.");
+
+            var now = TimeHelper.GetVietnamTime();
+            var daysBefore = (booking.Tour.StartTime - now)?.TotalDays ?? 0;
+
+            decimal refundPercent;
+            if (daysBefore >= 20)
+                refundPercent = 0.9m;
+            else if (daysBefore >= 15)
+                refundPercent = 0.5m;
+            else if (daysBefore >= 7)
+                refundPercent = 0.3m;
+            else
+                refundPercent = 0.0m;
+
+            var refundAmount = booking.TotalAmount * refundPercent;
+
+            return new CancelResultDto
+            {
+                BookingId = bookingId,
+                RefundAmount = refundAmount,
+                RefundPercent = refundPercent,
+                Message = $"Khách được hoàn {refundPercent * 100}% = {refundAmount:#,0} VND"
+            };
+        }
+
+        // ============================
+        // USER CANCEL
+        // ============================
+        public async Task<CancelResultDto> CancelBookingAsync(int bookingId, int userId, string refundMethod, string cancelReason)
+        {
+            var booking = await _dbContext.Bookings
+                .Include(b => b.Tour)
+                .Include(b => b.User)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.UserId == userId);
+
+            if (booking == null)
+                throw new Exception("Booking không tồn tại.");
+
+            if (booking.BookingStatus != BookingStatus.Success)
+                throw new Exception("Chỉ những booking thành công mới được hủy.");
+
+            var preview = await PreviewCancelAsync(bookingId);
+
+            booking.BookingStatus = BookingStatus.CancelPending;
+            booking.CancelType = CancelType.UserCancel;
+            booking.CancelReason = cancelReason;
+            booking.RefundAmount = preview.RefundAmount;
+            booking.RefundMethod = refundMethod;
+            booking.RefundStatus = preview.RefundAmount > 0 ? RefundStatus.Pending : null;
+
+            await _dbContext.SaveChangesAsync();
+
+            var fullName = $"{booking.User.FirstName} {booking.User.LastName}";
+
+            var subject = "Yêu cầu hủy Booking #" + booking.BookingId;
+            var body = $@"
+Xin chào {fullName},
+
+Bạn đã gửi yêu cầu hủy booking thành công.
+Lý do huỷ: {cancelReason}
+Số tiền hoàn lại dự kiến: {preview.RefundAmount:N0} VND ({preview.RefundPercent * 100}%)
+
+Hình thức nhận tiền: {refundMethod}.
+Trạng thái hoàn tiền: {(preview.RefundAmount > 0 ? "Đang chờ admin duyệt" : "Không áp dụng hoàn tiền")}.
+
+Cảm ơn bạn đã sử dụng dịch vụ!
+";
+            await EmailHelper.SendEmailAsync(booking.User.Email, subject, body);
+
+            return new CancelResultDto
+            {
+                BookingId = booking.BookingId,
+                RefundAmount = preview.RefundAmount,
+                RefundPercent = preview.RefundPercent,
+                CancelReason = cancelReason,
+                Message = "Yêu cầu hủy thành công, vui lòng chờ admin xác nhận hoàn tiền"
+            };
+        }
+
 
         public static class PaymentStatus
         {
             public const string Pending = "Pending";
             public const string Success = "Success";
             public const string Failed = "Failed";
-            public const string Canceled = "Canceled";
+            public const string Canceled = "Cancelled";
             public const string Draft = "Draft";
+        }
+        public static class BookingStatus
+        {
+            public const string Success = "Success";
+            public const string CancelPending = "CancelPending";
+            public const string Cancelled = "Cancelled";
+        }
+
+        public static class RefundStatus
+        {
+            public const string Pending = "Pending";               
+            public const string Approved = "Approved";             
+            public const string Refunded = "Refunded";             
+            public const string Rejected = "Rejected";             
+        }
+
+        public static class CancelType
+        {
+            public const string UserCancel = "UserCancel";
         }
 
     }

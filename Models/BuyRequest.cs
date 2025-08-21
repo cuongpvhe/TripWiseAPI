@@ -13,6 +13,4 @@
         public int NumChildrenUnder5 { get; set; }
         public string PaymentMethod { get; set; }
     }
-
-
 }
