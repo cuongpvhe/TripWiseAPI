@@ -38,8 +38,18 @@ namespace TripWiseAPI.Services
             if (oldRequest == null || oldResponse == null)
                 throw new InvalidOperationException("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
 
+            // ✅ TẠO BẢNG SAO LƯU CỦA LỊCH TRÌNH GỐC
+            var originalResponseBackup = JsonSerializer.Deserialize<ItineraryResponse>(
+                JsonSerializer.Serialize(oldResponse, new JsonSerializerOptions
+                {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                }));
+
             // Gọi AI với 4 tham số: truyền userMessage làm cả instruction và originalUserMessage
             var newItinerary = await _aiService.UpdateItineraryAsync(oldRequest, oldResponse, userMessage, userMessage);
+
+            // ✅ SO SÁNH LỊCH TRÌNH GỐC VÀ MỚI
+            var comparisonResult = ItineraryComparer.AnalyzeChanges(originalResponseBackup, newItinerary, userMessage);
 
             // Thêm thông tin thời tiết cho mỗi ngày
             DateTime startDate = oldRequest.TravelDate;
@@ -64,18 +74,34 @@ namespace TripWiseAPI.Services
                 TotalEstimatedCost = newItinerary.TotalEstimatedCost,
                 Budget = oldRequest.BudgetVND,
                 Itinerary = newItinerary.Itinerary,
-                SuggestedAccommodation = newItinerary.SuggestedAccommodation
+                SuggestedAccommodation = newItinerary.SuggestedAccommodation,
+                
+                // ✅ THÊM THÔNG TIN SO SÁNH VÀO RESPONSE
+                UpdateMessage = comparisonResult.Message,
+                UpdateDetails = comparisonResult.DetailedMessage,
+                HasChanges = comparisonResult.HasChanges
             };
 
-            // Lưu đè kết quả
-            existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions
+            // ✅ CHỈ LƯU NẾU CÓ THAY ĐỔI THỰC SỰ
+            if (comparisonResult.HasChanges)
             {
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-                WriteIndented = true
-            });
-            existingPlan.ResponseTime = DateTime.UtcNow;
+                existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions
+                {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                    WriteIndented = true
+                });
+                existingPlan.ResponseTime = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+                await _dbContext.SaveChangesAsync();
+                Console.WriteLine($"[UpdateItinerary] Changes detected and saved: {comparisonResult.ChangesCount} changes");
+            }
+            else
+            {
+                Console.WriteLine($"[UpdateItinerary] No changes detected, original itinerary maintained");
+                // Trả về response với thông báo nhưng không lưu thay đổi
+                updatedResponse.Itinerary = originalResponseBackup.Itinerary;
+                updatedResponse.TotalEstimatedCost = originalResponseBackup.TotalEstimatedCost;
+            }
 
             return updatedResponse;
         }
@@ -607,7 +633,7 @@ namespace TripWiseAPI.Services
     int userId, 
     int dayNumber, 
     int activityIndex, 
-    string userMessage,  // User message gốc
+    string userMessage,
     string? selectedActivityDescription = null)
 {
     var existingPlan = await _dbContext.GenerateTravelPlans
@@ -640,6 +666,13 @@ namespace TripWiseAPI.Services
         throw new ArgumentException("Hoạt động được chọn không khớp với dữ liệu hiện tại. Vui lòng chọn lại.");
     }
 
+    // ✅ TẠO BẢNG SAO LƯU CỦA LỊCH TRÌNH GỐC
+    var originalResponseBackup = JsonSerializer.Deserialize<ItineraryResponse>(
+        JsonSerializer.Serialize(oldResponse, new JsonSerializerOptions
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        }));
+
     // Create specific instruction for AI (this goes to prompt)
     string specificInstruction = $"Trong ngày {dayNumber}, hoạt động '{targetActivity.Description}' " +
                                $"(thời gian: {targetActivity.StartTime} - {targetActivity.EndTime}, " +
@@ -651,9 +684,12 @@ namespace TripWiseAPI.Services
     var newItinerary = await _aiService.UpdateItineraryAsync(
         oldRequest, 
         oldResponse, 
-        specificInstruction,    // Full instruction cho AI prompt
-        userMessage            // User message gốc cho vector search
+        specificInstruction,
+        userMessage
     );
+
+    // ✅ SO SÁNH LỊCH TRÌNH GỐC VÀ MỚI
+    var comparisonResult = ItineraryComparer.AnalyzeChanges(originalResponseBackup, newItinerary, userMessage);
 
     // Add weather information for each day
     DateTime startDate = oldRequest.TravelDate;
@@ -678,18 +714,34 @@ namespace TripWiseAPI.Services
         TotalEstimatedCost = newItinerary.TotalEstimatedCost,
         Budget = oldRequest.BudgetVND,
         Itinerary = newItinerary.Itinerary,
-        SuggestedAccommodation = newItinerary.SuggestedAccommodation
+        SuggestedAccommodation = newItinerary.SuggestedAccommodation,
+        
+        // ✅ THÊM THÔNG TIN SO SÁNH VÀO RESPONSE
+        UpdateMessage = comparisonResult.Message,
+        UpdateDetails = comparisonResult.DetailedMessage,
+        HasChanges = comparisonResult.HasChanges
     };
 
-    // Save the updated result
-    existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions
+    // ✅ CHỈ LƯU NẾU CÓ THAY ĐỔI THỰC SỰ
+    if (comparisonResult.HasChanges)
     {
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        WriteIndented = true
-    });
-    existingPlan.ResponseTime = DateTime.UtcNow;
+        existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            WriteIndented = true
+        });
+        existingPlan.ResponseTime = DateTime.UtcNow;
 
-    await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync();
+        Console.WriteLine($"[UpdateItineraryWithActivity] Changes detected and saved: {comparisonResult.ChangesCount} changes");
+    }
+    else
+    {
+        Console.WriteLine($"[UpdateItineraryWithActivity] No changes detected, original itinerary maintained");
+        // Trả về response với thông báo nhưng không lưu thay đổi
+        updatedResponse.Itinerary = originalResponseBackup.Itinerary;
+        updatedResponse.TotalEstimatedCost = originalResponseBackup.TotalEstimatedCost;
+    }
 
     return updatedResponse;
 }
