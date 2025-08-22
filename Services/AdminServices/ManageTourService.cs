@@ -563,36 +563,29 @@ Lý do: {rejectReason}
 
             // Filter partnerId
             if (partnerId.HasValue)
-            {
                 query = query.Where(b => b.Tour.PartnerId == partnerId.Value);
-            }
 
             // Filter fromDate
             if (fromDate.HasValue)
-            {
                 query = query.Where(b => b.CreatedDate >= fromDate.Value);
-            }
 
             // Filter toDate (+1 ngày để không bỏ sót)
             if (toDate.HasValue)
-            {
                 query = query.Where(b => b.CreatedDate < toDate.Value.AddDays(1));
-            }
 
+            // Lọc booking theo status: chỉ lấy Success hoặc Cancelled kèm CancelType != null
             if (!string.IsNullOrEmpty(status))
             {
-                query = query.Where(b => b.BookingStatus == status);
-
                 if (status == "Cancelled")
-                {
-                    query = query.Where(b => b.CancelType != null);
-                }
+                    query = query.Where(b => b.BookingStatus == "Cancelled" && b.CancelType != null);
+                else if (status == "Success")
+                    query = query.Where(b => b.BookingStatus == "Success");
             }
             else
             {
-                query = query.Where(b => !(b.BookingStatus == "Cancelled" && b.CancelType == null));
+                query = query.Where(b => b.BookingStatus == "Success"
+                                         || (b.BookingStatus == "Cancelled" && b.CancelType != null));
             }
-
 
             var bookings = await query
                 .OrderByDescending(b => b.CreatedDate)
@@ -612,6 +605,7 @@ Lý do: {rejectReason}
 
             return bookings;
         }
+
 
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
@@ -12,6 +13,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
     /// <summary>
     /// API quản trị tour (dành cho Admin).
     /// </summary>
+    [Authorize(Roles = "ADMIN")]
     [ApiController]
     [Route("api/admin/tours")]
     public class AdminToursController : ControllerBase

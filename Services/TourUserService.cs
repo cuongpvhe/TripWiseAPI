@@ -139,10 +139,12 @@ namespace TripWiseAPI.Services
 
             return dto;
         }
-        public async Task<List<BookedTourDto>> GetSuccessfulBookedToursAsync(int userId)
+        public async Task<List<BookedTourDto>> GetBookedToursWithCancelledAsync(int userId)
         {
             return await _dbContext.Bookings
-                .Where(b => b.UserId == userId && b.BookingStatus == "Success")
+                .Where(b => b.UserId == userId
+                            && (b.BookingStatus == "Success"
+                                || (b.BookingStatus == "Cancelled" && b.CancelType != null)))
                 .Include(b => b.Tour)
                 .Select(b => new BookedTourDto
                 {
@@ -157,6 +159,7 @@ namespace TripWiseAPI.Services
                 .OrderByDescending(b => b.CreatedDate)
                 .ToListAsync();
         }
+
         public async Task<bool> AddToWishlistAsync(int userId, int tourId)
         {
             var exists = await _dbContext.Wishlists

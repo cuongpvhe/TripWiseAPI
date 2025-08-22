@@ -72,7 +72,7 @@ namespace TripWiseAPI.Controllers
             if (userId == null)
                 return Unauthorized("Bạn chưa đăng nhập.");
 
-            var result = await _tourUserService.GetSuccessfulBookedToursAsync(userId.Value);
+            var result = await _tourUserService.GetBookedToursWithCancelledAsync(userId.Value);
             return Ok(result);
         }
 

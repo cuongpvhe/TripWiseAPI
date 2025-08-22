@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TripWiseAPI.Services.AdminServices;
 
@@ -7,6 +8,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
     /// <summary>
     /// API báo cáo thống kê và xuất Excel cho Admin.
     /// </summary>
+    [Authorize(Roles = "ADMIN")]
     [ApiController]
     [Route("api/reports")]
     public class ReportsController : ControllerBase
