@@ -1036,7 +1036,9 @@ namespace TripWiseAPI.Services.PartnerServices
                     MonthYear = reader.IsDBNull(2) ? null : reader.GetString(2),
                     TotalTours = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
                     TotalBookedTours = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
-                    TotalRevenue = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5)
+                    TotalRevenue = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
+                    TotalCancelled = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                    CancelledRevenue = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7)
                 });
             }
 

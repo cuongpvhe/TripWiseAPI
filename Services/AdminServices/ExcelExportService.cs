@@ -84,7 +84,7 @@ namespace TripWiseAPI.Services.AdminServices
             // === 4. TIÊU ĐỀ "TỔNG DOANH THU THEO THÁNG" ===
             int summaryTitleRow = detailStartRow + details.Count + 2;
             sheet.Cells[summaryTitleRow, 1].Value = $"TỔNG DOANH THU THEO THÁNG ({fromDate:dd/MM/yyyy} - {toDate:dd/MM/yyyy})";
-            sheet.Cells[summaryTitleRow, 1, summaryTitleRow, 5].Merge = true;
+            sheet.Cells[summaryTitleRow, 1, summaryTitleRow, 9].Merge = true;
             sheet.Cells[summaryTitleRow, 1].Style.Font.Bold = true;
             sheet.Cells[summaryTitleRow, 1].Style.Font.Size = 12;
             sheet.Cells[summaryTitleRow, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
@@ -93,16 +93,26 @@ namespace TripWiseAPI.Services.AdminServices
             int summaryHeaderRow = summaryTitleRow + 1;
             sheet.Cells[summaryHeaderRow, 1].Value = "STT";
             sheet.Cells[summaryHeaderRow, 2].Value = "Tháng";
-            sheet.Cells[summaryHeaderRow, 3].Value = "Tổng tour";
+            sheet.Cells[summaryHeaderRow, 3].Value = "Tổng đặt tour";
             sheet.Cells[summaryHeaderRow, 4].Value = "Tổng gói";
-            sheet.Cells[summaryHeaderRow, 5].Value = "Tổng cộng";
+            sheet.Cells[summaryHeaderRow, 5].Value = "Tổng huỷ đặt tour";
+            sheet.Cells[summaryHeaderRow, 6].Value = "Tổng tiền tour";
+            sheet.Cells[summaryHeaderRow, 7].Value = "Tổng tiền gói";
+            sheet.Cells[summaryHeaderRow, 8].Value = "Tổng tiền từ huỷ tour";
+            sheet.Cells[summaryHeaderRow, 9].Value = "Tổng cộng";
 
             // Định dạng header
-            var headerSummary = sheet.Cells[summaryHeaderRow, 1, summaryHeaderRow, 5];
+            var headerSummary = sheet.Cells[summaryHeaderRow, 1, summaryHeaderRow, 9];
             headerSummary.Style.Font.Bold = true;
             headerSummary.Style.Fill.PatternType = ExcelFillStyle.Solid;
             headerSummary.Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
-            headerSummary.Style.Border.BorderAround(ExcelBorderStyle.Thin);
+            
+
+            // BO VIỀN CHO TỪNG Ô
+            headerSummary.Style.Border.Top.Style = ExcelBorderStyle.Thin;
+            headerSummary.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+            headerSummary.Style.Border.Left.Style = ExcelBorderStyle.Thin;
+            headerSummary.Style.Border.Right.Style = ExcelBorderStyle.Thin;
 
             // === 6. DỮ LIỆU TỔNG DOANH THU ===
             int summaryDataRow = summaryHeaderRow + 1;
@@ -113,17 +123,21 @@ namespace TripWiseAPI.Services.AdminServices
 
                 sheet.Cells[row, 1].Value = i + 1; // STT
                 sheet.Cells[row, 2].Value = t.Month;
-                sheet.Cells[row, 3].Value = t.TotalBookingRevenue;
-                sheet.Cells[row, 4].Value = t.TotalPlanRevenue;
-                sheet.Cells[row, 5].Value = t.TotalCombinedRevenue;
+                sheet.Cells[row, 3].Value = t.TotalBookings;
+                sheet.Cells[row, 4].Value = t.TotalPlans;
+                sheet.Cells[row, 5].Value = t.TotalCancelled;
+                sheet.Cells[row, 6].Value = t.TotalBookingRevenue;
+                sheet.Cells[row, 7].Value = t.TotalPlanRevenue;
+                sheet.Cells[row, 8].Value = t.CancelledRevenue;
+                sheet.Cells[row, 9].Value = t.TotalCombinedRevenue;
 
-                for (int col = 3; col <= 5; col++)
+                for (int col = 6; col <= 9; col++)
                 {
                     sheet.Cells[row, col].Style.Numberformat.Format = "#,##0 \"VNĐ\"";
                 }
 
                 // Bo viền từng ô từ STT đến Tổng cộng
-                for (int col = 1; col <= 5; col++)
+                for (int col = 1; col <= 9; col++)
                 {
                     sheet.Cells[row, col].Style.Border.BorderAround(ExcelBorderStyle.Thin);
                 }
@@ -147,7 +161,7 @@ namespace TripWiseAPI.Services.AdminServices
 
             // Tiêu đề động từ A1
             sheet.Cells[1, 1].Value = $"BÁO CÁO HIỆU SUẤT ĐỐI TÁC ({fromDate:dd/MM/yyyy} - {toDate:dd/MM/yyyy})";
-            sheet.Cells[1, 1, 1, 6].Merge = true;
+            sheet.Cells[1, 1, 1, 8].Merge = true;
             sheet.Cells[1, 1].Style.Font.Bold = true;
             sheet.Cells[1, 1].Style.Font.Size = 12;
             sheet.Cells[1, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
@@ -159,9 +173,11 @@ namespace TripWiseAPI.Services.AdminServices
             sheet.Cells[2, 4].Value = "Số tour cung cấp";
             sheet.Cells[2, 5].Value = "Số lượt đặt";
             sheet.Cells[2, 6].Value = "Tổng doanh thu";
+            sheet.Cells[2, 7].Value = "Số lượt huỷ đặt tour";
+            sheet.Cells[2, 8].Value = "Tổng doanh thu từ huỷ đặt tour";
 
             // Style cho header
-            var headerRange = sheet.Cells[2, 1, 2, 6];
+            var headerRange = sheet.Cells[2, 1, 2, 8];
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
             headerRange.Style.Fill.BackgroundColor.SetColor(Color.LightSkyBlue);
@@ -180,11 +196,14 @@ namespace TripWiseAPI.Services.AdminServices
                 sheet.Cells[row, 5].Value = item.TotalBookings;
                 sheet.Cells[row, 6].Value = item.TotalRevenue;
                 sheet.Cells[row, 6].Style.Numberformat.Format = "#,##0 \"VNĐ\"";
+                sheet.Cells[row, 7].Value = item.TotalCancelled;
+                sheet.Cells[row, 8].Value = item.CancelledRevenue;
+                sheet.Cells[row, 8].Style.Numberformat.Format = "#,##0 \"VNĐ\"";
             }
 
             // Kẻ viền toàn bảng
             int endRow = startRow + data.Count - 1;
-            var fullTableRange = sheet.Cells[2, 1, endRow, 6];
+            var fullTableRange = sheet.Cells[2, 1, endRow, 8];
             fullTableRange.Style.Border.Top.Style = ExcelBorderStyle.Thin;
             fullTableRange.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
             fullTableRange.Style.Border.Left.Style = ExcelBorderStyle.Thin;
@@ -208,8 +227,10 @@ namespace TripWiseAPI.Services.AdminServices
             sheet.Cells[2, 4].Value = "Tên Tour";
             sheet.Cells[2, 5].Value = "Số lượt đặt";
             sheet.Cells[2, 6].Value = "Tổng doanh thu";
+            sheet.Cells[2, 7].Value = "Số lượt huỷ đặt tour";
+            sheet.Cells[2, 8].Value = "Tổng doanh thu từ huỷ đặt tour";
 
-            var headerRange = sheet.Cells[2, 1, 2, 6];
+            var headerRange = sheet.Cells[2, 1, 2, 8];
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
             headerRange.Style.Fill.BackgroundColor.SetColor(Color.LightSkyBlue);
@@ -228,12 +249,15 @@ namespace TripWiseAPI.Services.AdminServices
                 sheet.Cells[row, 5].Value = item.TotalBookings;
                 sheet.Cells[row, 6].Value = item.TotalRevenue;
                 sheet.Cells[row, 6].Style.Numberformat.Format = "#,##0 \"VNĐ\"";
+                sheet.Cells[row, 7].Value = item.TotalCancelled;
+                sheet.Cells[row, 8].Value = item.CancelledRevenue;
+                sheet.Cells[row, 8].Style.Numberformat.Format = "#,##0 \"VNĐ\"";
 
                 // Border từng dòng
-                sheet.Cells[row, 1, row, 6].Style.Border.Top.Style = ExcelBorderStyle.Thin;
-                sheet.Cells[row, 1, row, 6].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
-                sheet.Cells[row, 1, row, 6].Style.Border.Left.Style = ExcelBorderStyle.Thin;
-                sheet.Cells[row, 1, row, 6].Style.Border.Right.Style = ExcelBorderStyle.Thin;
+                sheet.Cells[row, 1, row, 8].Style.Border.Top.Style = ExcelBorderStyle.Thin;
+                sheet.Cells[row, 1, row, 8].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                sheet.Cells[row, 1, row, 8].Style.Border.Left.Style = ExcelBorderStyle.Thin;
+                sheet.Cells[row, 1, row, 8].Style.Border.Right.Style = ExcelBorderStyle.Thin;
             }
 
             sheet.Cells.AutoFitColumns();

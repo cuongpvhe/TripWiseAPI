@@ -18,8 +18,12 @@
     public class RevenueSummaryDto
     {
         public string Month { get; set; }
+        public int TotalBookings { get; set; }
+        public int TotalPlans { get; set; }
+        public int TotalCancelled { get; set; }
         public decimal TotalBookingRevenue { get; set; }
         public decimal TotalPlanRevenue { get; set; }
+        public decimal CancelledRevenue { get; set; }
         public decimal TotalCombinedRevenue { get; set; }
     }
     public class PartnerPerformanceDto
@@ -29,6 +33,8 @@
         public int TotalToursProvided { get; set; }
         public int TotalBookings { get; set; }
         public decimal TotalRevenue { get; set; }
+        public int TotalCancelled { get; set; }
+        public decimal CancelledRevenue { get; set; }
     }
     public class TourBookingStatDto
     {
@@ -37,6 +43,8 @@
         public string TourName { get; set; }
         public int TotalBookings { get; set; }
         public decimal TotalRevenue { get; set; }
+        public int TotalCancelled { get; set; }
+        public decimal CancelledRevenue { get; set; }
     }
 
     public class AnnualAdminStatDto
@@ -44,8 +52,10 @@
         public int Month { get; set; }
         public decimal BookingRevenue { get; set; }
         public decimal PlanRevenue { get; set; }
+        public decimal CancelledRevenue { get; set; }
         public int TotalBookings { get; set; }
         public int TotalPlans { get; set; }
+        public int TotalCancelled { get; set; }
     }
     public class DashboardStatisticsDto
     {
@@ -59,6 +69,7 @@
         public int TotalPlans { get; set; }
         public int TotalTourBookings { get; set; }
         public int TotalPlanPurchases { get; set; }
+        public int TotalCancelled { get; set; }
     }
     public class PartnerTourStatisticsDto
     {
@@ -68,5 +79,7 @@
         public int TotalTours { get; set; }
         public int TotalBookedTours { get; set; }
         public decimal TotalRevenue { get; set; }
+        public int TotalCancelled { get; set; }
+        public decimal CancelledRevenue { get; set; }
     }
 }
