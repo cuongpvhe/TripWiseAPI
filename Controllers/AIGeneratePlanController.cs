@@ -87,7 +87,7 @@ namespace SimpleChatboxAI.Controllers
             {
                 // Vector search để hỗ trợ sinh lịch trình
                 string relatedKnowledge = await _vectorSearchService.RetrieveRelevantJsonEntries(
-                    request.Destination, 12,
+                    request.Destination, 15,
                     request.GroupType ?? "", request.DiningStyle ?? "", request.Preferences ?? "");
 
                 int maxDaysPerChunk = 3;

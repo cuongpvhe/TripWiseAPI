@@ -13,7 +13,7 @@ namespace TripWiseAPI.Services
 
         public async Task<string> RetrieveRelevantJsonEntries(
             string destination,
-            int topK = 12,
+            int topK = 15,
             string groupType = "",
             string diningStyle = "",
             string preferences = "")
