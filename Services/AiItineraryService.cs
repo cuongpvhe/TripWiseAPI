@@ -259,7 +259,7 @@ namespace TripWiseAPI.Services
         },
                 generationConfig = new
                 {
-                    maxOutputTokens = 40000,
+                    maxOutputTokens = 80000,
                     temperature = 0.7
                 }
             };
@@ -475,7 +475,7 @@ namespace TripWiseAPI.Services
             },
             generationConfig = new
             {
-                maxOutputTokens = 60000,
+                maxOutputTokens = 80000,
                 temperature = 0.7
             }
         };

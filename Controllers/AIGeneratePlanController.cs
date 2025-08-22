@@ -284,7 +284,6 @@ namespace SimpleChatboxAI.Controllers
             if (userInput == null || string.IsNullOrWhiteSpace(userInput.Message))
                 return BadRequest(new { success = false, error = "Vui lòng nhập yêu cầu cập nhật." });
 
-            // ✅ KHAI BÁO currentRequest NGOÀI TRY BLOCK
             TravelRequest? currentRequest = null;
 
             try
@@ -386,12 +385,25 @@ namespace SimpleChatboxAI.Controllers
                     createdBy: userId,
                     createdDate: DateTime.Now);
 
+                // ✅ XỬ LÝ RESPONSE DỰA TRÊN KẾT QUẢ SO SÁNH
                 return Ok(new
                 {
                     success = true,
-                    message = "Đã cập nhật lịch trình thành công.",
+                    message = updated.HasChanges == true 
+                        ? "Đã cập nhật lịch trình thành công." 
+                        : updated.UpdateMessage ?? "Lịch trình hiện tại đã phù hợp với yêu cầu của bạn.",
                     data = updated,
-                    updateMode = isActivitySelection ? "activity_selection" : "message_only"
+                    updateMode = isActivitySelection ? "activity_selection" : "message_only",
+                    
+                    // ✅ THÔNG TIN BỔ SUNG VỀ THAY ĐỔI
+                    hasChanges = updated.HasChanges ?? false,
+                    updateSummary = updated.UpdateMessage,
+                    changeDetails = updated.UpdateDetails,
+                    
+                    // ✅ HƯỚNG DẪN CHO NGƯỜI DÙNG KHI KHÔNG CÓ THAY ĐỔI
+                    userGuidance = updated.HasChanges == false 
+                        ? "Bạn có thể thử yêu cầu khác hoặc sử dụng lịch trình hiện tại." 
+                        : null
                 });
             }
             catch (ArgumentException ex) when (ex.Message.Contains("AI_DETECTED_LOCATION_CONFLICT"))
@@ -404,7 +416,7 @@ namespace SimpleChatboxAI.Controllers
                     error = "Yêu cầu của bạn liên quan đến địa điểm khác ngoài lịch trình hiện tại.",
                     message = "Để đi đến địa điểm mới, vui lòng tạo hành trình mới thay vì cập nhật hành trình này.",
                     suggestion = "Tạo hành trình mới",
-                    currentDestination = currentRequest?.Destination ?? "Không xác định", // ✅ SỬ DỤNG NULL-CONDITIONAL OPERATOR
+                    currentDestination = currentRequest?.Destination ?? "Không xác định",
                     actionRequired = "CREATE_NEW_ITINERARY",
                     source = "AI_DETECTED"
                 });

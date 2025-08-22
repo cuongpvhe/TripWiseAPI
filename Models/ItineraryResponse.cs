@@ -26,6 +26,21 @@ namespace TripWiseAPI.Model
         public DateTime? NextStartDate { get; set; }
         public List<string>? PreviousAddresses { get; set; }
 
+        // ✅ THÊM CÁC TRƯỜNG MỚI ĐỂ XỬ LÝ SO SÁNH
+        /// <summary>
+        /// Thông báo về kết quả cập nhật (có thay đổi hay không)
+        /// </summary>
+        public string? UpdateMessage { get; set; }
+
+        /// <summary>
+        /// Chi tiết về những thay đổi đã thực hiện
+        /// </summary>
+        public string? UpdateDetails { get; set; }
+
+        /// <summary>
+        /// Có thay đổi trong lịch trình hay không
+        /// </summary>
+        public bool? HasChanges { get; set; }
     }
 
     public class ItineraryDay
@@ -37,7 +52,6 @@ namespace TripWiseAPI.Model
         public string WeatherDescription { get; set; }
         public double TemperatureCelsius { get; set; }
         public string? WeatherNote { get; set; }
-
     }
 
     public class ItineraryActivity
@@ -67,7 +81,6 @@ namespace TripWiseAPI.Model
 
         [JsonPropertyName("image")]
         public string Image { get; set; }
-
     }
 
     public class JsonItineraryFormat
@@ -95,7 +108,6 @@ namespace TripWiseAPI.Model
 
         [JsonPropertyName("weatherNote")]
         public string? WeatherNote { get; set; }
-
     }
 
     public class ItineraryChunkResponse
@@ -114,6 +126,4 @@ namespace TripWiseAPI.Model
         public int StartDay { get; set; } = 1;
         public int ChunkSize { get; set; } = 2;
     }
-
-
 }
