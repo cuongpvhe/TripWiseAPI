@@ -57,8 +57,12 @@ namespace TripWiseAPI.Services.AdminServices
                     totals.Add(new RevenueSummaryDto
                     {
                         Month = reader["Month"].ToString(),
+                        TotalBookings = reader.GetInt32(reader.GetOrdinal("TotalBookings")),
+                        TotalPlans = reader.GetInt32(reader.GetOrdinal("TotalPlans")),
+                        TotalCancelled = reader.GetInt32(reader.GetOrdinal("TotalCancelled")),
                         TotalBookingRevenue = reader.GetDecimal(reader.GetOrdinal("TotalBookingRevenue")),
                         TotalPlanRevenue = reader.GetDecimal(reader.GetOrdinal("TotalPlanRevenue")),
+                        CancelledRevenue = reader.GetDecimal(reader.GetOrdinal("CancelledRevenue")),
                         TotalCombinedRevenue = reader.GetDecimal(reader.GetOrdinal("TotalCombinedRevenue"))
                     });
                 }
@@ -85,7 +89,9 @@ namespace TripWiseAPI.Services.AdminServices
                     PartnerName = reader.GetString(1),
                     TotalToursProvided = reader.GetInt32(2),
                     TotalBookings = reader.GetInt32(3),
-                    TotalRevenue = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4)
+                    TotalRevenue = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4),
+                    TotalCancelled = reader.GetInt32(5),
+                    CancelledRevenue = reader.IsDBNull(6) ? 0 : reader.GetDecimal(6),
                 });
             }
             return result;
@@ -114,7 +120,9 @@ namespace TripWiseAPI.Services.AdminServices
                     TourID = reader.GetInt32(1),
                     TourName = reader.GetString(2),
                     TotalBookings = reader.GetInt32(3),
-                    TotalRevenue = reader.GetDecimal(4)
+                    TotalRevenue = reader.GetDecimal(4),
+                    TotalCancelled = reader.GetInt32(5),
+                    CancelledRevenue = reader.GetDecimal(6),
                 });
             }
 
@@ -142,8 +150,10 @@ namespace TripWiseAPI.Services.AdminServices
                     Month = reader.GetInt32(reader.GetOrdinal("Month")),
                     BookingRevenue = reader.GetDecimal(reader.GetOrdinal("BookingRevenue")),
                     PlanRevenue = reader.GetDecimal(reader.GetOrdinal("PlanRevenue")),
+                    CancelledRevenue = reader.GetDecimal(reader.GetOrdinal("CancelledRevenue")),
                     TotalBookings = reader.GetInt32(reader.GetOrdinal("TotalBookings")),
-                    TotalPlans = reader.GetInt32(reader.GetOrdinal("TotalPlans"))
+                    TotalPlans = reader.GetInt32(reader.GetOrdinal("TotalPlans")),
+                    TotalCancelled = reader.GetInt32(reader.GetOrdinal("TotalCancelled"))
                 });
             }
 
@@ -178,6 +188,7 @@ namespace TripWiseAPI.Services.AdminServices
                     TotalPlans = reader.GetInt32(reader.GetOrdinal("TotalPlans")),
                     TotalTourBookings = reader.GetInt32(reader.GetOrdinal("TotalTourBookings")),
                     TotalPlanPurchases = reader.GetInt32(reader.GetOrdinal("TotalPlanPurchases")),
+                    TotalCancelled = reader.GetInt32(reader.GetOrdinal("TotalCancelled"))
                 });
             }
             return result;
