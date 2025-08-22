@@ -228,15 +228,20 @@ namespace TripWiseAPI.Services
                 - Giá cả của các hoạt động phải hợp lý với từng địa điểm và ngân sách của người dùng.
                 - Nếu có giá cả nào chưa hợp lý cần thay đổi, hãy đề xuất giá mới hợp lý hơn kể cả với thông tin từ relatedKnowledge nếu chưa hợp lý cần cập nhật lại.
 
-                === RÀNG BUỘT BẮT BUỘC ===
+                === RÀNG BUỘC BẮT BUỘC ===
                 - Mỗi hoạt động phải có các trường:
                   - `"starttime"`: định dạng HH:mm
                   - `"endtime"`: định dạng HH:mm, hợp lý với thời lượng
                   - `"description"`: mô tả ngắn gọn hoạt động
                   - `"estimatedCost"`: số nguyên, đơn vị VNĐ, không có ký hiệu hoặc dấu phẩy
                   - `"transportation"`: ghi rõ phương tiện (VD: "Grab", "Taxi", "Đi bộ", "Xe máy")
-                  - `"address"`: **ƯU TIÊN SỬ DỤNG địa chỉ từ relatedKnowledge**, nếu không có thì phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng")
-                  - `"placeDetail"`: **SỬ DỤNG thông tin từ relatedKnowledge để tạo mô tả sinh động**, giải thích lý do nên đến
+                  - `"address"`: phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng"), tham khảo những bài viết du lịch uy tín liên quan đến {{request.Destination}}
+                            Ví dụ sai: "Resort 4 sao, Địa chỉ cụ thể"
+                - Đối với nơi ở, địa chỉ phải là tên khách sạn/nhà nghỉ/homestay/resort cụ thể tại {{request.Destination}}, không dùng loại hình chung chung.
+                - `"placeDetail"`: mô tả sinh động, giải thích lý do nên đến
+                - "placeDetail" không được viết kiểu: “nơi lý tưởng để tham quan”, “rất nổi tiếng”, “được nhiều người yêu thích” nếu không có chi tiết cụ thể. Hãy viết 1 đoạn văn ngắn mô tả một cách sinh động, giải thích lý do nên đến, ví dụ:
+                                VD đúng: "Chợ Bến Thành – khu chợ nổi tiếng với hơn 100 năm lịch sử, nơi du khách có thể mua đặc sản và thử món bánh tráng trộn nổi tiếng." có thể viết dài hơn một chút, nhưng không quá 3 câu.
+                                VD sai: "Chợ nổi tiếng, có nhiều món ăn ngon, thích hợp để khám phá."
                   - `"mapUrl"`: link đúng định dạng Google Maps
                   - `"image"`: **ƯU TIÊN SỬ DỤNG URL ảnh từ relatedKnowledge**, nếu không có thì để chuỗi rỗng `""`
 
