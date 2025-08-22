@@ -18,7 +18,8 @@ namespace TripWiseAPI.Services.PartnerServices
             var bookings = await _dbContext.Bookings
                 .Include(b => b.Tour)
                 .Include(b => b.User)  // thêm để lấy user info
-                .Where(b => b.Tour.PartnerId == partnerId && b.BookingStatus == "Success")
+                .Where(b => b.Tour.PartnerId == partnerId && (b.BookingStatus == "Success"
+                        || (b.BookingStatus == "Cancelled" && b.CancelType != null)))
                 .OrderByDescending(b => b.CreatedDate)
                 .Select(b => new BookingDto
                 {
@@ -40,7 +41,8 @@ namespace TripWiseAPI.Services.PartnerServices
             var bookings = await _dbContext.Bookings
                 .Include(b => b.Tour)
                 .Include(b => b.User) // lấy thông tin user
-                .Where(b => b.TourId == tourId && b.BookingStatus == "Success")
+                .Where(b => b.TourId == tourId && (b.BookingStatus == "Success"
+                        || (b.BookingStatus == "Cancelled" && b.CancelType != null)))
                 .OrderByDescending(b => b.CreatedDate)
                 .Select(b => new BookingDto
                 {

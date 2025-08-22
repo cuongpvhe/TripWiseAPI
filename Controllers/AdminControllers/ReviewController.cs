@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TripWiseAPI.Models;
 using TripWiseAPI.Models.DTO;
@@ -10,6 +11,7 @@ namespace TripWiseAPI.Controllers.AdminControllers
     /// API quản lý đánh giá (review) của Admin.
     /// Bao gồm thống kê rating, xem danh sách review và xóa review.
     /// </summary>
+    [Authorize(Roles = "ADMIN")]
     [Route("api/[controller]")]
     [ApiController]
     public class AdminReviewController : ControllerBase

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Models;
@@ -10,6 +11,7 @@ namespace TripWiseAPI.Controllers.PartnerControllers
     /// <summary>
     /// Quản lý booking (thuộc quyền sở hữu của Partner).
     /// </summary>
+    [Authorize(Roles = "PARTNER")]
     [Route("api/[controller]")]
     [ApiController]
     public class BookingToursController : ControllerBase
