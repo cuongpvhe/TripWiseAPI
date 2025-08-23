@@ -463,24 +463,24 @@ namespace TripWiseAPI.Services.AdminServices
 
             // Email cho user
             var emailBody = $@"
-Xin chào {booking.User.FirstName} {booking.User.LastName},
+            Xin chào {booking.User.FirstName} {booking.User.LastName},
 
-Yêu cầu hoàn tiền cho booking #{booking.BookingId} đã được DUYỆT.
-Số tiền: {booking.RefundAmount:#,0} VND
-Hình thức: {booking.RefundMethod}
-";
+            Yêu cầu hoàn tiền cho booking #{booking.BookingId} đã được DUYỆT.
+            Số tiền: {booking.RefundAmount:#,0} VND
+            Hình thức: {booking.RefundMethod}
+            ";
             await EmailHelper.SendEmailAsync(booking.User.Email, "Yêu cầu hoàn tiền đã được duyệt", emailBody);
 
             // Email cho partner (chỉ gửi nếu có thông tin partner & user)
             if (booking.Tour?.Partner?.User != null)
             {
                 var emailPartner = $@"
-Xin chào đối tác {booking.Tour.Partner.CompanyName},
+                Xin chào đối tác {booking.Tour.Partner.CompanyName},
 
-Booking #{booking.BookingId} cho tour {booking.Tour.TourName} đã bị hủy.
-Số tiền hoàn lại cho khách: {booking.RefundAmount:#,0} VND
-Lý do: {booking.CancelReason}
-";
+                Booking #{booking.BookingId} cho tour {booking.Tour.TourName} đã bị hủy.
+                Số tiền hoàn lại cho khách: {booking.RefundAmount:#,0} VND
+                Lý do: {booking.CancelReason}
+                ";
                 await EmailHelper.SendEmailAsync(
                     booking.Tour.Partner.User.Email,
                     "Thông báo huỷ booking",
@@ -512,13 +512,13 @@ Lý do: {booking.CancelReason}
 
             // Email cho user
             var emailUser = $@"
-Xin chào {booking.User.FirstName} {booking.User.LastName},
+            Xin chào {booking.User.FirstName} {booking.User.LastName},
 
-Hoàn tiền cho booking #{booking.BookingId} đã được thực hiện thành công.
-Số tiền: {booking.RefundAmount:#,0} VND
-Hình thức: {booking.RefundMethod}
-Ngày hoàn: {booking.RefundDate:dd/MM/yyyy}
-";
+            Hoàn tiền cho booking #{booking.BookingId} đã được thực hiện thành công.
+            Số tiền: {booking.RefundAmount:#,0} VND
+            Hình thức: {booking.RefundMethod}
+            Ngày hoàn: {booking.RefundDate:dd/MM/yyyy}
+            ";
             await EmailHelper.SendEmailAsync(booking.User.Email, "Hoàn tiền thành công", emailUser);
 
             return true;
@@ -545,11 +545,11 @@ Ngày hoàn: {booking.RefundDate:dd/MM/yyyy}
             await _dbContext.SaveChangesAsync();
 
             var emailBody = $@"
-Xin chào {booking.User.FirstName} {booking.User.LastName},
+            Xin chào {booking.User.FirstName} {booking.User.LastName},
 
-Yêu cầu huỷ booking #{booking.BookingId} đã bị từ chối.
-Lý do: {rejectReason}
-";
+            Yêu cầu huỷ booking #{booking.BookingId} đã bị từ chối.
+            Lý do: {rejectReason}
+            ";
             await EmailHelper.SendEmailAsync(booking.User.Email, "Từ chối huỷ booking", emailBody);
 
             return true;
@@ -580,11 +580,14 @@ Lý do: {rejectReason}
                     query = query.Where(b => b.BookingStatus == "Cancelled" && b.CancelType != null);
                 else if (status == "Success")
                     query = query.Where(b => b.BookingStatus == "Success");
+                else if (status == "CancelPending")
+                    query = query.Where(b => b.BookingStatus == "CancelPending");
             }
             else
             {
                 query = query.Where(b => b.BookingStatus == "Success"
-                                         || (b.BookingStatus == "Cancelled" && b.CancelType != null));
+                                         || (b.BookingStatus == "Cancelled" && b.CancelType != null)
+                                         || b.BookingStatus == "CancelPending");
             }
 
             var bookings = await query
