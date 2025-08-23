@@ -17,6 +17,7 @@ namespace TripWiseAPI.Services
                 <= 4 => "Cân bằng giữa ăn uống, khám phá, nghỉ ngơi. Không dồn quá nhiều hoạt động trong ngày.",
                 _ => "Lịch trình có nhịp độ thoải mái, kết hợp giữa hoạt động vui chơi, thư giãn và văn hóa địa phương."
             };
+            
             var limitedPrevious = previousAddresses?.TakeLast(30).ToList();
             string exclusionNote = "";
             if (limitedPrevious != null && limitedPrevious.Any())
@@ -26,12 +27,52 @@ namespace TripWiseAPI.Services
                 """ + string.Join("\n", limitedPrevious.Select(a => $"  - {a}"));
             }
 
+            // ⭐ PHÂN TÍCH VÀ TẬN DỤNG RELATED KNOWLEDGE
+            bool hasRichKnowledge = !string.IsNullOrWhiteSpace(relatedKnowledge) && 
+                                   relatedKnowledge.Length > 100 && 
+                                   !relatedKnowledge.Contains("\"error\"");
+
+            string knowledgeGuidance = hasRichKnowledge ? 
+                BuildRichKnowledgeGuidance() : 
+                BuildStandardGuidance();
+
+            string priorityInstruction = hasRichKnowledge ?
+                """
+                ### ⭐ ƯU TIÊN TUYỆT ĐỐI - SỬ DỤNG DỮ LIỆU CÓ SẴN:
+                **NGUYÊN TẮC VÀNG:**
+                - **BẮT BUỘC sử dụng ít nhất 80% địa điểm từ relatedKnowledge** cho lịch trình
+                - **KHÔNG được tự nghĩ ra địa điểm mới** nếu relatedKnowledge đã đủ thông tin
+                - **SỬ DỤNG TRỰC TIẾP** địa chỉ, ảnh, mô tả từ dữ liệu có sẵn
+                - **CHỈ THÊM THÔNG TIN MỚI** khi thực sự cần thiết để hoàn thiện lịch trình
+                
+                **QUY TRÌNH XỬ LÝ:**
+                1. **BƯỚC 1**: Phân tích toàn bộ dữ liệu trong relatedKnowledge
+                2. **BƯỚC 2**: Chọn lọc địa điểm phù hợp với preferences và groupType
+                3. **BƯỚC 3**: Sắp xếp theo logic thời gian và địa lý
+                4. **BƯỚC 4**: Chỉ bổ sung thêm nếu thiếu hoạt động cần thiết
+                
+                **CÁCH SỬ DỤNG DỮ LIỆU:**
+                - **Địa chỉ**: Copy chính xác từ trường address/location trong relatedKnowledge
+                - **Ảnh**: Sử dụng URL từ trường image/imageUrl nếu có
+                - **Mô tả**: Kết hợp thông tin từ description/details để tạo placeDetail hấp dẫn
+                - **Chi phí**: Tham khảo price/cost nếu có, điều chỉnh cho phù hợp với ngân sách
+                """ : 
+                """
+                ### ⚠️ CẢNH BÁO - DỮ LIỆU HẠN CHẾ:
+                **Do relatedKnowledge không đủ phong phú, bạn cần:**
+                - Sử dụng tối đa những gì có trong relatedKnowledge
+                - Tự nghĩ ra các địa điểm bổ sung CHỈ KHI CẦN THIẾT
+                - Đảm bảo mọi địa điểm đều có thật và có trên Google Maps
+                - Tham khảo các bài viết du lịch uy tín về {{request.Destination}}
+                """;
 
             return $$"""
                 {{filterNote}}
                 {{dayNote}}
 
                 Bạn là một hướng dẫn viên du lịch AI chuyên nghiệp của nền tảng TravelMate. Hãy tạo lịch trình {{request.Days}} ngày tại {{request.Destination}} cho nhóm {{request.GroupType}}, theo chủ đề "{{request.Preferences}}", với ngân sách khoảng {{budgetVNDFormatted}} đồng.
+
+                {{priorityInstruction}}
 
                 === THÔNG TIN CHUYẾN ĐI ===
                 - Ngày khởi hành: {{request.TravelDate:dd/MM/yyyy}}
@@ -43,7 +84,7 @@ namespace TripWiseAPI.Services
                 - Mỗi ngày phải có hoạt động trải đều các khung: sáng, trưa, chiều, tối
                 **Cấu trúc ngày bắt buộc:**
                 - **07:00-08:00: Hoạt động khởi động ngày** - BẮT BUỘC mỗi ngày phải có
-                  * Ăn sáng tại địa điểm cụ thể (không phải buffet khách sạn)
+                  * Ăn sáng tại địa điểm cụ thể (không phài buffet khách sạn)
                   * Hoặc hoạt động nhẹ nhàng khởi động (cà phê, tản bộ, chợ sáng)
                   * Hoạt động này giúp du khách chuẩn bị tinh thần cho ngày mới
 
@@ -63,7 +104,7 @@ namespace TripWiseAPI.Services
                 **Nguyên tắc sắp xếp thời gian:**
                 - Buổi trưa (11:00-14:00): Ăn trưa, nghỉ ngơi, hoạt động trong nhà
                 - Buổi chiều (14:00-18:00): Tham quan, mua sắm, hoạt động ngoài trời
-                - Buổi tối (18:00-24:00): Ăn tối, giải trí, trải nghiệm văn hóa đêm
+                - Buổi tối (19:00-24:00): Ăn tối, giải trí, trải nghiệm văn hóa đêm
 
                         ===  MA TRẬN ĐỊA ĐIỂM THÔNG MINH - QUAN TRỌNG ===
 
@@ -72,52 +113,52 @@ namespace TripWiseAPI.Services
                 **HOẠT ĐỘNG ĂN UỐNG:**
                 ```
                 NẾU description = "Ăn sáng bánh mì" 
-                → address PHẢI LÀ: "Bánh mì [Tên quán cụ thể], [Số nhà + Đường], [Phường], {{request.Destination}}"
+                → address PHẢI LÀ: "Bánh mì [Tên quán cụ thể], [Số nhà + Đường], [Phường], [Thành phố] 
                 → VÍ DỤ: "Bánh mì Phượng, 2B Phan Chu Trinh, Minh An, Hội An"
 
                 NẾU description = "Ăn phở bò"
-                → address PHẢI LÀ: "Phở [Tên quán], [Địa chỉ], {{request.Destination}}"
+                → address PHẢI LÀ: "Phở [Tên quán], [Địa chỉ], [Thành phố]"
                 → VÍ DỤ: "Phở Thìn, 13 Lò Đúc, Hoàn Kiếm, Hà Nội"
 
                 NẾU description = "Ăn hải sản"
-                → address PHẢI LÀ: "Nhà hàng hải sản [Tên], [Địa chỉ], {{request.Destination}}"
+                → address PHẢI LÀ: "Nhà hàng hải sản [Tên], [Địa chỉ], [Thành phố]"
                 → VÍ DỤ: "Nhà hàng hải sản Làng Nổi, 15 Trần Hưng Đạo, Đà Nẵng"
                 ```
 
                 ** HOẠT ĐỘNG THAM QUAN:**
                 ```
                 NẾU description = "Tham quan chùa"
-                → address PHẢI LÀ: "[Tên chùa cụ thể], [Địa chỉ], {{request.Destination}}"
+                → address PHẢI LÀ: "[Tên chùa cụ thể], [Địa chỉ], [Thành phố]"
                 → VÍ DỤ: "Chùa Linh Ứng, Bán đảo Sơn Trà, Đà Nẵng"
 
                 NẾU description = "Tham quan bảo tàng"
-                → address PHẢI LÀ: "[Tên bảo tàng], [Địa chỉ], {{request.Destination}}"
+                → address PHẢI LÀ: "[Tên bảo tàng], [Địa chỉ], [Thành phố]"
                 → VÍ DỤ: "Bảo tàng Điêu khắc Chăm, 02 Trần Phú, Hải Châu, Đà Nẵng"
 
                 NẾU description = "Khám phá phố cổ"
-                → address PHẢI LÀ: "[Tên khu phố cổ/đường cụ thể], {{request.Destination}}"
+                → address PHẢI LÀ: "[Tên khu phố cổ/đường cụ thể], [Thành phố]"
                 → VÍ DỤ: "Phố cổ Hội An, Phường Minh An, Hội An"
                 ```
 
                 ** HOẠT ĐỘNG GIẢI TRÍ:**
                 ```
                 NẾU description = "Tắm biển"
-                → address PHẢI LÀ: "[Tên bãi biển cụ thể], {{request.Destination}}"
+                → address PHẢI LÀ: "[Tên bãi biển cụ thể], [Thành phố]"
                 → VÍ DỤ: "Bãi biển Mỹ Khê, Nguyễn Tất Thành, Sơn Trà, Đà Nẵng"
 
                 NẾU description = "Massage/Spa"
-                → address PHẢI LÀ: "[Tên spa], [Địa chỉ], {{request.Destination}}"
+                → address PHẢI LÀ: "[Tên spa], [Địa chỉ], [Thành phố]"
                 → VÍ DỤ: "Herbal Spa, 100 Trần Phú, An Hải Bắc, Đà Nẵng"
                 ```
 
                 ** HOẠT ĐỘNG MUA SẮM:**
                 ```
                 NẾU description = "Mua sắm tại chợ"
-                → address PHẢI LÀ: "[Tên chợ cụ thể], [Địa chỉ], {{request.Destination}}"
+                → address PHẢI LÀ: "[Tên chợ cụ thể], [Địa chỉ], [Thành phố]"
                 → VÍ DỤ: "Chợ Hàn, 119 Trần Phú, Hải Châu, Đà Nẵng"
 
                 NẾU description = "Mua quà lưu niệm"
-                → address PHẢI LÀ: "[Tên khu/cửa hàng], [Địa chỉ], {{request.Destination}}"
+                → address PHẢI LÀ: "[Tên khu/cửa hàng], [Địa chỉ], [Thành phố]"
                 → VÍ DỤ: "Khu phố đi bộ An Thượng, An Hải Bắc, Sơn Trà, Đà Nẵng"
                 ```
 
@@ -195,14 +236,14 @@ namespace TripWiseAPI.Services
                   - `"estimatedCost"`: số nguyên, đơn vị VNĐ, không có ký hiệu hoặc dấu phẩy
                   - `"transportation"`: ghi rõ phương tiện (VD: "Grab", "Taxi", "Đi bộ", "Xe máy")
                   - `"address"`: phải là địa chỉ cụ thể, hợp lệ (VD: "95 Ông Ích Khiêm, Thanh Khê, Đà Nẵng"), tham khảo những bài viết du lịch uy tín liên quan đến {{request.Destination}}
-                              Ví dụ sai: "Resort 4 sao, Địa chỉ cụ thể"
-                  - Đối với nơi ở, địa chỉ phải là tên khách sạn/nhà nghỉ/homestay/resort cụ thể tại {{request.Destination}}, không dùng loại hình chung chung.
-                  - `"placeDetail"`: mô tả sinh động, giải thích lý do nên đến
-                  - "placeDetail" không được viết kiểu: “nơi lý tưởng để tham quan”, “rất nổi tiếng”, “được nhiều người yêu thích” nếu không có chi tiết cụ thể.
-                                  VD đúng: "Chợ Bến Thành – khu chợ nổi tiếng với hơn 100 năm lịch sử, nơi du khách có thể mua đặc sản và thử món bánh tráng trộn nổi tiếng."
-                                  VD sai: "Chợ nổi tiếng, có nhiều món ăn ngon, thích hợp để khám phá."
+                            Ví dụ sai: "Resort 4 sao, Địa chỉ cụ thể"
+                - Đối với nơi ở, địa chỉ phải là tên khách sạn/nhà nghỉ/homestay/resort cụ thể tại {{request.Destination}}, không dùng loại hình chung chung.
+                - `"placeDetail"`: mô tả sinh động, giải thích lý do nên đến
+                - "placeDetail" không được viết kiểu: “nơi lý tưởng để tham quan”, “rất nổi tiếng”, “được nhiều người yêu thích” nếu không có chi tiết cụ thể. Hãy viết 1 đoạn văn ngắn mô tả một cách sinh động, giải thích lý do nên đến, ví dụ:
+                                VD đúng: "Chợ Bến Thành – khu chợ nổi tiếng với hơn 100 năm lịch sử, nơi du khách có thể mua đặc sản và thử món bánh tráng trộn nổi tiếng." có thể viết dài hơn một chút, nhưng không quá 3 câu.
+                                VD sai: "Chợ nổi tiếng, có nhiều món ăn ngon, thích hợp để khám phá."
                   - `"mapUrl"`: link đúng định dạng Google Maps
-                  - `"image"`: nếu có thumbnail thì dùng, nếu không thì để chuỗi rỗng `""`
+                  - `"image"`: **ƯU TIÊN SỬ DỤNG URL ảnh từ relatedKnowledge**, nếu không có thì để chuỗi rỗng `""`
 
                 - CẤM HOÀN TOÀN các cụm từ sau trong bất kỳ trường nào:
                   - "tự chọn", "tùy chọn", "tùy ý", "tự do lựa chọn", "ven biển", "gần", bao gồm bất kỳ cụm từ nào yêu cầu khách hàng tự quyết định, lựa chọn, đoán địa điểm, hoặc tự tìm nơi ăn/chơi/nghỉ
@@ -210,11 +251,11 @@ namespace TripWiseAPI.Services
                 - Mỗi ngày phải có trường `"weatherNote"`: mô tả thời tiết ngắn gọn dựa trên `"weatherDescription"` và `"temperatureCelsius"`
 
                 === NGUỒN ĐỊA ĐIỂM ===
-                - Tận dụng tối đa dữ liệu có trong danh sách `relatedKnowledge` nếu phù hợp logic chuyến đi
-                - Nếu cần mở rộng, chỉ lấy địa điểm:
+                - **BƯỚC 1**: Tận dụng tối đa dữ liệu có trong `relatedKnowledge` (BẮT BUỘC phải sử dụng ít nhất 80% nếu dữ liệu đầy đủ)
+                - **BƯỚC 2**: Nếu cần mở rộng, chỉ lấy địa điểm:
                   - Có thật, có địa chỉ, có trên Google Maps
                   - Nằm trong bài viết/blog/review du lịch uy tín về {{request.Destination}}
-                - **Không được tự nghĩ ra hoặc phỏng đoán địa điểm không kiểm chứng**
+                - **KHÔNG ĐƯỢC tự nghĩ ra hoặc phỏng đoán địa điểm không kiểm chứng**
                 {{exclusionNote}}
 
                 === OUTPUT FORMAT ===
@@ -236,22 +277,130 @@ namespace TripWiseAPI.Services
                           "description": "string",
                           "estimatedCost": 123456,
                           "transportation": "string",
-                          "address": "string",
-                          "placeDetail": "string",
+                          "address": "string (ưu tiên từ relatedKnowledge)",
+                          "placeDetail": "string (ưu tiên từ relatedKnowledge)",
                           "mapUrl": "string",
-                          "image": "string"
+                          "image": "string (ưu tiên từ relatedKnowledge)"
                         }
                       ]
                     }
                   ]
                 }
 
-                === START DATA ===
+                === START DATA - TUYỆT ĐỐI ƯU TIÊN DỮ LIỆU NÀY ===
                 {{relatedKnowledge}}
                 === END DATA ===
                 """;
-                        }
+        }
 
+        private string BuildRichKnowledgeGuidance()
+        {
+            return """
+                ===  HƯỚNG DẪN SỬ DỤNG DỮ LIỆU CÓ SẴN - QUAN TRỌNG ===
+                
+                **🎯 CHIẾN LƯỢC SỬ DỤNG RELATED KNOWLEDGE:**
+                
+                **BƯỚC 1: PHÂN TÍCH DỮ LIỆU**
+                - Đọc kỹ tất cả thông tin trong relatedKnowledge
+                - Xác định loại địa điểm: ăn uống, tham quan, giải trí, mua sắm
+                - Phân loại theo thời gian phù hợp: sáng, trưa, chiều, tối
+                
+                **BƯỚC 2: CHỌN LỌC THÔNG MINH**
+                - Ưu tiên địa điểm phù hợp với groupType và preferences
+                - Cân bằng giữa các loại hoạt động trong ngày
+                - Tối ưu hóa di chuyển (gần nhau về mặt địa lý)
+                
+                **BƯỚC 3: SỬ DỤNG DỮ LIỆU TRỰC TIẾP**
+                - **Address**: Copy chính xác từ relatedKnowledge
+                - **Image**: Sử dụng URL ảnh có sẵn
+                - **PlaceDetail**: Kết hợp và làm phong phú thông tin mô tả
+                - **EstimatedCost**: Tham khảo giá từ dữ liệu, điều chỉnh hợp lý
+                
+                **BƯỚC 4: BỔ SUNG KHI CẦN THIẾT**
+                - Chỉ thêm địa điểm mới khi relatedKnowledge không đủ
+                - Đảm bảo lịch trình đầy đủ và cân bằng
+                - Tạo flow logic giữa các hoạt động
+                
+                **QUY TẮC ĐẶC BIỆT KHI CÓ DỮ LIỆU PHONG PHÚ:**
+                
+                **🍽️ CHO ĐỊA ĐIỂM ĂN UỐNG:**
+                ```
+                NẾU relatedKnowledge có thông tin nhà hàng/quán ăn:
+                → SỬ DỤNG TRỰC TIẾP: tên, địa chỉ, mô tả, giá, ảnh
+                → KHÔNG tự nghĩ ra quán ăn khác
+                
+                Template address: "[Tên quán từ data], [Địa chỉ từ data]"
+                Template placeDetail: "[Mô tả từ data] + [Đặc sản nổi bật] + [Trải nghiệm]"
+                ```
+                
+                **🏛️ CHO ĐỊA ĐIỂM THAM QUAN:**
+                ```
+                NẾU relatedKnowledge có thông tin điểm tham quan:
+                → SỬ DỤNG TRỰC TIẾP: tên, địa chỉ, lịch sử, đặc điểm, ảnh
+                → KHÔNG tự nghĩ ra điểm tham quan khác
+                
+                Template address: "[Tên địa điểm từ data], [Địa chỉ từ data]"
+                Template placeDetail: "[Lịch sử từ data] + [Kiến trúc/đặc điểm] + [Trải nghiệm]"
+                ```
+                
+                **🎮 CHO ĐỊA ĐIỂM GIẢI TRÍ:**
+                ```
+                NẾU relatedKnowledge có thông tin giải trí:
+                → SỬ DỤNG TRỰC TIẾP: tên, địa chỉ, hoạt động, giá, ảnh
+                → KHÔNG tự nghĩ ra địa điểm giải trí khác
+                
+                Template address: "[Tên địa điểm từ data], [Địa chỉ từ data]"
+                Template placeDetail: "[Mô tả hoạt động từ data] + [Trải nghiệm] + [Lợi ích]"
+                ```
+                
+                **🛍️ CHO ĐỊA ĐIỂM MUA SẮM:**
+                ```
+                NẾU relatedKnowledge có thông tin mua sắm:
+                → SỬ DỤNG TRỰC TIẾP: tên, địa chỉ, sản phẩm đặc trưng, ảnh
+                → KHÔNG tự nghĩ ra địa điểm mua sắm khác
+                
+                Template address: "[Tên chợ/cửa hàng từ data], [Địa chỉ từ data]"
+                Template placeDetail: "[Sản phẩm đặc trưng từ data] + [Trải nghiệm mua sắm] + [Giá trị]"
+                ```
+                """;
+        }
+
+        private string BuildStandardGuidance()
+        {
+            return """
+                ===  MA TRẬN ĐỊA ĐIỂM THÔNG MINH - QUAN TRỌNG ===
+
+                **NGUYÊN TẮC VÀNG: ĐỊA CHỈ PHẢI KHỚP 100% VỚI HOẠT ĐỘNG**
+
+                **HOẠT ĐỘNG ĂN UỐNG:**
+                ```
+                NẾU description = "Ăn sáng bánh mì" 
+                → address PHẢI LÀ: "Bánh mì [Tên quán cụ thể], [Số nhà + Đường], [Phường], [Thành phố]"
+                → VÍ DỤ: "Bánh mì Phượng, 2B Phan Chu Trinh, Minh An, Hội An"
+                ```
+
+                ** HOẠT ĐỘNG THAM QUAN:**
+                ```
+                NẾU description = "Tham quan chùa"
+                → address PHẢI LÀ: "[Tên chùa cụ thể], [Địa chỉ], [Thành phố]"
+                → VÍ DỤ: "Chùa Linh Ứng, Bán đảo Sơn Trà, Đà Nẵng"
+                ```
+
+                ** HOẠT ĐỘNG GIẢI TRÍ:**
+                ```
+                NẾU description = "Tắm biển"
+                → address PHẢI LÀ: "[Tên bãi biển cụ thể], [Thành phố]"
+                → VÍ DỤ: "Bãi biển Mỹ Khê, Nguyễn Tất Thành, Sơn Trà, Đà Nẵng"
+                ```
+
+                ** HOẠT ĐỘNG MUA SẮM:**
+                ```
+                NẾU description = "Mua sắm tại chợ"
+                → address PHẢI LÀ: "[Tên chợ cụ thể], [Địa chỉ], [Thành phố]"
+                → VÍ DỤ: "Chợ Hàn, 119 Trần Phú, Hải Châu, Đà Nẵng"
+                ```
+                """;
+        }
 
         public string BuildUpdatePrompt(TravelRequest request, ItineraryResponse originalResponse, string userInstruction, string relatedKnowledge)
         {
@@ -270,47 +419,88 @@ namespace TripWiseAPI.Services
                                            userInstruction.Contains("hoạt động '") && 
                                            userInstruction.Contains("cần được thay đổi");
 
+            // Phân tích loại yêu cầu để đưa ra instruction phù hợp
+            bool isAddRequest = Regex.IsMatch(userInstruction, @"(thêm|tạo|thêm vào|tạo thêm|thêm hoạt động|thêm mới)", RegexOptions.IgnoreCase);
+            bool isReplaceRequest = Regex.IsMatch(userInstruction, @"(thay thế|thay đổi|đổi thành|thay bằng|sửa thành|chuyển thành)", RegexOptions.IgnoreCase);
+            bool isTimeAdjustmentRequest = Regex.IsMatch(userInstruction, @"(dời|chuyển giờ|thay đổi thời gian|điều chỉnh thời gian|sớm hơn|muộn hơn)", RegexOptions.IgnoreCase);
+
             string specificUpdateGuidance = "";
 
-            if (isTimeSpecificUpdate)
+            if (isAddRequest)
             {
                 specificUpdateGuidance = """
-                ### ⚠️ QUAN TRỌNG - CẬP NHẬT THEO THỜI GIAN CỤ THỂ:
-                - Người dùng đã chỉ định rõ ngày và khung thời gian cần thay đổi.
-                - Tìm hoạt động trong khung thời gian được chỉ định và thay thế.
-                - Nếu không tìm thấy hoạt động chính xác trong khung giờ đó, tìm hoạt động gần nhất trong ngày.
-                - CHỈ thay đổi hoạt động được chỉ định, GIỮ NGUYÊN TẤT CẢ hoạt động khác.
-                - Đảm bảo thời gian của hoạt động mới phù hợp với khung giờ được yêu cầu.
+                ### ⚠️ THÊM HOẠT ĐỘNG MỚI - QUAN TRỌNG:
+                **NGUYÊN TẮC THÊM HOẠT ĐỘNG:**
+                - **TUYỆT ĐỐI GIỮ NGUYÊN** tất cả hoạt động hiện có trong ngày
+                - **CHỈ THÊM** hoạt động mới vào vị trí phù hợp
+                - **TỰ ĐỘNG ĐIỀU CHỈNH** thời gian các hoạt động sau để tránh conflict
+                - **KHÔNG THAY ĐỔI** nội dung, description của các hoạt động đã có
+                - **SẮP XẾP LẠI** thứ tự thời gian sau khi thêm hoạt động mới
+
+                **QUY TRÌNH THÊM HOẠT ĐỘNG:**
+                1. Xác định vị trí thời gian phù hợp để thêm
+                2. Thêm hoạt động mới với thời gian cụ thể
+                3. Dời các hoạt động sau để tránh trung lập thời gian
+                4. Giữ nguyên 100% nội dung các hoạt động cũ
+                """;
+            }
+            else if (isReplaceRequest)
+            {
+                specificUpdateGuidance = """
+                ### ⚠️ THAY THẾ HOẠT ĐỘNG - QUAN TRỌNG:
+                **NGUYÊN TẮC THAY THẾ:**
+                - Xác định hoạt động cụ thể cần thay thế
+                - **CHỈ THAY THẾ** hoạt động được chỉ định
+                - **GIỮ NGUYÊN** tất cả hoạt động khác trong ngày
+                - **KHÔNG THAY ĐỔI** thời gian nếu không cần thiết
+                - **BẢO TOÀN** thứ tự logic của các hoạt động khác
+                """;
+            }
+            else if (isTimeAdjustmentRequest)
+            {
+                specificUpdateGuidance = """
+                ### ⚠️ ĐIỀU CHỈNH THỜI GIAN - QUAN TRỌNG:
+                **NGUYÊN TẮC ĐIỀU CHỈNH THỜI GIAN:**
+                - **GIỮ NGUYÊN** hoàn toàn nội dung hoạt động (description, address, placeDetail)
+                - **CHỈ THAY ĐỔI** starttime và endtime
+                - **ĐIỀU CHỈNH** các hoạt động xung quanh để tránh conflict
+                - **KHÔNG SỬA** bất kỳ thuộc tính nào khác
+                """;
+            }
+            else if (isTimeSpecificUpdate)
+            {
+                specificUpdateGuidance = """
+                ### ⚠️ CẬP NHẬT THEO THỜI GIAN CỤ THỂ - QUAN TRỌNG:
+                **NGUYÊN TẮC:**
+                - Tìm hoạt động trong khung thời gian được chỉ định
+                - **CHỈ THAY ĐỔI** hoạt động trong khung giờ đó
+                - **GIỮ NGUYÊN** tất cả hoạt động khác
+                - **KHÔNG THAY ĐỔI** chính tả, dấu câu của các hoạt động không liên quan
                 """;
             }
             else if (isDaySpecificUpdate)
             {
                 specificUpdateGuidance = """
-                ### ⚠️ QUAN TRỌNG - CẬP NHẬT THEO NGÀY:
-                - Người dùng đã chỉ định ngày cần thay đổi.
-                - Phân tích yêu cầu để xác định hoạt động nào trong ngày cần thay đổi.
-                - Nếu không rõ hoạt động cụ thể, đề xuất thay đổi hợp lý nhất.
-                """;
-            }
-            else if (isActivitySpecificUpdate)
-            {
-                specificUpdateGuidance = """
-                ### ⚠️ QUAN TRỌNG - CẬP NHẬT HOẠT ĐỘNG CỤ THỂ:
-                - Yêu cầu này đã xác định rõ hoạt động cần thay đổi.
-                - CHỈ thay đổi hoạt động được chỉ định, GIỮ NGUYÊN TẤT CẢ hoạt động khác trong ngày đó.
+                ### ⚠️ CẬP NHẬT THEO NGÀY - QUAN TRỌNG:
+                **NGUYÊN TẮC:**
+                - Phân tích yêu cầu để xác định hoạt động cần thay đổi
+                - **CHỈ THAY ĐỔI** hoạt động liên quan đến yêu cầu
+                - **BẢO TOÀN** các hoạt động không liên quan
                 """;
             }
             else
             {
                 specificUpdateGuidance = """
-                ### HƯỚNG DẪN CẬP NHẬT CHUNG:
-                - Phân tích kỹ yêu cầu để xác định chính xác phần nào cần thay đổi.
-                - Nếu không rõ vị trí cụ thể, hãy đề xuất thay đổi hợp lý nhất.
+                ### ⚠️ CẬP NHẬT CHUNG - QUAN TRỌNG:
+                **NGUYÊN TẮC:**
+                - Phân tích kỹ yêu cầu để xác định phần cần thay đổi
+                - **TUYỆT ĐỐI KHÔNG THAY ĐỔI** các phần không liên quan
+                - **CHỈ CẬP NHẬT** những gì được yêu cầu rõ ràng
                 """;
             }
 
             return $$"""
-                Bạn là một trợ lý du lịch AI chuyên nghiệp. Nhiệm vụ của bạn là **cập nhật lịch trình dưới đây một cách chính xác theo yêu cầu người dùng**, đồng thời **tuân thủ đầy đủ các tiêu chuẩn dữ liệu đầu ra**.
+                Bạn là một trợ lý du lịch AI chuyên nghiệp. Nhiệm vụ của bạn là **cập nhật lịch trình dưới đây một cách chính xác theo yêu cầu người dùng**, đồng thời **tuyệt đối không thay đổi những phần không liên quan** và **tuân thủ đầy đủ các tiêu chuẩn dữ liệu đầu ra**.
 
                 ### ⚠️ KIỂM TRA CONFLICT ĐỊA ĐIỂM TRƯỚC KHI XỬ LÝ - BẮT BUỘC:
                 **BƯỚC KIỂM TRA:**
@@ -332,26 +522,39 @@ namespace TripWiseAPI.Services
                 
                 **CHỈ tiếp tục xử lý nếu KHÔNG có conflict địa điểm.**
 
-                ### ⚠️ NGUYÊN TẮC THÔNG MINH CHỐNG THAY ĐỔI VÔ NGHĨA - QUAN TRỌNG:
-                **KIỂM TRA TRƯỚC KHI THAY ĐỔI:**
-                - **Nếu yêu cầu người dùng không rõ ràng hoặc mơ hồ**, GIỮ NGUYÊN lịch trình và KHÔNG thay đổi
-                - **Nếu lịch trình hiện tại đã phù hợp với yêu cầu**, GIỮ NGUYÊN và trả lời "Lịch trình hiện tại đã phù hợp"
-                - **NGHIÊM CẤM** các thay đổi vô nghĩa như:
-                  * Thay đổi chính tả nhỏ: "chè" → "chế", "phở" → "phở", "bánh mì" → "bánh mì"
-                  * Thay đổi từ đồng nghĩa mà không cải thiện: "ăn" → "thưởng thức", "đi" → "tham quan"
-                  * Thay đổi thứ tự từ mà không thay đổi ý nghĩa: "Khám phá phố cổ" → "Phố cổ khám phá"
-                  * Thêm/bớt dấu câu hoặc khoảng trắng không ảnh hưởng đến nội dung
+                ### ⚠️ NGUYÊN TẮC THÔNG MINH CHỐNG THAY ĐỔI VÔ NGHĨA - TUYỆT ĐỐI QUAN TRỌNG:
+
+                **🚫 NGHIÊM CẤM CÁC THAY ĐỔI VÔ NGHĨA SAU:**
+                - **Thay đổi chính tả**: "Ăn đêm" → "Ăn Đêm", "chè" → "chế", "phở" → "phở"
+                - **Thay đổi từ đồng nghĩa**: "ăn" → "thưởng thức", "đi" → "tham quan", "xem" → "ngắm"
+                - **Thay đổi thứ tự từ**: "Khám phá phố cổ" → "Phố cổ khám phá"
+                - **Thêm/bớt dấu câu**: "Ăn sáng bánh mì" → "Ăn sáng bánh mì."
+                - **Thay đổi khoảng trắng**: không có tác động thực sự
+                - **Viết hoa/viết thường**: "chợ hàn" → "Chợ Hàn" (trừ khi sai chính tả)
+
+                **✅ CHỈ THAY ĐỔI KHI CÓ Ý NGHĨA THỰC SỰ:**
+                - Thay đổi loại hoạt động: ăn → tham quan, mua sắm → giải trí
+                - Thay đổi địa điểm cụ thể: chợ Hàn → chợ Cồn, bãi biển Mỹ Khê → bãi biển Bắc Mỹ An
+                - Thay đổi thời gian: sáng → tối, 1 giờ → 2 giờ
+                - Thêm hoạt động mới theo yêu cầu rõ ràng
+                - Thay thế hoạt động theo yêu cầu cụ thể
+
+                **🔍 VALIDATION YÊU CẦU - BẮT BUỘC KIỂM TRA:**
+                ```
+                TRƯỚC KHI THAY ĐỔI BẤT KỲ GÌ, TỰ HỎI:
+                1. "Thay đổi này có được yêu cầu rõ ràng không?"
+                2. "Thay đổi này có cải thiện trải nghiệm du lịch không?"
+                3. "Đây có phải là thay đổi về nội dung hay chỉ là hình thức?"
                 
-                **QUY TẮC THAY ĐỔI HỢP LỆ:**
-                - Chỉ thay đổi khi có **ý nghĩa thực sự khác biệt** về:
-                  * Loại hoạt động (ăn → tham quan, mua sắm → giải trí)
-                  * Địa điểm cụ thể (chợ Hàn → chợ Cồn, bãi biển Mỹ Khê → bãi biển Bắc Mỹ An)
-                  * Thời gian hoạt động (sáng → tối, 1 giờ → 2 giờ)
-                
-                **VALIDATION YÊU CẦU:**
-                - Kiểm tra từng thay đổi: "Thay đổi này có cải thiện trải nghiệm du lịch không?"
-                - Nếu không có lợi ích rõ ràng → GIỮ NGUYÊN
-                - Nếu chỉ là thay đổi hình thức mà không cải thiện nội dung → GIỮ NGUYÊN
+                NẾU KHÔNG CÓ LỢI ÍCH RÕ RÀNG → GIỮ NGUYÊN 100%
+                ```
+
+                **🎯 CHIẾN LƯỢC XỬ LÝ:**
+                - **BƯỚC 1**: Đọc yêu cầu và xác định chính xác phần nào cần thay đổi
+                - **BƯỚC 2**: Chỉ thay đổi phần được yêu cầu, sao chép y nguyên các phần khác
+                - **BƯỚC 3**: Kiểm tra lại để đảm bảo không có thay đổi vô nghĩa nào
+
+                {{specificUpdateGuidance}}
 
                 ### ⚠️ QUY TẮC THỜI GIAN BẮT BUỘC - TUYỆT ĐỐI KHÔNG VI PHẠM:
 
@@ -365,19 +568,12 @@ namespace TripWiseAPI.Services
                 - Để ít nhất 10 phút giữa các hoạt động để di chuyển
                 - Sắp xếp theo thứ tự: 07:00 → 08:30 → 10:00 → 12:00 → 14:00 → 16:00 → 18:00 → 20:00
 
-                **3. KIỂM TRA LOGIC THỜI GIAN:**
-                - **TRƯỚC KHI TRẢ VỀ**, kiểm tra từng ngày:
-                  * Hoạt động 1: 07:00-08:00 ✓
-                  * Hoạt động 2: 08:30-10:00 ✓ (bắt đầu sau khi hoạt động 1 kết thúc)
-                  * Hoạt động 3: 10:30-12:00 ✓ (bắt đầu sau khi hoạt động 2 kết thúc)
-                - **NẾU PHÁT HIỆN CONFLICT → SỬA NGAY** hoặc bỏ hoạt động có vấn đề
-
-                **4. XỬ LÝ THÊM HOẠT ĐỘNG MỚI:**
+                **3. XỬ LÝ THÊM HOẠT ĐỘNG MỚI:**
                 - **Khi thêm hoạt động xen kẽ**, tự động điều chỉnh thời gian các hoạt động sau
                 - Ví dụ: Thêm hoạt động 10:30-11:30, tự động dời hoạt động tiếp theo từ 11:00 thành 12:00
                 - **KHÔNG ĐƯỢC ĐÈ LÊN** hoạt động đã có
 
-                **5. VALIDATION CUỐI CÙNG:**
+                **4. VALIDATION CUỐI CÙNG:**
                 ```
                 KIỂM TRA CUỐI: Duyệt qua tất cả hoạt động trong ngày
                 FOR mỗi hoạt động i:
@@ -387,83 +583,8 @@ namespace TripWiseAPI.Services
                         → LỖI! Sửa ngay endTime[i] = startTime[i+1] - 10 phút
                 ```
 
-                ### ⚠️ RÀNG BUỘC VỀ ĐỊA ĐIỂM - QUAN TRỌNG:
-                - **ĐIỂM ĐẾN CỐ ĐỊNH**: Lịch trình này được tạo cho {{request.Destination}} và KHÔNG THỂ thay đổi
-                - **TẤT CẢ hoạt động mới phải nằm trong khu vực {{request.Destination}}** hoặc các điểm tham quan lân cận thuộc cùng tỉnh/thành
-                - **CHỈ cập nhật hoạt động, thời gian, nội dung** - KHÔNG thay đổi địa điểm tỉnh/thành phố
-
                 ### Yêu cầu người dùng:
                 {{userInstruction}}
-
-                {{specificUpdateGuidance}}
-
-                ### Hướng dẫn xử lý input formats:
-                - **Format "ngày X, HH:mm - HH:mm [action]"**: Tìm hoạt động trong khung thời gian chỉ định và thay thế
-                - **Format "ngày X [action]"**: Xác định hoạt động phù hợp nhất trong ngày để thay đổi
-                - **Format "Trong ngày X, hoạt động '...' cần thay đổi"**: Thay đổi hoạt động cụ thể được chỉ định
-
-                ### Nguyên tắc cập nhật:
-                - **CHÍNH XÁC**: Chỉ thay đổi những gì được yêu cầu, không thay đổi thêm bất kỳ phần nào khác
-                - **BẢO TOÀN**: Giữ nguyên tất cả hoạt động, thời gian, địa điểm không liên quan đến yêu cầu
-                - **ĐỊA LÝ**: Tất cả địa điểm mới phải thuộc {{request.Destination}} hoặc lân cận gần
-                - **LOGIC**: Đảm bảo thời gian và địa lý hợp lý sau khi thay đổi
-                - **CỤ THỂ**: Mọi địa điểm phải có tên và địa chỉ thực tế, có thể tìm thấy trên Google Maps
-                - **HỢP LÝ**: Mọi thay đổi phải có ý nghĩa và cải thiện trải nghiệm du lịch
-                - **THỜI GIAN LOGIC**: Tuyệt đối không có conflict hoặc chồng chéo thời gian
-
-                ### ⚠️ KIỂM TRA CUỐI CÙNG TRƯỚC KHI TRẢ VỀ:
-                **So sánh lịch trình gốc và mới:**
-                - Nếu chỉ có thay đổi về chính tả, dấu câu, thứ tự từ → GIỮ NGUYÊN lịch trình gốc
-                - Nếu không có thay đổi ý nghĩa thực sự → GIỮ NGUYÊN lịch trình gốc
-                - **KIỂM TRA THỜI GIAN**: Duyệt qua tất cả hoạt động để đảm bảo không có conflict
-                - Chỉ trả về lịch trình mới khi có thay đổi **thực chất** cải thiện trải nghiệm VÀ thời gian hợp lý
-
-                ### Hướng dẫn cập nhật chi tiết:
-                - Khi có chỉ định thời gian cụ thể (HH:mm - HH:mm), ưu tiên tìm hoạt động trong khung giờ đó
-                - Nếu không tìm thấy hoạt động chính xác, tìm hoạt động gần nhất về thời gian
-                - **Khi thêm hoạt động xen kẽ**: Tự động điều chỉnh thời gian các hoạt động sau để tránh conflict
-                - **Khi thay thế hoạt động**: Giữ nguyên thời gian hoặc điều chỉnh nhẹ cho phù hợp
-                - **Tuyệt đối không viết lại toàn bộ danh sách hoạt động nếu không cần thiết**
-
-                ### Xử lý thời gian:
-                - **Ưu tiên 1**: Giữ nguyên thời gian của các hoạt động không bị ảnh hưởng
-                - **Ưu tiên 2**: Nếu user chỉ định thời gian cụ thể, sử dụng thời gian đó
-                - **Ưu tiên 3**: Tự động điều chỉnh các hoạt động xung quanh để tránh conflict
-                - **Luôn luôn**: Đảm bảo không bị trùng lặp thời gian với các hoạt động khác trong ngày
-                - **Logic flow**: Ưu tiên giữ nguyên flow thời gian tự nhiên của ngày
-
-                ### Nguồn địa điểm tham khảo:
-                - **Ưu tiên địa điểm có trong danh sách relatedKnowledge bên dưới** nếu phù hợp với yêu cầu cập nhật
-                - **CHỈ sử dụng địa điểm thuộc {{request.Destination}} hoặc lân cận gần**
-                - Nếu cần mở rộng, chỉ lấy địa điểm:
-                  - Có thật, có địa chỉ, có trên Google Maps
-                  - Nằm trong {{request.Destination}} hoặc khu vực lân cận cùng tỉnh/thành
-                  - Nằm trong bài viết/blog/review du lịch uy tín về {{request.Destination}}
-                - **Không được tự nghĩ ra hoặc phỏng đoán địa điểm không kiểm chứng**
-
-                ### Yêu cầu định dạng dữ liệu (CHỈ KHI KHÔNG CÓ LOCATION CONFLICT):
-                - Mỗi ngày (chỉ những ngày có thay đổi **ý nghĩa**) cần bao gồm:
-                  - dayNumber
-                  - title
-                  - dailyCost (tính lại nếu có thay đổi chi phí)
-                  - weatherNote (giữ nguyên từ dữ liệu gốc)
-                  - activities: Danh sách ĐẦY ĐỦ hoạt động trong ngày **ĐƯỢC SẮP XẾP THEO THỜI GIAN**, bao gồm:
-                    - starttime (định dạng "HH:mm") - **BẮT BUỘC phải logic với endtime của hoạt động trước**
-                    - endtime (định dạng "HH:mm") - **BẮT BUỘC phải ≤ starttime của hoạt động sau**
-                    - description (mô tả ngắn gọn)
-                    - estimatedCost (số nguyên, đơn vị: VND)
-                    - transportation (phương tiện di chuyển)
-                    - address (tên địa điểm + địa chỉ cụ thể TRONG {{request.Destination}})
-                    - placeDetail (mô tả điểm đến, nét đặc biệt)
-                    - mapUrl (nếu có, hoặc tạo từ address)
-                    - image (giữ nguyên từ dữ liệu gốc nếu có, nếu không thì để chuỗi rỗng "")
-
-                ### Tiêu chuẩn địa điểm:
-                - Tên địa điểm **phải cụ thể và thực tế**, xuất hiện phổ biến trên Google Maps
-                - Địa chỉ phải đầy đủ: tên địa điểm + số nhà (nếu có) + đường + phường/xã + quận/huyện + {{request.Destination}}
-                - **Address phải kết thúc bằng {{request.Destination}}** (ví dụ: "123 Đường ABC, Quận XYZ, {{request.Destination}}")
-                - Tuyệt đối không dùng mô tả mơ hồ như: "quán ăn địa phương", "chợ trung tâm", "gần khu du lịch", "tùy chọn"
-                - **Không được ghi "chưa xác định", "địa điểm cụ thể chưa xác định"**
 
                 ### Thông tin chuyến đi:
                 - Địa điểm: {{request.Destination}}
@@ -485,8 +606,7 @@ namespace TripWiseAPI.Services
                 - **BẮT BUỘC**: Tất cả hoạt động phải được **sắp xếp theo thứ tự thời gian tăng dần**
                 - **BẮT BUỘC**: Không được có bất kỳ xung đột thời gian nào
                 - **Bao gồm TẤT CẢ các hoạt động trong ngày được cập nhật**, không chỉ hoạt động thay đổi
-                - Nếu cập nhật ngày 2, phải trả về đầy đủ tất cả hoạt động của ngày 2
-                - Không trả về "Itinerary". Tất cả dữ liệu phải nằm trong "days"
+                - **Tuyệt đối giữ nguyên** các hoạt động không liên quan đến yêu cầu
                 - **Tất cả address phải thuộc {{request.Destination}}**
 
                 ```json
@@ -517,12 +637,17 @@ namespace TripWiseAPI.Services
                 }
                 ```
 
+                ### ⚠️ REMINDER CUỐI CÙNG:
+                **TRƯỚC KHI TRẢ VỀ, KIỂM TRA:**
+                - ✅ Có thay đổi thực chất nào được yêu cầu không?
+                - ✅ Tôi có vô tình thay đổi chính tả/dấu câu không?
+                - ✅ Thời gian có logic và không conflict không?
+                - ✅ Tôi có giữ nguyên hoàn toàn các phần không liên quan không?
+
                 === DANH SÁCH ĐỊA ĐIỂM THAM KHẢO ===
                 {{relatedKnowledge}}
                 === KẾT THÚC DANH SÁCH ===
                 """;
-            }
-
-
+        }
     }
 }

@@ -15,7 +15,7 @@ namespace TripWiseAPI.Services
         private readonly IWikimediaImageService _WikimediaImageService;
         private const int MaxDaysPerChunk = 3;
         private readonly IGoogleMapsPlaceService _googleMapsPlaceService;
-        private readonly VectorSearchService _vectorSearchService; // Thêm VectorSearchService
+        private readonly VectorSearchService _vectorSearchService; 
 
         public AiItineraryService(
             IHttpClientFactory httpClientFactory, 
@@ -24,7 +24,7 @@ namespace TripWiseAPI.Services
             IJsonRepairService repairService, 
             IWikimediaImageService imageService, 
             IGoogleMapsPlaceService googleMapsPlaceService,
-            VectorSearchService vectorSearchService) // Inject VectorSearchService
+            VectorSearchService vectorSearchService) 
         {
             _httpClient = httpClientFactory.CreateClient("Gemini");
             _apiKey = config["Gemini:ApiKey"];
@@ -72,7 +72,7 @@ namespace TripWiseAPI.Services
         },
                 generationConfig = new
                 {
-                    maxOutputTokens = 25000,
+                    maxOutputTokens = 80000,
                     temperature = 0.7
                 }
             };
@@ -84,6 +84,25 @@ namespace TripWiseAPI.Services
                 throw new Exception($"Gemini API failed: {await response.Content.ReadAsStringAsync()}");
 
             string text = await response.Content.ReadAsStringAsync();
+
+            // ⭐ THÊM ĐOẠN NÀY ĐỂ LOG TOKEN USAGE
+            try 
+            {
+                using JsonDocument fullResponse = JsonDocument.Parse(text);
+                if (fullResponse.RootElement.TryGetProperty("usageMetadata", out var usageMetadata))
+                {
+                    var promptTokens = usageMetadata.TryGetProperty("promptTokenCount", out var ptc) ? ptc.GetInt32() : 0;
+                    var candidatesTokens = usageMetadata.TryGetProperty("candidatesTokenCount", out var ctc) ? ctc.GetInt32() : 0;
+                    var totalTokens = usageMetadata.TryGetProperty("totalTokenCount", out var ttc) ? ttc.GetInt32() : 0;
+                    
+                    Console.WriteLine($"🔥 [TOKEN USAGE] Prompt: {promptTokens:N0}, Output: {candidatesTokens:N0}, Total: {totalTokens:N0}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ [TOKEN TRACKING] Could not parse usage: {ex.Message}");
+            }
+
             string raw = JsonDocument.Parse(text)
                 .RootElement.GetProperty("candidates")[0]
                 .GetProperty("content").GetProperty("parts")[0]

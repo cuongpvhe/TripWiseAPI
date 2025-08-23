@@ -75,6 +75,18 @@ namespace TripWiseAPI.Utils
         }
 
         /// <summary>
+        /// Kiểm tra xem nội dung hoạt động có giống nhau không (không bao gồm thời gian).
+        /// </summary>
+        private static bool AreActivitiesContentIdentical(ItineraryActivity originalActivity, ItineraryActivity updatedActivity)
+        {
+            return originalActivity.Description == updatedActivity.Description &&
+                   originalActivity.Address == updatedActivity.Address &&
+                   originalActivity.Transportation == updatedActivity.Transportation &&
+                   originalActivity.EstimatedCost == updatedActivity.EstimatedCost &&
+                   originalActivity.PlaceDetail == updatedActivity.PlaceDetail;
+        }
+
+        /// <summary>
         /// Phân tích sự khác biệt giữa hai lịch trình và tạo thông báo thân thiện.
         /// </summary>
         /// <param name="original">Lịch trình gốc</param>
@@ -164,7 +176,38 @@ namespace TripWiseAPI.Utils
 
                 if (!AreActivitiesIdentical(originalActivity, updatedActivity))
                 {
-                    changes.Add($"🔄 Ngày {originalDay.DayNumber}, hoạt động {i + 1}: Đã thay đổi từ \"{originalActivity.Description}\" thành \"{updatedActivity.Description}\"");
+                    // Kiểm tra xem chỉ có thời gian thay đổi hay cả nội dung
+                    if (AreActivitiesContentIdentical(originalActivity, updatedActivity))
+                    {
+                        // Chỉ thời gian thay đổi - hiển thị thông báo về thay đổi thời gian
+                        var timeChangeDescription = "";
+                        
+                        bool startTimeChanged = originalActivity.StartTime != updatedActivity.StartTime;
+                        bool endTimeChanged = originalActivity.EndTime != updatedActivity.EndTime;
+                        
+                        if (startTimeChanged && endTimeChanged)
+                        {
+                            timeChangeDescription = $"từ {originalActivity.StartTime}-{originalActivity.EndTime} thành {updatedActivity.StartTime}-{updatedActivity.EndTime}";
+                        }
+                        else if (startTimeChanged)
+                        {
+                            timeChangeDescription = $"giờ bắt đầu từ {originalActivity.StartTime} thành {updatedActivity.StartTime}";
+                        }
+                        else if (endTimeChanged)
+                        {
+                            timeChangeDescription = $"giờ kết thúc từ {originalActivity.EndTime} thành {updatedActivity.EndTime}";
+                        }
+
+                        if (!string.IsNullOrEmpty(timeChangeDescription))
+                        {
+                            changes.Add($"🕐 Ngày {originalDay.DayNumber}, hoạt động {i + 1}: Đã thay đổi thời gian {timeChangeDescription} cho \"{originalActivity.Description}\"");
+                        }
+                    }
+                    else
+                    {
+                        // Nội dung hoạt động thay đổi - hiển thị chi tiết thay đổi nội dung
+                        changes.Add($"🔄 Ngày {originalDay.DayNumber}, hoạt động {i + 1}: Đã thay đổi từ \"{originalActivity.Description}\" thành \"{updatedActivity.Description}\"");
+                    }
                 }
             }
 
@@ -173,7 +216,18 @@ namespace TripWiseAPI.Utils
             {
                 for (int i = originalDay.Activities.Count; i < updatedDay.Activities.Count; i++)
                 {
-                    changes.Add($"➕ Ngày {originalDay.DayNumber}: Đã thêm hoạt động mới \"{updatedDay.Activities[i].Description}\"");
+                    var newActivity = updatedDay.Activities[i];
+                    changes.Add($"➕ Ngày {originalDay.DayNumber}: Đã thêm hoạt động mới \"{newActivity.Description}\"");
+                }
+            }
+
+            // Kiểm tra hoạt động bị xóa
+            if (originalDay.Activities.Count > updatedDay.Activities.Count)
+            {
+                for (int i = updatedDay.Activities.Count; i < originalDay.Activities.Count; i++)
+                {
+                    var removedActivity = originalDay.Activities[i];
+                    changes.Add($"➖ Ngày {originalDay.DayNumber}: Đã xóa hoạt động \"{removedActivity.Description}\"");
                 }
             }
 
