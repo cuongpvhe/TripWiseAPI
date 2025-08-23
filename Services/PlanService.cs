@@ -289,6 +289,17 @@ namespace TripWiseAPI.Services
         }
         public async Task<PlanDto> CreateAsync(PlanCreateDto dto, int createdBy)
         {
+            // --- VALIDATE ---
+            var errors = new List<string>();
+            if (string.IsNullOrWhiteSpace(dto.PlanName))
+                errors.Add("Tên gói không được để trống.");
+            if (dto.Price < 0)
+                errors.Add("Giá gói phải lớn hơn hoặc bằng 0.");
+            if (dto.MaxRequests < 0)
+                errors.Add("Số lượt tối đa phải lớn hơn hoặc bằng 0.");
+
+            if (errors.Any())
+                throw new ArgumentException(string.Join("; ", errors));
             var plan = new Plan
             {
                 PlanName = dto.PlanName,
@@ -317,7 +328,17 @@ namespace TripWiseAPI.Services
         {
             var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
             if (plan == null) return false;
+            // --- VALIDATE ---
+            var errors = new List<string>();
+            if (string.IsNullOrWhiteSpace(dto.PlanName))
+                errors.Add("Tên gói không được để trống.");
+            if (dto.Price < 0)
+                errors.Add("Giá gói phải lớn hơn hoặc bằng 0.");
+            if (dto.MaxRequests < 0)
+                errors.Add("Số lượt tối đa phải lớn hơn hoặc bằng 0.");
 
+            if (errors.Any())
+                throw new ArgumentException(string.Join("; ", errors));
             plan.PlanName = dto.PlanName;
             plan.Price = dto.Price;
             plan.Description = dto.Description;

@@ -13,5 +13,9 @@
             return $"Username: {Username}, Email: {Email}, SignupRequestId: {SignupRequestId}";
         }
     }
-
+    public class ResendSignupOtpRequest
+    {
+        public string SignupRequestId { get; set; }
+        public string Email { get; set; }
+    }
 }

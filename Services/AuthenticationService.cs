@@ -6,6 +6,7 @@ using TripWiseAPI.Models;
 using TripWiseAPI.Utils;
 using Microsoft.EntityFrameworkCore;
 using TripWiseAPI.Services.AdminServices;
+using System.Text.RegularExpressions;
 
 namespace TripWiseAPI.Services
 {
@@ -179,16 +180,41 @@ namespace TripWiseAPI.Services
         {
             var response = new SignupResponse { SignupRequestId = req.SignupRequestId };
 
-            if (await _context.Users.AnyAsync(u => u.Email == req.Email))
-            {
-                response.InvalidFields.Add("email");
-            }
+            var errors = new List<string>();
 
-            if (await _context.Users.AnyAsync(u => u.UserName.ToLower() == req.Username.ToLower()))
-            {
-                response.InvalidFields.Add("username");
-            }
+            // --- VALIDATE EMAIL ---
+            string emailPattern = @"^(?("")(""[^""]+?""@)|(([0-9a-zA-Z]((\.|\-)?[0-9a-zA-Z]+)*)@))" +
+                                  @"([0-9a-zA-Z][\-0-9a-zA-Z]+\.)+[a-zA-Z]{2,6}$";
 
+            if (!Regex.IsMatch(req.Email, emailPattern))
+                errors.Add("Email không hợp lệ.");
+            else if (await _context.Users.AnyAsync(u => u.Email == req.Email))
+                errors.Add("Email đã được sử dụng.");
+
+            // --- VALIDATE USERNAME ---
+            if (string.IsNullOrWhiteSpace(req.Username))
+                errors.Add("Tên đăng nhập không được để trống.");
+            else if (await _context.Users.AnyAsync(u => u.UserName.ToLower() == req.Username.ToLower()))
+                errors.Add("Tên đăng nhập đã tồn tại.");
+
+            // --- VALIDATE PASSWORD ---
+            if (string.IsNullOrWhiteSpace(req.Password))
+                errors.Add("Mật khẩu không được để trống.");
+            else if (req.Password.Length < 6)
+                errors.Add("Mật khẩu phải ít nhất 6 ký tự.");
+            else if (!Regex.IsMatch(req.Password, @"^(?=.*[A-Za-z])(?=.*\d).+$"))
+                errors.Add("Mật khẩu phải gồm chữ cái và số.");
+
+            // --- VALIDATE CONFIRM PASSWORD ---
+            if (req.Password != req.ConfirmPassword)
+                errors.Add("Mật khẩu xác nhận không khớp.");
+
+            // Nếu có lỗi, trả về
+            if (errors.Any())
+            {
+                response.InvalidFields.AddRange(errors);
+                return response;
+            }
             if (response.InvalidFields.Any()) return response;
             var otpTimeoutMinutes = await _appSettingsService.GetIntValueAsync("OTP_TIMEOUT", 5);
             var otp = new SignupOtp
@@ -290,6 +316,35 @@ namespace TripWiseAPI.Services
 
             return new ApiResponse<string>(201, SuccessMessage.SignupSuccess);
         }
+        public async Task<ApiResponse<string>> ResendSignupOtpAsync(string signupRequestId, string email)
+        {
+            // Xoá OTP cũ nếu tồn tại
+            var existingOtp = await _context.SignupOtps.FindAsync(signupRequestId);
+            if (existingOtp != null)
+            {
+                _context.SignupOtps.Remove(existingOtp);
+                await _context.SaveChangesAsync();
+            }
+
+            // Tạo OTP mới
+            var otpTimeoutMinutes = await _appSettingsService.GetIntValueAsync("OTP_TIMEOUT", 5);
+            var otp = new SignupOtp
+            {
+                SignupRequestId = signupRequestId,
+                Otpstring = OtpHelper.GenerateRandomDigits(6),
+                RequestAttemptsRemains = 3,
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(otpTimeoutMinutes)
+            };
+            await _context.SignupOtps.AddAsync(otp);
+            await _context.SaveChangesAsync();
+
+            // Gửi email
+            _ = Task.Run(() =>
+                EmailHelper.SendEmailMultiThread(email, "Mã OTP đăng ký", $"Mã OTP của bạn là <b>{otp.Otpstring}</b>")
+            );
+
+            return new ApiResponse<string>(200, "OTP mới đã được gửi đến email.");
+        }
 
         private async Task DeleteOldRefreshToken(int userId, string deviceId)
         {
@@ -359,13 +414,50 @@ namespace TripWiseAPI.Services
             await _context.SaveChangesAsync();
             return new ApiResponse<string>("OTP hợp lệ, bạn có thể đổi mật khẩu");
         }
+        public async Task<ApiResponse<string>> ResendForgotPasswordOtpAsync(string email)
+        {
+            // Xoá OTP cũ nếu tồn tại
+            var existingOtp = await _context.SignupOtps.FindAsync(email);
+            if (existingOtp != null)
+            {
+                _context.SignupOtps.Remove(existingOtp);
+                await _context.SaveChangesAsync();
+            }
+
+            // Tạo OTP mới
+            var otpTimeoutMinutes = await _appSettingsService.GetIntValueAsync("OTP_TIMEOUT", 5);
+            var otp = new SignupOtp
+            {
+                SignupRequestId = email,
+                Otpstring = OtpHelper.GenerateRandomDigits(6),
+                RequestAttemptsRemains = 3,
+                ExpiresAt = TimeHelper.GetVietnamTime().AddMinutes(otpTimeoutMinutes)
+            };
+            await _context.SignupOtps.AddAsync(otp);
+            await _context.SaveChangesAsync();
+
+            // Gửi email
+            _ = Task.Run(() =>
+                EmailHelper.SendEmailMultiThread(email, "Mã OTP đặt lại mật khẩu", $"Mã OTP của bạn là <b>{otp.Otpstring}</b>")
+            );
+
+            return new ApiResponse<string>(200, "OTP mới đã được gửi đến email.");
+        }
 
         public async Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordRequest req)
         {
             var user = await _context.Users.FirstOrDefaultAsync(x => x.Email == req.Email);
             if (user == null)
                 return new ApiResponse<string>(404, "Không tìm thấy tài khoản");
+            // --- VALIDATE NEW PASSWORD ---
+            if (string.IsNullOrWhiteSpace(req.NewPassword))
+                return new ApiResponse<string>(400, "Mật khẩu mới không được để trống.");
 
+            if (req.NewPassword.Length < 6)
+                return new ApiResponse<string>(400, "Mật khẩu mới phải ít nhất 6 ký tự.");
+
+            if (!Regex.IsMatch(req.NewPassword, @"^(?=.*[A-Za-z])(?=.*\d).+$"))
+                return new ApiResponse<string>(400, "Mật khẩu mới phải gồm cả chữ và số.");
             user.PasswordHash = PasswordHelper.HashPasswordBCrypt(req.NewPassword);
             _context.Users.Update(user);
             await _context.SaveChangesAsync();

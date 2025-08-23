@@ -121,5 +121,20 @@ namespace TripWiseAPI.Controllers
         {
             return await _authService.ResetPasswordAsync(req);
         }
+        // --- API gửi lại OTP đăng ký ---
+        [HttpPost("resend-signup-otp")]
+        public async Task<IActionResult> ResendSignupOtp([FromBody] ResendSignupOtpRequest request)
+        {
+            var result = await _authService.ResendSignupOtpAsync(request.SignupRequestId, request.Email);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        // --- API gửi lại OTP quên mật khẩu ---
+        [HttpPost("resend-forgot-password-otp")]
+        public async Task<IActionResult> ResendForgotPasswordOtp([FromBody] ResendForgotPasswordOtpRequest request)
+        {
+            var result = await _authService.ResendForgotPasswordOtpAsync(request.Email);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
