@@ -606,17 +606,17 @@ namespace TripWiseAPI.Services
 
             var subject = "Yêu cầu hủy Booking #" + booking.BookingId;
             var body = $@"
-Xin chào {fullName},
+            Xin chào {fullName},
 
-Bạn đã gửi yêu cầu hủy booking thành công.
-Lý do huỷ: {cancelReason}
-Số tiền hoàn lại dự kiến: {preview.RefundAmount:N0} VND ({preview.RefundPercent * 100}%)
+            Bạn đã gửi yêu cầu hủy booking thành công.
+            Lý do huỷ: {cancelReason}
+            Số tiền hoàn lại dự kiến: {preview.RefundAmount:N0} VND ({preview.RefundPercent * 100}%)
 
-Hình thức nhận tiền: {refundMethod}.
-Trạng thái hoàn tiền: {(preview.RefundAmount > 0 ? "Đang chờ admin duyệt" : "Không áp dụng hoàn tiền")}.
+            Hình thức nhận tiền: {refundMethod}.
+            Trạng thái hoàn tiền: {(preview.RefundAmount > 0 ? "Đang chờ admin duyệt" : "Không áp dụng hoàn tiền")}.
 
-Cảm ơn bạn đã sử dụng dịch vụ!
-";
+            Cảm ơn bạn đã sử dụng dịch vụ!
+            ";
             await EmailHelper.SendEmailAsync(booking.User.Email, subject, body);
 
             return new CancelResultDto
