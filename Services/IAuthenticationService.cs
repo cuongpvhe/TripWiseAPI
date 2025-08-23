@@ -14,7 +14,8 @@ namespace TripWiseAPI.Services
         Task<ApiResponse<string>> SendForgotPasswordOtpAsync(ForgotPasswordRequest req);
         Task<ApiResponse<string>> VerifyForgotPasswordOtpAsync(string enteredOtp, VerifyForgotOtpRequest req);
         Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordRequest req);
-
+        Task<ApiResponse<string>> ResendSignupOtpAsync(string signupRequestId, string email);
+        Task<ApiResponse<string>> ResendForgotPasswordOtpAsync(string email);
     }
 
 

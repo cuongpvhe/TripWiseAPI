@@ -31,7 +31,6 @@ public class ApiResponse<T>
     public ApiResponse(int statusCode, string message)
     {
         StatusCode = statusCode;
-        IsSuccess = false;
         Message = message;
         Data = default;
     }
