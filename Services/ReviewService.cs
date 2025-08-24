@@ -67,7 +67,10 @@ public class ReviewService : IReviewService
 		.Where(r => r.TourId == tourId && r.Tour.TourTypesId == 2 && r.RemovedDate == null)
 		.Select(r => (double?)r.Rating)
 		.AverageAsync();
-
+		if(avgRating == null)
+		{
+			return "Tour này không có đánh giá."; // Trả về "0.0" nếu không có đánh giá
+		}
 		// Nếu không có review thì trả về "0.0"
 		return (avgRating ?? 0.0).ToString("0.0");
 	}
@@ -78,7 +81,7 @@ public class ReviewService : IReviewService
 		var review = _context.Reviews.Find(id);
 		if (review == null)
 		{
-			return new ApiResponse<string>(404, "Review not found.");
+			return new ApiResponse<string>(404, "Tour này không có đánh giá");
 		}
 
 		review.RemovedDate = DateTime.UtcNow;
@@ -90,15 +93,19 @@ public class ReviewService : IReviewService
 	}
 
 	// ✅ Đánh giá tour thường
-	public async Task<ApiResponse<string>> ReviewTourPartnerAsync(int userId, ReviewTourDto dto)
+	public async Task<ApiResponse<string>> ReviewTourPartnerAsync(int userId, ReviewTourTourPartnerDto dto)
 	{
-		if (dto.TourId == null)
-			return new ApiResponse<string>(400, "TourId là bắt buộc.");
+		var tourExists = await _context.Tours.AnyAsync(t => t.TourId == dto.TourId && t.TourTypesId==2 && t.Status == "Approved");
+		if (!tourExists)
+		{
+			return new ApiResponse<string>(400, "TourId không tồn tại.");
+		}
 		if (dto.Rating < 1 || dto.Rating > 5)
 			return new ApiResponse<string>(400, "Rating phải nằm trong khoảng từ 1 đến 5 sao.");
 
 		var review = new Review
 		{
+
 			UserId = userId,
 			TourId = dto.TourId,
 			Rating = dto.Rating,
@@ -117,7 +124,7 @@ public class ReviewService : IReviewService
 		var reviews = await _context.Reviews
 			.Where(r => r.TourId == tourId && r.Tour.TourTypesId == 2) // 1: Tour thường
 			.Include(r => r.User)
-			.Where(r => r.RemovedDate == null) // Chỉ lấy những review chưa bị xóa	
+			.Where(r => r.RemovedDate == null && r.Tour.Status== "Approved") // Chỉ lấy những review chưa bị xóa	
 			.OrderByDescending(r => r.CreatedDate)
 			.ToListAsync();
 
@@ -127,7 +134,43 @@ public class ReviewService : IReviewService
 			UserName = r.User?.UserName ?? "Unknown",
 			Rating = r.Rating ?? 0,
 			Comment = r.Comment,
-			CreatedDate = r.CreatedDate
+			CreatedDate = r.CreatedDate,
+			CreatedBy=r.CreatedBy
 		}).ToList();
 	}
+
+	public async Task<ApiResponse<List<ReviewTourPartnerDto>>> GetReviewsByPartnerAsync(int userId)
+	{
+		// Tìm Partner theo UserId
+		var partner = await _context.Partners.FirstOrDefaultAsync(p => p.UserId == userId);
+		if (partner == null)
+		{
+			return new ApiResponse<List<ReviewTourPartnerDto>>(401, "Người dùng này không phải là partner.", null);
+		}
+
+		// Lấy danh sách review của partner
+		var reviews = await _context.Reviews
+			.Include(r => r.Tour)
+			.Include(r => r.User)
+			.Where(r => r.Tour.PartnerId == partner.PartnerId)   // lọc theo PartnerId
+			.Select(r => new ReviewTourPartnerDto
+			{
+				ReviewId = r.ReviewId,
+				UserName = r.User != null ? r.User.UserName : "Unknown",
+				TourName = r.Tour.TourName,
+				Rating = (int)r.Rating,
+				Comment = r.Comment,
+				CreatedDate = r.CreatedDate
+			})
+			.ToListAsync();
+
+		if (!reviews.Any())
+		{
+			return new ApiResponse<List<ReviewTourPartnerDto>>(404, "Không có review nào cho partner này.", null);
+		}
+
+		return new ApiResponse<List<ReviewTourPartnerDto>>(200, "Lấy danh sách review thành công.", reviews);
+	}
+
+
 }

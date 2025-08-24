@@ -7,6 +7,7 @@ public interface IReviewService {
 	Task<ApiResponse<string>> DeleteReview(int userId, int id);
 	Task<string> AVGRatingAI();
 	Task<string> AVGRatingTourPartner(int tourId);
-	Task<ApiResponse<string>> ReviewTourPartnerAsync(int userId, ReviewTourDto dto);
+	Task<ApiResponse<string>> ReviewTourPartnerAsync(int userId, ReviewTourTourPartnerDto dto);
 	Task<IEnumerable<ReviewResponseDto>> GetReviewsForTourPartnerAsync(int tourId);
+	Task<ApiResponse<List<ReviewTourPartnerDto>>> GetReviewsByPartnerAsync(int partnerId);
 }
