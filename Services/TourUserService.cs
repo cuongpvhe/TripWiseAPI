@@ -144,8 +144,8 @@ namespace TripWiseAPI.Services
             return await _dbContext.Bookings
                 .Where(b => b.UserId == userId
                             && (b.BookingStatus == "Success"
-                                || (b.BookingStatus == "Cancelled" && b.CancelType != null))
-                                || b.BookingStatus == "CancelPending")
+                                || (b.BookingStatus == "Cancelled" && b.CancelType != null)
+                                || b.BookingStatus == "CancelPending"))
                                 
                 .Include(b => b.Tour)
                 .Select(b => new BookedTourDto
