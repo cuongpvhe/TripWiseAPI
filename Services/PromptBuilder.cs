@@ -608,6 +608,7 @@ namespace TripWiseAPI.Services
                 - **Bao gồm TẤT CẢ các hoạt động trong ngày được cập nhật**, không chỉ hoạt động thay đổi
                 - **Tuyệt đối giữ nguyên** các hoạt động không liên quan đến yêu cầu
                 - **Tất cả address phải thuộc {{request.Destination}}**
+                - `"image"`: **ƯU TIÊN SỬ DỤNG URL ảnh từ relatedKnowledge**, nếu không có thì để chuỗi rỗng `""`
 
                 ```json
                 {
