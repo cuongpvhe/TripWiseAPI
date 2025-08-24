@@ -78,7 +78,7 @@ namespace TripWiseAPI.Controllers
 		// POST: api/Review/tour
 		[Authorize]
 		[HttpPost("tour-partner")]
-		public async Task<IActionResult> ReviewTour([FromBody] ReviewTourDto dto)
+		public async Task<IActionResult> ReviewTour([FromBody] ReviewTourTourPartnerDto dto)
 		{
 			var userIdClaim = User.FindFirst("UserId")?.Value;
 			if (!int.TryParse(userIdClaim, out int userId))
@@ -103,6 +103,16 @@ namespace TripWiseAPI.Controllers
 			var result = await _reviewService.AVGRatingTourPartner(tourId);
 			return Ok(result);
 		}
-
+		[Authorize]
+		[HttpGet("GetAllreviewtour-partner")]
+		public async Task<IActionResult> GetAllReviewTourPartner()
+		{
+			var userIdClaim = User.FindFirst("UserId")?.Value;
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized("Không xác định được người dùng.");
+			var reviews = await _reviewService.GetReviewsByPartnerAsync(userId);
+			if (reviews == null) return NotFound("Không tìm thấy đánh giá cho tour này.");
+			return Ok(reviews);
+		}
 	}
 }

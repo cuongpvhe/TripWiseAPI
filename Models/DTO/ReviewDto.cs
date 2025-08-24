@@ -22,7 +22,13 @@
 		public string? Comment { get; set; }
 
 	}
+	public class ReviewTourTourPartnerDto
+	{
+		public int TourId { get; set; }
+		public int Rating { get; set; }
+		public string? Comment { get; set; }
 
+	}
 	public class ReviewResponseDto
 	{
 		public int ReviewId { get; set; }
@@ -32,5 +38,14 @@
         public int? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
 	}
-
+	public class ReviewTourPartnerDto
+	{
+		public int ReviewId { get; set; }
+		public string? UserName { get; set; }
+		public int Rating { get; set; }
+		public string? Comment { get; set; }
+		public string? TourName { get; set; }
+		public int? CreatedBy { get; set; }
+		public DateTime? CreatedDate { get; set; }
+	}
 }
