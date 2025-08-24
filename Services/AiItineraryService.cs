@@ -134,7 +134,10 @@ namespace TripWiseAPI.Services
         "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
         "https://static.vinwonders.com/2022/12/du-lich-viet-nam-05.jpg",
         "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
-        "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
+        "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg",
+        "https://sakos.vn/wp-content/uploads/2024/09/thumb-3.jpg",
+        "https://hoangphuan.com/wp-content/uploads/2024/07/tat-tan-tat-kinh-nghiem-du-lich-tour-da-nang-ma-ban-phai-biet.jpg",
+        "https://viettintravel.com.vn/wp-content/uploads/2013/06/cau-rong1.png"
     };
             var random = new Random();
 
@@ -655,7 +658,11 @@ namespace TripWiseAPI.Services
             "https://cdn.tcdulichtphcm.vn/upload/4-2022/images/2022-11-16/1668604785-6.jpeg",
             "https://static.vinwonders.com/2022/12/du-lich-viet-nam-05.jpg",
             "https://s-aicmscdn.vietnamhoinhap.vn/vnhn-media/24/1/18/dulichvn_65a88ab6bdc3a.jpg",
-            "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg"
+            "https://dulichtoday.vn/wp-content/uploads/2017/04/pho-co-Hoi-An.jpg",
+            "https://sakos.vn/wp-content/uploads/2024/09/thumb-3.jpg",
+            "https://hoangphuan.com/wp-content/uploads/2024/07/tat-tan-tat-kinh-nghiem-du-lich-tour-da-nang-ma-ban-phai-biet.jpg",
+            "https://viettintravel.com.vn/wp-content/uploads/2013/06/cau-rong1.png"
+
         };
         var random = new Random();
 
