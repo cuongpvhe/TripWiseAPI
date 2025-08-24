@@ -14,9 +14,23 @@ public class ReviewService : IReviewService
 
 	public async Task<ApiResponse<string>> ReviewTourAIAsync(int userId, ReviewTourAIDto dto)
 	{
+		var tourExists = await _context.Tours
+			.AnyAsync(t => t.TourId == dto.TourId
+						   && t.TourTypesId == 1
+						   && t.Status == "Approved");
+		if (!tourExists)
+		{
+			return new ApiResponse<string>(200, "Tour không tồn tại.");
+		}
 
 		if (dto.Rating < 1 || dto.Rating > 5)
 			return new ApiResponse<string>(400, "Rating phải nằm trong khoảng từ 1 đến 5 sao.");
+		var alreadyReviewed = await _context.Reviews
+	   .AnyAsync(r => r.UserId == userId && r.TourId == dto.TourId);
+		if (alreadyReviewed)
+		{
+			return new ApiResponse<string>(200, "Bạn đã đánh giá tour này rồi, không thể đánh giá lần nữa.");
+		}
 
 		var review = new Review
 		{
@@ -81,7 +95,7 @@ public class ReviewService : IReviewService
 		var review = _context.Reviews.Find(id);
 		if (review == null)
 		{
-			return new ApiResponse<string>(404, "Tour này không có đánh giá");
+			return new ApiResponse<string>(200, "Tour này không có đánh giá");
 		}
 
 		review.RemovedDate = DateTime.UtcNow;
@@ -95,17 +109,39 @@ public class ReviewService : IReviewService
 	// ✅ Đánh giá tour thường
 	public async Task<ApiResponse<string>> ReviewTourPartnerAsync(int userId, ReviewTourTourPartnerDto dto)
 	{
-		var tourExists = await _context.Tours.AnyAsync(t => t.TourId == dto.TourId && t.TourTypesId==2 && t.Status == "Approved");
+		// Kiểm tra tour có tồn tại, loại Partner và được duyệt
+		var tourExists = await _context.Tours
+			.AnyAsync(t => t.TourId == dto.TourId
+						   && t.TourTypesId == 2
+						   && t.Status == "Approved");
 		if (!tourExists)
 		{
-			return new ApiResponse<string>(400, "TourId không tồn tại.");
+			return new ApiResponse<string>(200, "Tour không tồn tại hoặc chưa được duyệt.");
 		}
-		if (dto.Rating < 1 || dto.Rating > 5)
-			return new ApiResponse<string>(400, "Rating phải nằm trong khoảng từ 1 đến 5 sao.");
 
+		// Kiểm tra rating hợp lệ
+		if (dto.Rating < 1 || dto.Rating > 5)
+			return new ApiResponse<string>(200, "Rating phải nằm trong khoảng từ 1 đến 5 sao.");
+
+		// Kiểm tra user có booking tour này chưa
+		var hasBooking = await _context.Bookings
+			.AnyAsync(b => b.UserId == userId && b.TourId == dto.TourId);
+		if (!hasBooking)
+		{
+			return new ApiResponse<string>(200, "Bạn cần đặt tour này trước khi đánh giá.");
+		}
+
+		// Kiểm tra user đã review tour này chưa
+		var alreadyReviewed = await _context.Reviews
+			.AnyAsync(r => r.UserId == userId && r.TourId == dto.TourId);
+		if (alreadyReviewed)
+		{
+			return new ApiResponse<string>(200, "Bạn đã đánh giá tour này rồi, không thể đánh giá lần nữa.");
+		}
+
+		// Tạo review mới
 		var review = new Review
 		{
-
 			UserId = userId,
 			TourId = dto.TourId,
 			Rating = dto.Rating,
@@ -119,6 +155,7 @@ public class ReviewService : IReviewService
 
 		return new ApiResponse<string>(200, "Đánh giá Tour thành công.");
 	}
+
 	public async Task<IEnumerable<ReviewResponseDto>> GetReviewsForTourPartnerAsync(int tourId)
 	{
 		var reviews = await _context.Reviews
@@ -145,7 +182,7 @@ public class ReviewService : IReviewService
 		var partner = await _context.Partners.FirstOrDefaultAsync(p => p.UserId == userId);
 		if (partner == null)
 		{
-			return new ApiResponse<List<ReviewTourPartnerDto>>(401, "Người dùng này không phải là partner.", null);
+			return new ApiResponse<List<ReviewTourPartnerDto>>(200, "Người dùng này không phải là partner.", null);
 		}
 
 		// Lấy danh sách review của partner
@@ -166,7 +203,7 @@ public class ReviewService : IReviewService
 
 		if (!reviews.Any())
 		{
-			return new ApiResponse<List<ReviewTourPartnerDto>>(404, "Không có review nào cho partner này.", null);
+			return new ApiResponse<List<ReviewTourPartnerDto>>(200, "Không có review nào cho partner này.", null);
 		}
 
 		return new ApiResponse<List<ReviewTourPartnerDto>>(200, "Lấy danh sách review thành công.", reviews);
