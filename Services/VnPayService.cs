@@ -242,7 +242,8 @@ namespace TripWiseAPI.Services
             }
             // 🔹 Tính tổng số người đã đặt thành công
             var bookedCount = await _dbContext.Bookings
-                .Where(b => b.TourId == request.TourId && b.BookingStatus == PaymentStatus.Success)
+                .Where(b => b.TourId == request.TourId && (b.BookingStatus == BookingStatus.Success
+                    || b.BookingStatus == BookingStatus.CancelPending))
                 .SumAsync(b => (int?)b.Quantity) ?? 0;
 
             // 🔹 Đảm bảo availableSlots >= 0
@@ -325,7 +326,8 @@ namespace TripWiseAPI.Services
 
             // 🔹 Đếm tổng số người đã đặt thành công
             var bookedCount = await _dbContext.Bookings
-                .Where(b => b.TourId == booking.TourId && b.BookingStatus == PaymentStatus.Success)
+                .Where(b => b.TourId == booking.TourId && (b.BookingStatus == BookingStatus.Success
+                    || b.BookingStatus == BookingStatus.CancelPending))
                 .SumAsync(b => (int?)b.Quantity) ?? 0;
 
             // 🔹 Đảm bảo không âm

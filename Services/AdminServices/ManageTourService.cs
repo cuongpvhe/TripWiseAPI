@@ -158,7 +158,8 @@ namespace TripWiseAPI.Services.AdminServices
             if (tour.Status == "Approved")
             {
                 var bookedCount = await _dbContext.Bookings
-                    .Where(b => b.TourId == tour.TourId && b.BookingStatus == PaymentStatus.Success)
+                    .Where(b => b.TourId == tour.TourId && (b.BookingStatus == BookingStatus.Success
+                    || b.BookingStatus == BookingStatus.CancelPending))
                     .SumAsync(b => (int?)b.Quantity) ?? 0;
 
                 availableSlots = Math.Max(0, (decimal)(tour.MaxGroupSize - bookedCount));
