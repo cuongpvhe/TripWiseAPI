@@ -356,7 +356,7 @@ namespace TripWiseAPI.Services
         public async Task<List<object>> GetToursByUserIdAsync(int userId)
         {
             return await _dbContext.Tours
-                .Where(t => t.CreatedBy == userId)
+                .Where(t => t.CreatedBy == userId && t.TourTypesId == 1)
                 .Select(t => new
                 {
                     t.TourId,

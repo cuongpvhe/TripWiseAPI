@@ -598,7 +598,7 @@ namespace TripWiseAPI.Services
             booking.CancelReason = cancelReason;
             booking.RefundAmount = preview.RefundAmount;
             booking.RefundMethod = refundMethod;
-            booking.RefundStatus = preview.RefundAmount > 0 ? RefundStatus.Pending : null;
+            booking.RefundStatus = RefundStatus.Pending;
 
             await _dbContext.SaveChangesAsync();
 
@@ -613,7 +613,7 @@ namespace TripWiseAPI.Services
             Số tiền hoàn lại dự kiến: {preview.RefundAmount:N0} VND ({preview.RefundPercent * 100}%)
 
             Hình thức nhận tiền: {refundMethod}.
-            Trạng thái hoàn tiền: {(preview.RefundAmount > 0 ? "Đang chờ admin duyệt" : "Không áp dụng hoàn tiền")}.
+            Trạng thái hoàn tiền: Đang chờ admin duyệt.
 
             Cảm ơn bạn đã sử dụng dịch vụ!
             ";

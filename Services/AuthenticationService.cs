@@ -123,6 +123,14 @@ namespace TripWiseAPI.Services
                     await _context.SaveChangesAsync();
                 }
             }
+            else
+            {
+                if (!user.IsActive)
+                {
+                    throw new UnauthorizedAccessException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.");
+                }
+            }
+
             var accessToken = await JwtHelper.GenerateJwtToken(_config, _appSettingsService, user);
             var refreshToken = JwtHelper.GenerateRefreshToken();
 
