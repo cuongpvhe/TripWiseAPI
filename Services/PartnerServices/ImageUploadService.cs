@@ -45,13 +45,6 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<string> UploadImageFromFileAsync(IFormFile imageFile)
         {
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
-            var extension = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
-
-            if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
-            {
-                throw new InvalidOperationException("Chỉ cho phép upload ảnh định dạng .jpg, .jpeg, .png, .gif");
-            }
             using var stream = imageFile.OpenReadStream();
 
             var uploadParams = new ImageUploadParams
