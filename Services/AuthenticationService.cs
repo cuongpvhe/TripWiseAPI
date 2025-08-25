@@ -24,6 +24,10 @@ namespace TripWiseAPI.Services
 			_appSettingsService = appSettingsService;
 		}
 
+        /// <summary>
+        /// Đăng nhập bằng email và mật khẩu.
+        /// </summary>
+        /// <param name="loginModel">Thông tin đăng nhập (email, mật khẩu, thiết bị).</param>
         public async Task<(string accessToken, string refreshToken)> LoginAsync(LoginModel loginModel)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginModel.Email);
@@ -52,6 +56,10 @@ namespace TripWiseAPI.Services
             return (accessToken, refreshToken);
         }
 
+        /// <summary>
+        /// Đăng nhập bằng tài khoản Google.
+        /// </summary>
+        /// <param name="model">Thông tin đăng nhập từ Google (IdToken, DeviceId).</param>
         public async Task<(string accessToken, string refreshToken)> GoogleLoginAsync(GoogleLoginModel model)
         {
             var payload = await GoogleJsonWebSignature.ValidateAsync(model.IdToken, new GoogleJsonWebSignature.ValidationSettings
@@ -147,6 +155,10 @@ namespace TripWiseAPI.Services
             return (accessToken, refreshToken);
         }
 
+        /// <summary>
+        /// Làm mới access token bằng refresh token.
+        /// </summary>
+        /// <param name="request">Thông tin request (refreshToken, deviceId).</param>
         public async Task<(string accessToken, string refreshToken)> RefreshTokenAsync(RefreshTokenRequest request)
         {
             var token = await _context.UserRefreshTokens
@@ -171,6 +183,10 @@ namespace TripWiseAPI.Services
             return (accessToken, token.RefreshToken);
         }
 
+        /// <summary>
+        /// Đăng xuất khỏi hệ thống bằng deviceId.
+        /// </summary>
+        /// <param name="deviceId">ID thiết bị cần đăng xuất.</param>
         public async Task<string> LogoutAsync(string deviceId)
         {
             var token = await _context.UserRefreshTokens.FirstOrDefaultAsync(t => t.DeviceId == deviceId);
@@ -184,6 +200,10 @@ namespace TripWiseAPI.Services
             return "Không tìm thấy token.";
         }
 
+        /// <summary>
+        /// Đăng ký tài khoản mới.
+        /// </summary>
+        /// <param name="req">Thông tin đăng ký (email, username, password,...).</param>
         public async Task<SignupResponse> SignupAsync(SignupRequest req)
         {
             var response = new SignupResponse { SignupRequestId = req.SignupRequestId };
@@ -240,6 +260,11 @@ namespace TripWiseAPI.Services
             return response;
         }
 
+        /// <summary>
+        /// Xác thực OTP khi đăng ký tài khoản.
+        /// </summary>
+        /// <param name="enteredOtp">Mã OTP người dùng nhập.</param>
+        /// <param name="data">Thông tin đăng ký (email, username, password,...).</param>
         public async Task<ApiResponse<string>> VerifyOtpAsync(string enteredOtp, UserSignupData data)
         {
             var otp = await _context.SignupOtps.FindAsync(data.SignupRequestId);
@@ -324,6 +349,12 @@ namespace TripWiseAPI.Services
 
             return new ApiResponse<string>(201, SuccessMessage.SignupSuccess);
         }
+
+        /// <summary>
+        /// Gửi lại mã OTP cho đăng ký.
+        /// </summary>
+        /// <param name="signupRequestId">ID yêu cầu đăng ký.</param>
+        /// <param name="email">Email của người dùng.</param>
         public async Task<ApiResponse<string>> ResendSignupOtpAsync(string signupRequestId, string email)
         {
             // Xoá OTP cũ nếu tồn tại
@@ -354,6 +385,11 @@ namespace TripWiseAPI.Services
             return new ApiResponse<string>(200, "OTP mới đã được gửi đến email.");
         }
 
+        /// <summary>
+        /// Xoá refresh token cũ trên cùng thiết bị.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
+        /// <param name="deviceId">ID thiết bị.</param>
         private async Task DeleteOldRefreshToken(int userId, string deviceId)
         {
             var token = await _context.UserRefreshTokens.FirstOrDefaultAsync(t => t.UserId == userId && t.DeviceId == deviceId);
@@ -363,6 +399,11 @@ namespace TripWiseAPI.Services
                 await _context.SaveChangesAsync();
             }
         }
+
+        /// <summary>
+        /// Gửi mã OTP quên mật khẩu.
+        /// </summary>
+        /// <param name="req">Thông tin yêu cầu quên mật khẩu (email).</param>
         public async Task<ApiResponse<string>> SendForgotPasswordOtpAsync(ForgotPasswordRequest req)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
@@ -393,6 +434,12 @@ namespace TripWiseAPI.Services
 
             return new ApiResponse<string>(200, "Mã OTP đã được gửi đến email");
         }
+
+        /// <summary>
+        /// Xác thực OTP quên mật khẩu.
+        /// </summary>
+        /// <param name="enteredOtp">Mã OTP nhập vào.</param>
+        /// <param name="req">Thông tin request (email).</param>
         public async Task<ApiResponse<string>> VerifyForgotPasswordOtpAsync(string enteredOtp, VerifyForgotOtpRequest req)
         {
             var otp = await _context.SignupOtps.FindAsync(req.Email);
@@ -422,6 +469,11 @@ namespace TripWiseAPI.Services
             await _context.SaveChangesAsync();
             return new ApiResponse<string>("OTP hợp lệ, bạn có thể đổi mật khẩu");
         }
+
+        /// <summary>
+        /// Gửi lại mã OTP quên mật khẩu.
+        /// </summary>
+        /// <param name="email">Email của người dùng.</param>
         public async Task<ApiResponse<string>> ResendForgotPasswordOtpAsync(string email)
         {
             // Xoá OTP cũ nếu tồn tại
@@ -452,6 +504,10 @@ namespace TripWiseAPI.Services
             return new ApiResponse<string>(200, "OTP mới đã được gửi đến email.");
         }
 
+        /// <summary>
+        /// Đặt lại mật khẩu mới cho người dùng.
+        /// </summary>
+        /// <param name="req">Thông tin đặt lại mật khẩu (email, mật khẩu mới).</param>
         public async Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordRequest req)
         {
             var user = await _context.Users.FirstOrDefaultAsync(x => x.Email == req.Email);

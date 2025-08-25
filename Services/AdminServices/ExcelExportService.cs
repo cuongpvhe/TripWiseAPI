@@ -7,6 +7,15 @@ namespace TripWiseAPI.Services.AdminServices
 {
     public class ExcelExportService
     {
+        /// <summary>
+        /// Xuất báo cáo chi tiết và tổng hợp doanh thu từ template Excel.
+        /// </summary>
+        /// <param name="templatePath">Đường dẫn đến file template Excel.</param>
+        /// <param name="details">Danh sách chi tiết giao dịch doanh thu.</param>
+        /// <param name="totals">Danh sách tổng hợp doanh thu theo tháng.</param>
+        /// <param name="fromDate">Ngày bắt đầu lọc dữ liệu.</param>
+        /// <param name="toDate">Ngày kết thúc lọc dữ liệu.</param>
+        /// <returns>File Excel dưới dạng mảng byte.</returns>
         public byte[] ExportRevenueFromExcelTemplate(
             string templatePath,
             List<RevenueDetailDto> details,
@@ -62,7 +71,7 @@ namespace TripWiseAPI.Services.AdminServices
                 var d = details[i];
                 int row = detailStartRow + i;
 
-                sheet.Cells[row, 1].Value = i + 1; // STT
+                sheet.Cells[row, 1].Value = i + 1; 
                 sheet.Cells[row, 2].Value = d.Month;
                 sheet.Cells[row, 3].Value = d.TransactionType;
                 sheet.Cells[row, 4].Value = d.ItemDescription;
@@ -121,7 +130,7 @@ namespace TripWiseAPI.Services.AdminServices
                 var t = totals[i];
                 int row = summaryDataRow + i;
 
-                sheet.Cells[row, 1].Value = i + 1; // STT
+                sheet.Cells[row, 1].Value = i + 1; 
                 sheet.Cells[row, 2].Value = t.Month;
                 sheet.Cells[row, 3].Value = t.TotalBookings;
                 sheet.Cells[row, 4].Value = t.TotalPlans;
@@ -149,6 +158,14 @@ namespace TripWiseAPI.Services.AdminServices
             return package.GetAsByteArray();
         }
 
+        /// <summary>
+        /// Xuất báo cáo hiệu suất đối tác sang Excel.
+        /// </summary>
+        /// <param name="templatePath">Đường dẫn file template Excel.</param>
+        /// <param name="data">Danh sách hiệu suất đối tác.</param>
+        /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
+        /// <returns>File Excel dưới dạng mảng byte.</returns>
         public byte[] ExportPartnerPerformanceToExcel(string templatePath, List<PartnerPerformanceDto> data, DateTime fromDate, DateTime toDate)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -214,6 +231,13 @@ namespace TripWiseAPI.Services.AdminServices
 
             return package.GetAsByteArray();
         }
+
+        /// <summary>
+        /// Xuất thống kê đặt tour sang Excel.
+        /// </summary>
+        /// <param name="templatePath">Đường dẫn file template Excel.</param>
+        /// <param name="data">Danh sách thống kê đặt tour.</param>
+        /// <returns>File Excel dưới dạng mảng byte.</returns>
         public byte[] ExportTourBookingStatsExcel(string templatePath, List<TourBookingStatDto> data)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -242,7 +266,7 @@ namespace TripWiseAPI.Services.AdminServices
                 var row = startRow + i;
                 var item = data[i];
 
-                sheet.Cells[row, 1].Value = i + 1; // STT
+                sheet.Cells[row, 1].Value = i + 1; 
                 sheet.Cells[row, 2].Value = item.Month;
                 sheet.Cells[row, 3].Value = item.TourID;
                 sheet.Cells[row, 4].Value = item.TourName;

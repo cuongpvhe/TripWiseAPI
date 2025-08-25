@@ -28,6 +28,11 @@ namespace TripWiseAPI.Services
 			_logService = firebaseLog;
 		}
 
+        /// <summary>
+        /// Tạo URL thanh toán VNPay cho một đơn hàng/booking.
+        /// </summary>
+        /// <param ="model">Thông tin đơn hàng cần thanh toán</param>
+        /// <param ="context">HttpContext hiện tại</param>
         public string CreatePaymentUrl(PaymentInformationModel model, HttpContext context)
         {
             var orderCode = string.IsNullOrEmpty(model.OrderCode)
@@ -86,6 +91,12 @@ namespace TripWiseAPI.Services
             return pay.CreateRequestUrl(_configuration["Vnpay:BaseUrl"], _configuration["Vnpay:HashSecret"]);
         }
 
+        /// <summary>
+        /// Người dùng mua gói (Plan) thông qua VNPay.
+        /// </summary>
+        /// <param ="request">Thông tin request mua gói</param>
+        /// <param ="userId">ID người dùng</param>
+        /// <param ="context">HttpContext hiện tại</param>
         public async Task<string> BuyPlanAsync(BuyPlanRequest request, int userId, HttpContext context)
         {
             var plan = await _dbContext.Plans
@@ -109,6 +120,12 @@ namespace TripWiseAPI.Services
 			await _logService.LogAsync(userId: userId, action: "Create", message: $"Người dùng {userId} mua gói {plan.PlanName} giá {plan.Price:N0} VND", statusCode: 200, createdBy: userId, createdDate:DateTime.Now);
 			return CreatePaymentUrl(paymentModel, context);
         }
+
+        /// <summary>
+        /// Lấy lịch sử giao dịch thanh toán của người dùng.
+        /// </summary>
+        /// <param ="userId">ID người dùng</param>
+        /// <param ="status">Trạng thái thanh toán (Pending/Success/Failed...)</param>
         public async Task<List<PaymentTransactionDto>> GetPaymentHistoryAsync(int userId, string? status)
         {
             var query = _dbContext.PaymentTransactions
@@ -168,11 +185,13 @@ namespace TripWiseAPI.Services
                     BookingId = bookingId
                 });
             }
-
-
             return result;
         }
 
+        /// <summary>
+        /// Lấy chi tiết booking theo ID.
+        /// </summary>
+        /// <param ="bookingId">ID booking</param>
         public async Task<BookingDetailDto?> GetBookingDetailAsync(int bookingId)
         {
             var booking = await 
@@ -219,6 +238,12 @@ namespace TripWiseAPI.Services
 
             return booking;
         }
+
+        /// <summary>
+        /// Tạo booking ở trạng thái nháp (Draft).
+        /// </summary>
+        /// <param ="request">Thông tin request đặt tour</param>
+        /// <param ="userId">ID người dùng</param>
         public async Task<BookingDetailDto> CreateBookingDraftAsync(BuyTourRequest request, int userId)
         {
             var user = await _dbContext.Users
@@ -306,6 +331,11 @@ namespace TripWiseAPI.Services
             };
         }
 
+        /// <summary>
+        /// Cập nhật booking ở trạng thái nháp (Draft).
+        /// </summary>
+        /// <param ="request">Thông tin cần update</param>
+        /// <param ="userId">ID người dùng</param>
         public async Task<BookingDetailDto> UpdateBookingDraftAsync(UpdateBookingRequest request, int userId)
         {
             var booking = await _dbContext.Bookings
@@ -316,7 +346,7 @@ namespace TripWiseAPI.Services
             if (booking == null || booking.BookingStatus != "Draft")
                 throw new Exception("Không tìm thấy booking nháp hợp lệ.");
 
-            // ✅ Nếu hết hạn → xóa và báo lỗi
+            // Nếu hết hạn → xóa và báo lỗi
             if (booking.ExpiredDate.HasValue && booking.ExpiredDate < TimeHelper.GetVietnamTime())
             {
                 _dbContext.Bookings.Remove(booking);
@@ -324,16 +354,16 @@ namespace TripWiseAPI.Services
                 throw new Exception("Đặt tour đã hết thời gian chờ, vui lòng tạo lại.");
             }
 
-            // 🔹 Đếm tổng số người đã đặt thành công
+            // Đếm tổng số người đã đặt thành công
             var bookedCount = await _dbContext.Bookings
                 .Where(b => b.TourId == booking.TourId && (b.BookingStatus == BookingStatus.Success
                     || b.BookingStatus == BookingStatus.CancelPending))
                 .SumAsync(b => (int?)b.Quantity) ?? 0;
 
-            // 🔹 Đảm bảo không âm
+            // Đảm bảo không âm
             var availableSlots = Math.Max(0, (decimal)(booking.Tour.MaxGroupSize - bookedCount));
 
-            // ✅ Tính đúng số lượng người (nếu request có gửi lên thì update, ngược lại giữ nguyên)
+            // Tính đúng số lượng người (nếu request có gửi lên thì update, ngược lại giữ nguyên)
             booking.NumAdults = request.NumAdults ?? booking.NumAdults;
             booking.NumChildren5To10 = request.NumChildren5To10 ?? booking.NumChildren5To10;
             booking.NumChildrenUnder5 = request.NumChildrenUnder5 ?? booking.NumChildrenUnder5;
@@ -348,7 +378,7 @@ namespace TripWiseAPI.Services
 
             booking.Quantity = (int)totalPeople;
 
-            // ✅ Tính lại Amount khi số lượng thay đổi
+            // Tính lại Amount khi số lượng thay đổi
             booking.TotalAmount =
                 (decimal)((booking.NumAdults * (booking.Tour.PriceAdult ?? 0)) +
                 (booking.NumChildren5To10 * (booking.Tour.PriceChild5To10 ?? 0)) +
@@ -357,7 +387,7 @@ namespace TripWiseAPI.Services
             booking.ModifiedDate = TimeHelper.GetVietnamTime();
             booking.ModifiedBy = userId;
 
-            // ✅ Cập nhật thông tin User (nếu có truyền thì mới update, ngược lại giữ nguyên)
+            // Cập nhật thông tin User (nếu có truyền thì mới update, ngược lại giữ nguyên)
             if (!string.IsNullOrWhiteSpace(request.FirstName))
                 booking.User.FirstName = request.FirstName;
 
@@ -393,7 +423,12 @@ namespace TripWiseAPI.Services
             };
         }
 
-
+        /// <summary>
+        /// Xác nhận booking nháp và tạo URL thanh toán VNPay.
+        /// </summary>
+        /// <param ="bookingId">ID booking</param>
+        /// <param ="userId">ID người dùng</param>
+        /// <param ="context">HttpContext hiện tại</param>
         public async Task<string> ConfirmBookingAndPayAsync(int bookingId, int userId, HttpContext context)
         {
             var booking = await _dbContext.Bookings
@@ -457,6 +492,10 @@ namespace TripWiseAPI.Services
 			return CreatePaymentUrl(paymentModel, context);
         }
 
+        /// <summary>
+        /// Xử lý callback từ VNPay sau khi thanh toán.
+        /// </summary>
+        /// <param ="query">Query string trả về từ VNPay</param>
         public async Task HandlePaymentCallbackAsync(IQueryCollection query)
         {
             using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
@@ -540,7 +579,10 @@ namespace TripWiseAPI.Services
             }
         }
 
-        // Preview hoàn tiền mà không cần submit
+        /// <summary>
+        /// Xem trước số tiền hoàn khi hủy booking (chưa submit).
+        /// </summary>
+        /// <param ="bookingId">ID booking</param>
         public async Task<CancelResultDto> PreviewCancelAsync(int bookingId)
         {
             var booking = await _dbContext.Bookings
@@ -577,9 +619,13 @@ namespace TripWiseAPI.Services
             };
         }
 
-        // ============================
-        // USER CANCEL
-        // ============================
+        /// <summary>
+        /// Người dùng yêu cầu hủy booking và hoàn tiền.
+        /// </summary>
+        /// <param ="bookingId">ID booking</param>
+        /// <param ="userId">ID người dùng</param>
+        /// <param ="refundMethod">Phương thức hoàn tiền</param>
+        /// <param ="cancelReason">Lý do hủy</param>
         public async Task<CancelResultDto> CancelBookingAsync(int bookingId, int userId, string refundMethod, string cancelReason)
         {
             var booking = await _dbContext.Bookings
@@ -659,6 +705,5 @@ namespace TripWiseAPI.Services
         {
             public const string UserCancel = "UserCancel";
         }
-
     }
 }

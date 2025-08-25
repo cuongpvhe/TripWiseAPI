@@ -32,6 +32,14 @@ namespace TripWiseAPI.Services.PartnerServices
             _configuration = configuration;
 			_logService = firebaseLogService;
 		}
+
+        /// <summary>
+        /// Lấy danh sách tour theo trạng thái và khoảng thời gian.
+        /// </summary>
+        /// <param name="partnerId">ID của đối tác.</param>
+        /// <param name="status">Trạng thái tour (PendingApproval, Approved, Rejected,...).</param>
+        /// <param name="fromDate">Ngày bắt đầu lọc.</param>
+        /// <param name="toDate">Ngày kết thúc lọc.</param>
         public async Task<List<PendingTourDto>> GetToursByStatusAsync(int partnerId, string? status, DateTime? fromDate, DateTime? toDate)
 
         {
@@ -82,30 +90,35 @@ namespace TripWiseAPI.Services.PartnerServices
             return tours;
         }
 
+        /// <summary>
+        /// Tạo mới một tour.
+        /// </summary>
+        /// <param name="request">Thông tin tour cần tạo.</param>
+        /// <param name="partnerId">ID của đối tác tạo tour.</param>
         public async Task<int> CreateTourAsync(CreateTourDto request, int partnerId)
         {
             
-            if (string.IsNullOrWhiteSpace(request.TourName))
-                throw new ArgumentException("Tên tour không được để trống");
-            if (string.IsNullOrWhiteSpace(request.Description))
-                throw new ArgumentException("Mô tả tour không được để trống");
-            if (!int.TryParse(request.Duration, out int duration) || duration <= 0)
-                throw new ArgumentException("Thời lượng tour phải là số nguyên dương");
-            if (string.IsNullOrWhiteSpace(request.Location))
-                throw new ArgumentException("Địa điểm không được để trống");
-            if (request.MaxGroupSize <= 0)
-                throw new ArgumentException("Số lượng nhóm tối đa phải lớn hơn 0");
-            if (string.IsNullOrWhiteSpace(request.Category))
-                throw new ArgumentException("Danh mục không được để trống");
-            if (string.IsNullOrWhiteSpace(request.TourNote))
-                throw new ArgumentException("Ghi chú tour không được để trống");
-            if (string.IsNullOrWhiteSpace(request.TourInfo))
-                throw new ArgumentException("Thông tin tour không được để trống");
-            if (!request.StartTime.HasValue)
-                throw new ArgumentException("Thời gian bắt đầu không được để trống");
-            var now = TimeHelper.GetVietnamTime();
-            if (request.StartTime.Value <= now)
-                throw new ArgumentException("Thời gian bắt đầu tour phải lớn hơn thời gian hiện tại.");
+            //if (string.IsNullOrWhiteSpace(request.TourName))
+            //    throw new ArgumentException("Tên tour không được để trống");
+            //if (string.IsNullOrWhiteSpace(request.Description))
+            //    throw new ArgumentException("Mô tả tour không được để trống");
+            //if (!int.TryParse(request.Duration, out int duration) || duration <= 0)
+            //    throw new ArgumentException("Thời lượng tour phải là số nguyên dương");
+            //if (string.IsNullOrWhiteSpace(request.Location))
+            //    throw new ArgumentException("Địa điểm không được để trống");
+            //if (request.MaxGroupSize <= 0)
+            //    throw new ArgumentException("Số lượng nhóm tối đa phải lớn hơn 0");
+            //if (string.IsNullOrWhiteSpace(request.Category))
+            //    throw new ArgumentException("Danh mục không được để trống");
+            //if (string.IsNullOrWhiteSpace(request.TourNote))
+            //    throw new ArgumentException("Ghi chú tour không được để trống");
+            //if (string.IsNullOrWhiteSpace(request.TourInfo))
+            //    throw new ArgumentException("Thông tin tour không được để trống");
+            //if (!request.StartTime.HasValue)
+            //    throw new ArgumentException("Thời gian bắt đầu không được để trống");
+            //var now = TimeHelper.GetVietnamTime();
+            //if (request.StartTime.Value <= now)
+            //    throw new ArgumentException("Thời gian bắt đầu tour phải lớn hơn thời gian hiện tại.");
             var tour = new Tour
             {
                 StartTime = request.StartTime,
@@ -157,6 +170,13 @@ namespace TripWiseAPI.Services.PartnerServices
 
             return tour.TourId;
         }
+
+        /// <summary>
+        /// Thêm hình ảnh cho tour.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
+        /// <param name="imageUrl">URL hình ảnh.</param>
+        /// <param name="partnerId">ID đối tác.</param>
         private async Task AddTourImageAsync(int tourId, string imageUrl, int partnerId)
         {
             var image = new Image
@@ -181,19 +201,24 @@ namespace TripWiseAPI.Services.PartnerServices
             await _dbContext.SaveChangesAsync();
         }
 
-
+        /// <summary>
+        /// Tạo mới hành trình (Itinerary) cho tour.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
+        /// <param name="request">Thông tin hành trình cần tạo.</param>
+        /// <param name="userId">ID đối tác tạo.</param>
         public async Task<int> CreateItineraryAsync(int tourId, CreateItineraryDto request, int userId)
         {
-            if (request == null)
-                throw new ArgumentNullException(nameof(request), "Dữ liệu hành trình không được để trống.");
+            //if (request == null)
+            //    throw new ArgumentNullException(nameof(request), "Dữ liệu hành trình không được để trống.");
 
-            if (string.IsNullOrWhiteSpace(request.Title))
-                throw new ArgumentException("Tiêu đề hành trình không được để trống.");
-            if (request.DayNumber != null && request.DayNumber <= 0)
-                throw new ArgumentException("Ngày trong hành trình phải lớn hơn 0.");
-            var tourExists = await _dbContext.Tours.AnyAsync(t => t.TourId == tourId);
-            if (!tourExists)
-                throw new ArgumentException("Tour không tồn tại.");
+            //if (string.IsNullOrWhiteSpace(request.Title))
+            //    throw new ArgumentException("Tiêu đề hành trình không được để trống.");
+            //if (request.DayNumber != null && request.DayNumber <= 0)
+            //    throw new ArgumentException("Ngày trong hành trình phải lớn hơn 0.");
+            //var tourExists = await _dbContext.Tours.AnyAsync(t => t.TourId == tourId);
+            //if (!tourExists)
+            //    throw new ArgumentException("Tour không tồn tại.");
             // Tạo đối tượng
             var itinerary = new TourItinerary
             {
@@ -210,16 +235,22 @@ namespace TripWiseAPI.Services.PartnerServices
             return itinerary.ItineraryId;
         }
 
+        /// <summary>
+        /// Tạo mới một hoạt động trong hành trình.
+        /// </summary>
+        /// <param name="itineraryId">ID của hành trình.</param>
+        /// <param name="request">Thông tin hoạt động.</param>
+        /// <param name="userId">ID người tạo.</param>
         public async Task<int> CreateActivityAsync(int itineraryId, ActivityDayDto request, int userId)
         {
-            if (request == null)
-                throw new ArgumentNullException(nameof(request), "Dữ liệu hoạt động không được để trống.");
+            //if (request == null)
+            //    throw new ArgumentNullException(nameof(request), "Dữ liệu hoạt động không được để trống.");
 
-            if (string.IsNullOrWhiteSpace(request.PlaceDetail))
-                throw new ArgumentException("Tên địa điểm không được để trống.");
+            //if (string.IsNullOrWhiteSpace(request.PlaceDetail))
+            //    throw new ArgumentException("Tên địa điểm không được để trống.");
 
-            if (request.EstimatedCost < 0)
-                throw new ArgumentException("Chi phí ước tính phải lớn hơn 0.");
+            //if (request.EstimatedCost < 0)
+            //    throw new ArgumentException("Chi phí ước tính phải lớn hơn 0.");
 
             // Lấy itinerary và tour tương ứng
             var itinerary = await _dbContext.TourItineraries
@@ -295,6 +326,13 @@ namespace TripWiseAPI.Services.PartnerServices
 
             return attraction.TourAttractionsId;
         }
+
+        /// <summary>
+        /// Thêm ảnh cho một hoạt động trong hành trình.
+        /// </summary>
+        /// <param name="attractionId">ID hoạt động.</param>
+        /// <param name="imageUrl">URL ảnh.</param>
+        /// <param name="userId">ID người tạo.</param>
         private async Task AddTourAttractionImageAsync(int attractionId, string imageUrl, int userId)
         {
             var image = new Image
@@ -319,7 +357,11 @@ namespace TripWiseAPI.Services.PartnerServices
             await _dbContext.SaveChangesAsync();
         }
 
-
+        /// <summary>
+        /// Gửi tour để phê duyệt.
+        /// </summary>
+        /// <param name="tourId">ID tour cần gửi.</param>
+        /// <param name="partnerId">ID đối tác gửi tour.</param>
         public async Task<bool> SubmitTourAsync(int tourId, int partnerId)
         {
             var tour = await _dbContext.Tours.FirstOrDefaultAsync(t => t.TourId == tourId && t.CreatedBy == partnerId);
@@ -333,6 +375,12 @@ namespace TripWiseAPI.Services.PartnerServices
 			await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        /// <summary>
+        /// Lấy chi tiết tour bao gồm lịch trình, hoạt động và hình ảnh.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
+        /// <param name="userId">ID của người dùng sở hữu tour.</param>
         public async Task<TourDetailDto?> GetTourDetailAsync(int tourId, int userId)
         {
             var tour = await _dbContext.Tours
@@ -344,7 +392,7 @@ namespace TripWiseAPI.Services.PartnerServices
             // Mặc định null
             decimal? availableSlots = null;
 
-            // 🔹 Chỉ tính nếu tour Approved
+            // Chỉ tính nếu tour Approved
             if (tour.Status == "Approved")
             {
                 var bookedCount = await _dbContext.Bookings
@@ -354,8 +402,6 @@ namespace TripWiseAPI.Services.PartnerServices
 
                 availableSlots = Math.Max(0, (decimal)(tour.MaxGroupSize - bookedCount));
             }
-
-
             var itineraryDtos = new List<ItineraryDetailDto>();
             foreach (var itinerary in tour.TourItineraries.OrderBy(i => i.DayNumber))
             {
@@ -395,8 +441,6 @@ namespace TripWiseAPI.Services.PartnerServices
                     }).ToList()
                 });
             }
-
-
             var imageUrls = tour.TourImages
                 .Where(ti => ti.Image != null && ti.Image.RemovedDate == null)
                 .Select(ti => ti.Image.ImageUrl)
@@ -436,12 +480,18 @@ namespace TripWiseAPI.Services.PartnerServices
                 PriceChild5To10 = (decimal)tour.PriceChild5To10,
                 PriceChildUnder5 = (decimal)tour.PriceChildUnder5,
                 AvailableSlots = (int?)(availableSlots ?? 0)
-
             };
-
             return dto;
         }
 
+        /// <summary>
+        /// Cập nhật thông tin một tour.
+        /// </summary>
+        /// <param name="tourId">ID của tour cần cập nhật.</param>
+        /// <param name="request">Thông tin cập nhật tour.</param>
+        /// <param name="userId">ID người dùng thực hiện cập nhật.</param>
+        /// <param name="imageFiles">Danh sách file ảnh tải lên (nếu có).</param>
+        /// <param name="imageUrls">Danh sách URL ảnh tải lên (nếu có).</param>
         public async Task<bool> UpdateTourAsync(int tourId, UpdateTourDto request, int userId, List<IFormFile>? imageFiles, List<string>? imageUrls)
         {
             if (string.IsNullOrWhiteSpace(request.TourName))
@@ -506,6 +556,11 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
+        /// <summary>
+        /// Xoá nhiều ảnh của tour.
+        /// </summary>
+        /// <param name="imageIds">Danh sách ID ảnh cần xoá.</param>
+        /// <param name="userId">ID người dùng thực hiện thao tác.</param>
         public async Task<bool> DeleteMultipleTourImagesAsync(List<int> imageIds, int userId)
         {
             var tourImages = await _dbContext.TourImages
@@ -535,6 +590,11 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
+        /// <summary>
+        /// Xoá nhiều ảnh của hoạt động (attraction).
+        /// </summary>
+        /// <param name="imageIds">Danh sách ID ảnh cần xoá.</param>
+        /// <param name="userId">ID người dùng thực hiện thao tác.</param>
         public async Task<bool> DeleteMultipleTourAttractionImagesAsync(List<int> imageIds, int userId)
         {
             if (imageIds == null || imageIds.Count == 0) return false;
@@ -562,7 +622,12 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
-
+        /// <summary>
+        /// Cập nhật thông tin một hành trình (Itinerary).
+        /// </summary>
+        /// <param name="itineraryId">ID hành trình cần cập nhật.</param>
+        /// <param name="userId">ID người dùng thực hiện cập nhật.</param>
+        /// <param name="request">Thông tin hành trình mới.</param>
         public async Task<bool> UpdateItineraryAsync(int itineraryId, int userId, CreateItineraryDto request)
         {
             var itinerary = await _dbContext.TourItineraries.FindAsync(itineraryId);
@@ -577,6 +642,12 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
+        /// <summary>
+        /// Cập nhật thông tin một hoạt động (Activity).
+        /// </summary>
+        /// <param name="activityId">ID hoạt động cần cập nhật.</param>
+        /// <param name="userId">ID người dùng thực hiện cập nhật.</param>
+        /// <param name="request">Thông tin hoạt động mới.</param>
         public async Task<bool> UpdateActivityAsync(int activityId, int userId, UpdateActivityDto request)
         {
             var activity = await _dbContext.TourAttractions
@@ -619,7 +690,11 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
-
+        /// <summary>
+        /// Xoá một hành trình cùng toàn bộ hoạt động và ảnh bên trong.
+        /// </summary>
+        /// <param name="userId">ID người dùng thực hiện thao tác.</param>
+        /// <param name="itineraryId">ID hành trình cần xoá.</param>
         public async Task<bool> DeleteItineraryAsync(int userId, int itineraryId)
         {
             var itinerary = await _dbContext.TourItineraries
@@ -662,7 +737,11 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
-
+        /// <summary>
+        /// Xoá một hoạt động (Activity) trong hành trình.
+        /// </summary>
+        /// <param name="userId">ID người dùng thực hiện thao tác.</param>
+        /// <param name="activityId">ID hoạt động cần xoá.</param>
         public async Task<bool> DeleteActivityAsync(int userId, int activityId)
         {
             var activity = await _dbContext.TourAttractions
@@ -698,6 +777,12 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
+        /// <summary>
+        /// Xoá hoặc chuyển tour sang trạng thái nháp.
+        /// </summary>
+        /// <param name="tourId">ID tour cần thao tác.</param>
+        /// <param name="action">Hành động thực hiện ("delete" hoặc "to_draft").</param>
+        /// <param name="partnerId">ID đối tác thực hiện thao tác.</param>
         public async Task<bool> DeleteOrDraftTourAsync(int tourId, string action, int partnerId)
         {
             var tour = await _dbContext.Tours
@@ -778,6 +863,12 @@ namespace TripWiseAPI.Services.PartnerServices
 			await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        /// <summary>
+        /// Lấy danh sách tour theo địa điểm.
+        /// </summary>
+        /// <param name="location">Địa điểm cần tìm kiếm.</param>
+        /// <param name="maxResults">Số lượng kết quả tối đa trả về (mặc định là 4).</param>
         public async Task<List<Tour>> GetToursByLocationAsync(string location, int maxResults = 4)
         {
             return await _dbContext.Tours
@@ -794,6 +885,10 @@ namespace TripWiseAPI.Services.PartnerServices
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Lấy bản nháp của tour hoặc tạo mới nếu chưa có.
+        /// </summary>
+        /// <param name="tourId">ID của tour gốc.</param>
         public async Task<TourDraftDto?> GetOrCreateDraftAsync(int tourId)
         {
             // Nếu đã có bản nháp thì trả về luôn
@@ -960,6 +1055,11 @@ namespace TripWiseAPI.Services.PartnerServices
             return dto;
         }
 
+        /// <summary>
+        /// Gửi bản nháp tour đến Admin để xét duyệt.
+        /// </summary>
+        /// <param name="tourId">ID của tour gốc.</param>
+        /// <param name="userId">ID của người dùng gửi bản nháp.</param>
         public async Task SendDraftToAdminAsync(int tourId, int userId)
         {
             var draft = await _dbContext.Tours
@@ -975,6 +1075,11 @@ namespace TripWiseAPI.Services.PartnerServices
             // TODO: Thêm gửi thông báo/email cho admin nếu cần
         }
 
+        /// <summary>
+        /// Gửi lại bản nháp tour đã bị từ chối để Admin duyệt lại.
+        /// </summary>
+        /// <param name="originalTourId">ID của tour gốc.</param>
+        /// <param name="partnerId">ID đối tác thực hiện gửi lại.</param>
         public async Task<bool> ResubmitRejectedDraftAsync(int originalTourId, int partnerId)
         {
             var rejectedDraft = await _dbContext.Tours
@@ -1005,6 +1110,13 @@ namespace TripWiseAPI.Services.PartnerServices
             await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        /// <summary>
+/// Lấy thống kê tour của đối tác trong khoảng thời gian cho trước.
+/// </summary>
+/// <param name="partnerId">ID của đối tác.</param>
+/// <param name="fromDate">Ngày bắt đầu (có thể null).</param>
+/// <param name="toDate">Ngày kết thúc (có thể null).</param>
         public async Task<List<PartnerTourStatisticsDto>> GetPartnerTourStatisticsAsync(int partnerId, DateTime? fromDate, DateTime? toDate)
         {
             var results = new List<PartnerTourStatisticsDto>();

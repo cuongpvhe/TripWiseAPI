@@ -16,6 +16,12 @@ namespace TripWiseAPI.Services.AdminServices
             _dbContext = dbContext;
         }
 
+
+        /// <summary>
+        /// Lấy báo cáo doanh thu chi tiết và tổng hợp theo khoảng thời gian.
+        /// </summary>
+        /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         public async Task<(List<RevenueDetailDto> Details, List<RevenueSummaryDto> Totals)> GetRevenueSummaryAsync(DateTime fromDate, DateTime toDate)
         {
             var details = new List<RevenueDetailDto>();
@@ -70,6 +76,12 @@ namespace TripWiseAPI.Services.AdminServices
 
             return (details, totals);
         }
+
+        /// <summary>
+        /// Lấy thống kê hiệu suất của các đối tác theo khoảng thời gian.
+        /// </summary>
+        /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         public async Task<List<PartnerPerformanceDto>> GetPartnerPerformanceAsync(DateTime fromDate, DateTime toDate)
         {
             var result = new List<PartnerPerformanceDto>();
@@ -96,6 +108,12 @@ namespace TripWiseAPI.Services.AdminServices
             }
             return result;
         }
+
+        /// <summary>
+        /// Lấy thống kê đặt tour theo khoảng thời gian.
+        /// </summary>
+        /// <param name="fromDate">Ngày bắt đầu.</param>
+        /// <param name="toDate">Ngày kết thúc.</param>
         public async Task<List<TourBookingStatDto>> GetTourBookingStatsAsync(DateTime fromDate, DateTime toDate)
         {
             var result = new List<TourBookingStatDto>();
@@ -128,6 +146,11 @@ namespace TripWiseAPI.Services.AdminServices
 
             return result;
         }
+
+        /// <summary>
+        /// Lấy thống kê doanh thu hàng năm cho admin.
+        /// </summary>
+        /// <param name="year">Năm cần thống kê. Nếu null thì lấy tất cả các năm.</param>
         public async Task<List<AnnualAdminStatDto>> GetAnnualAdminStatsAsync(int? year)
         {
             var result = new List<AnnualAdminStatDto>();
@@ -159,7 +182,10 @@ namespace TripWiseAPI.Services.AdminServices
 
             return result;
         }
-       
+
+        /// <summary>
+        /// Lấy số liệu thống kê cho Dashboard của Admin.
+        /// </summary>
         public async Task<List<DashboardStatisticsDto>> GetDashboardStatistics()
         {
             var result = new List<DashboardStatisticsDto>();

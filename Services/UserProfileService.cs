@@ -17,6 +17,10 @@ namespace TripWiseAPI.Services
             _imageService = imageService;
         }
 
+        /// <summary>
+        /// Lấy thông tin hồ sơ của người dùng.
+        /// </summary>
+        /// <param ="userId">ID của người dùng cần lấy thông tin.</param>
         public async Task<UserProfileDTO?> GetProfileAsync(int userId)
         {
             var user = await _context.Users
@@ -39,6 +43,12 @@ namespace TripWiseAPI.Services
 
             return user;
         }
+
+        /// <summary>
+        /// Cập nhật thông tin hồ sơ người dùng.
+        /// </summary>
+        /// <param ="userId">ID người dùng cần cập nhật</param>
+        /// <param ="dto">DTO chứa thông tin hồ sơ cần cập nhật</param>
         public async Task<bool> UpdateProfileAsync(int userId, UserProfileUpdateDTO dto)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId && u.RemovedDate == null);

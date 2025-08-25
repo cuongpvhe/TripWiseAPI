@@ -18,6 +18,14 @@ public class DraftCleanupService : BackgroundService
         _serviceProvider = serviceProvider;
     }
 
+    /// <summary>
+    /// Hàm thực thi chính của BackgroundService.
+    /// Thực hiện dọn dẹp:
+    /// - Xóa booking Draft đã hết hạn.
+    /// - Xóa booking Pending quá 15 phút cùng các PaymentTransaction liên quan.
+    /// - Xóa các PaymentTransaction Pending quá 15 phút không gắn với booking.
+    /// </summary>
+    /// <param name="stoppingToken">Token để dừng service khi cần.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -36,11 +44,11 @@ public class DraftCleanupService : BackgroundService
                 db.Bookings.RemoveRange(expiredDrafts);
             }
 
-            //  Tìm booking Pending > 5 phút
+            //  Tìm booking Pending > 15 phút
             var expiredPendingBookings = await db.Bookings
                 .Where(b => b.BookingStatus == PaymentStatus.Pending
                             && b.CreatedDate.HasValue
-                            && b.CreatedDate.Value.AddMinutes(5) < now)
+                            && b.CreatedDate.Value.AddMinutes(15) < now)
                 .ToListAsync(stoppingToken);
 
             if (expiredPendingBookings.Any())
@@ -58,11 +66,11 @@ public class DraftCleanupService : BackgroundService
                 db.Bookings.RemoveRange(expiredPendingBookings);
             }
 
-            //  Xoá luôn PaymentTransaction Pending > 5 phút (nếu có cái lẻ không gắn booking)
+            //  Xoá luôn PaymentTransaction Pending > 15 phút (nếu có cái lẻ không gắn booking)
             var expiredPayments = await db.PaymentTransactions
                 .Where(p => p.PaymentStatus == PaymentStatus.Pending
                             && p.CreatedDate.HasValue
-                            && p.CreatedDate.Value.AddMinutes(5) < now)
+                            && p.CreatedDate.Value.AddMinutes(15) < now)
                 .ToListAsync(stoppingToken);
 
             if (expiredPayments.Any())

@@ -18,6 +18,9 @@ namespace TripWiseAPI.Services
             _dbContext = dbContext;
         }
 
+        /// <summary>
+        /// Lấy danh sách tour đã được duyệt (Approved).
+        /// </summary>
         public async Task<List<PendingTourDto>> GetApprovedToursAsync()
         {
             return await _dbContext.Tours
@@ -42,6 +45,10 @@ namespace TripWiseAPI.Services
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Lấy chi tiết tour đã duyệt theo ID.
+        /// </summary>
+        /// <param name="tourId">ID của tour</param>
         public async Task<TourDetailDto?> GetApprovedTourDetailAsync(int tourId)
         {
             var tour = await _dbContext.Tours
@@ -140,6 +147,11 @@ namespace TripWiseAPI.Services
 
             return dto;
         }
+
+        /// <summary>
+        /// Lấy danh sách tour đã đặt (bao gồm cả đã hủy).
+        /// </summary>
+        /// <param name="userId">ID người dùng</param>
         public async Task<List<BookedTourDto>> GetBookedToursWithCancelledAsync(int userId)
         {
             return await _dbContext.Bookings
@@ -164,6 +176,11 @@ namespace TripWiseAPI.Services
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Thêm tour vào danh sách yêu thích (wishlist).
+        /// </summary>
+        /// <param name="userId">ID người dùng</param>
+        /// <param name="tourId">ID tour</param>
         public async Task<bool> AddToWishlistAsync(int userId, int tourId)
         {
             var exists = await _dbContext.Wishlists
@@ -183,6 +200,11 @@ namespace TripWiseAPI.Services
             return true;
         }
 
+        /// <summary>
+        /// Xóa tour khỏi danh sách yêu thích (wishlist).
+        /// </summary>
+        /// <param name="userId">ID người dùng</param>
+        /// <param name="tourId">ID tour</param>
         public async Task<bool> RemoveFromWishlistAsync(int userId, int tourId)
         {
             var wishlist = await _dbContext.Wishlists
@@ -195,6 +217,10 @@ namespace TripWiseAPI.Services
             return true;
         }
 
+        /// <summary>
+        /// Lấy danh sách tour trong wishlist của người dùng.
+        /// </summary>
+        /// <param name="userId">ID người dùng</param>
         public async Task<List<PendingTourDto>> GetUserWishlistAsync(int userId)
         {
             return await _dbContext.Wishlists

@@ -18,6 +18,9 @@ public class UserService : IUserService
         _firebaseLogService = firebaseLogService;
     }
 
+    /// <summary>
+    /// Lấy danh sách tất cả người dùng đang hoạt động.
+    /// </summary>
     public async Task<List<UserDto>> GetAllAsync()
     {
         return await _context.Users
@@ -32,6 +35,10 @@ public class UserService : IUserService
                 CreatedDate = u.CreatedDate
             }).ToListAsync();
     }
+
+    /// <summary>
+    /// Lấy danh sách người dùng đã bị vô hiệu hóa .
+    /// </summary>
     public async Task<List<UserDto>> GetAllUserNonActiveAsync()
     {
         return await _context.Users
@@ -48,6 +55,12 @@ public class UserService : IUserService
                 
             }).ToListAsync();
     }
+
+    /// <summary>
+    /// Tạo mới một người dùng.
+    /// </summary>
+    /// <param name="dto">Thông tin người dùng cần tạo.</param>
+    /// <param name="createdBy">ID của admin tạo người dùng.</param>
     public async Task<bool> CreateUserAsync(UserCreateDto dto, int createdBy)
     {
         // Validate cơ bản
@@ -148,6 +161,13 @@ public class UserService : IUserService
         return true;
     }
 
+
+    /// <summary>
+    /// Xóa (vô hiệu hóa) người dùng.
+    /// </summary>
+    /// <param name="userId">ID người dùng cần xóa.</param>
+    /// <param name="removedBy">ID admin thực hiện.</param>
+    /// <param name="removedReason">Lý do xóa.</param>
     public async Task<bool> DeleteUserAsync(int userId, int removedBy, string removedReason)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId && u.RemovedDate == null);
@@ -164,7 +184,10 @@ public class UserService : IUserService
         return true;
     }
 
-
+    /// <summary>
+    /// Kích hoạt lại người dùng bị vô hiệu hóa.
+    /// </summary>
+    /// <param name="userId">ID người dùng.</param>
     public async Task<bool> SetActiveStatusAsync(int userId)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
@@ -180,7 +203,10 @@ public class UserService : IUserService
         return true;
     }
 
-
+    /// <summary>
+    /// Lấy chi tiết thông tin một người dùng.
+    /// </summary>
+    /// <param name="userId">ID người dùng.</param>
     public async Task<UserDetailDto?> GetUserDetailAsync(int userId)
     {
         var user = await _context.Users.FindAsync(userId);
@@ -194,7 +220,7 @@ public class UserService : IUserService
                 .Select(u => u.UserName)
                 .FirstOrDefaultAsync();
         }
-        // 🔍 Lấy gói Plan hiện tại
+        // Lấy gói Plan hiện tại
         var activePlan = await _context.UserPlans
             .Include(up => up.Plan)
             .Where(up => up.UserId == userId && up.IsActive == true)
@@ -251,6 +277,13 @@ public class UserService : IUserService
 
         return dto;
     }
+
+    /// <summary>
+    /// Cập nhật thông tin người dùng.
+    /// </summary>
+    /// <param name="userId">ID người dùng cần cập nhật.</param>
+    /// <param name="dto">Thông tin cập nhật.</param>
+    /// <param name="modifiedBy">ID admin thực hiện cập nhật.</param>
     public async Task<bool> UpdateUserAsync(int userId, UserUpdatelDto dto, int modifiedBy)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId && u.RemovedDate == null);

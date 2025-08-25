@@ -13,6 +13,12 @@ namespace TripWiseAPI.Services.PartnerServices
             _dbContext = dbContext;
         }
 
+        /// <summary>
+        /// Lấy danh sách booking của một đối tác dựa trên PartnerId.
+        /// Chỉ lấy những booking có trạng thái thành công (Success) 
+        /// hoặc đã hủy có lý do (Cancelled + CancelType != null).
+        /// </summary>
+        /// <param name="partnerId">ID của đối tác.</param>
         public async Task<List<BookingDto>> GetBookingsByPartnerAsync(int partnerId)
         {
             var bookings = await _dbContext.Bookings
@@ -37,6 +43,13 @@ namespace TripWiseAPI.Services.PartnerServices
 
             return bookings;
         }
+
+        /// <summary>
+        /// Lấy danh sách booking theo TourId.
+        /// Chỉ lấy những booking có trạng thái thành công (Success) 
+        /// hoặc đã hủy có lý do (Cancelled + CancelType != null).
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
         public async Task<List<BookingDto>> GetBookingsByTourIdAsync(int tourId)
         {
             var bookings = await _dbContext.Bookings

@@ -19,6 +19,15 @@ namespace TripWiseAPI.Services.AdminServices
             _imageUploadService = imageUploadService;
 			_logService = firebaseLog;
 		}
+
+        /// <summary>
+        /// Lấy danh sách tour theo trạng thái, đối tác, và khoảng thời gian.
+        /// </summary>
+        /// <param name="status">Trạng thái tour (PendingApproval, Approved,...).</param>
+        /// <param name="partnerId">ID đối tác.</param>
+        /// <param name="fromDate">Ngày bắt đầu lọc.</param>
+        /// <param name="toDate">Ngày kết thúc lọc.</param>
+        /// <returns>Danh sách tour PendingTourDto.</returns>
         public async Task<List<PendingTourDto>> GetToursByStatusAsync( string? status, int? partnerId, DateTime? fromDate, DateTime? toDate)
         {
             var query =
@@ -82,6 +91,9 @@ namespace TripWiseAPI.Services.AdminServices
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Lấy danh sách tour bị từ chối.
+        /// </summary>
         public async Task<List<PendingTourDto>> GetRejectToursAsync()
         {
 
@@ -104,7 +116,13 @@ namespace TripWiseAPI.Services.AdminServices
 
             return tours;
         }
-       
+
+        /// <summary>
+        /// Duyệt tour bởi Admin.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
+        /// <param name="adminId">ID admin thực hiện duyệt.</param>
+        /// <returns>True nếu thành công.</returns>
         public async Task<bool> ApproveTourAsync(int tourId, int adminId)
         {
             var tour = await _dbContext.Tours.FindAsync(tourId);
@@ -117,6 +135,10 @@ namespace TripWiseAPI.Services.AdminServices
 			await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        /// <summary>
+        /// Chuyển tour sang trạng thái PendingApproval.
+        /// </summary>
         public async Task<bool> PendingTourAsync(int tourId, int adminId)
         {
             var tour = await _dbContext.Tours.FindAsync(tourId);
@@ -129,6 +151,13 @@ namespace TripWiseAPI.Services.AdminServices
 			await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        /// <summary>
+        /// Từ chối tour bởi Admin.
+        /// </summary>
+        /// <param name="tourId">ID của tour.</param>
+        /// <param name="reason">Lý do từ chối.</param>
+        /// <param name="adminId">ID admin.</param>
         public async Task<bool> RejectTourAsync(int tourId, string reason, int adminId)
         {
             var tour = await _dbContext.Tours.FindAsync(tourId);
@@ -142,6 +171,11 @@ namespace TripWiseAPI.Services.AdminServices
 			await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        /// <summary>
+        /// Lấy chi tiết tour cho Admin (bao gồm itinerary, hoạt động, ảnh,...).
+        /// Nếu tour trạng thái Approved thì tính cả số slot còn trống.
+        /// </summary>
         public async Task<TourDetailDto?> GetTourDetailForAdminAsync(int tourId)
         {
             var tour = await _dbContext.Tours
@@ -264,6 +298,10 @@ namespace TripWiseAPI.Services.AdminServices
 
             return dto;
         }
+
+        /// <summary>
+        /// Gửi bản nháp cập nhật lên và thay thế tour gốc.
+        /// </summary>
         public async Task SubmitDraftAsync(int tourId, int adminId)
         {
             // Lấy bản nháp
@@ -423,6 +461,10 @@ namespace TripWiseAPI.Services.AdminServices
 
             await _dbContext.SaveChangesAsync();
         }
+
+        /// <summary>
+        /// Admin từ chối bản nháp cập nhật tour.
+        /// </summary>
         public async Task<bool> RejectDraftAsync(int tourId, string reason, int adminId)
         {
             var draftTour = await _dbContext.Tours
@@ -440,6 +482,10 @@ namespace TripWiseAPI.Services.AdminServices
 			await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        /// <summary>
+        /// Admin xác nhận duyệt hoàn tiền (refund).
+        /// </summary>
         public async Task<bool> ConfirmRefundAsync(int bookingId, int adminId)
         {
             var booking = await _dbContext.Bookings
@@ -492,7 +538,9 @@ namespace TripWiseAPI.Services.AdminServices
             return true;
         }
 
-
+        /// <summary>
+        /// Admin xác nhận đã hoàn tiền thành công.
+        /// </summary>
         public async Task<bool> CompleteRefundAsync(int bookingId, int adminId)
         {
             var booking = await _dbContext.Bookings
@@ -525,6 +573,9 @@ namespace TripWiseAPI.Services.AdminServices
             return true;
         }
 
+        /// <summary>
+        /// Admin từ chối yêu cầu hoàn tiền.
+        /// </summary>
         public async Task<bool> RejectRefundAsync(int bookingId, string rejectReason, int adminId)
         {
             var booking = await _dbContext.Bookings
@@ -555,6 +606,10 @@ namespace TripWiseAPI.Services.AdminServices
 
             return true;
         }
+
+        /// <summary>
+        /// Lấy danh sách booking cho Admin, có filter theo partner, ngày, và trạng thái.
+        /// </summary>
         public async Task<List<BookingDto>> GetBookingsForAdminAsync(int? partnerId, DateTime? fromDate, DateTime? toDate, string? status)
         {
             var query = _dbContext.Bookings
