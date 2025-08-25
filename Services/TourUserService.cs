@@ -157,6 +157,7 @@ namespace TripWiseAPI.Services
                     Quantity = b.Quantity,
                     TotalAmount = b.TotalAmount,
                     BookingStatus = b.BookingStatus,
+                    RefundStatus = b.RefundStatus,
                     CreatedDate = b.CreatedDate
                 })
                 .OrderByDescending(b => b.CreatedDate)

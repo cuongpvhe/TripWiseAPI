@@ -30,6 +30,7 @@ namespace TripWiseAPI.Services.PartnerServices
                     UserName = b.User.FirstName + " " + b.User.LastName,
                     TotalAmount = b.TotalAmount,
                     BookingStatus = b.BookingStatus,
+                    RefundStatus = b.RefundStatus,
                     CreatedDate = (DateTime)b.CreatedDate
                 })
                 .ToListAsync();
