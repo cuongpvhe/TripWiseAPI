@@ -53,7 +53,8 @@ namespace TripWiseAPI.Services
             if (tour == null) return null;
             // 🔹 Tính số slot còn trống (không cho số âm)
             var bookedCount = await _dbContext.Bookings
-                .Where(b => b.TourId == tourId && b.BookingStatus == PaymentStatus.Success)
+                .Where(b => b.TourId == tourId && (b.BookingStatus == BookingStatus.Success
+                    || b.BookingStatus == BookingStatus.CancelPending))
                 .SumAsync(b => (int?)b.Quantity) ?? 0;
 
             var availableSlots = Math.Max(0, (decimal)(tour.MaxGroupSize - bookedCount));
