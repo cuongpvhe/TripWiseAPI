@@ -22,6 +22,10 @@ namespace TripWiseAPI.Services.PartnerServices
             _logger = logger;
         }
 
+        /// <summary>
+        /// Upload ảnh trực tiếp từ một URL lên Cloudinary.
+        /// </summary>
+        /// <param name="imageUrl">Đường dẫn URL của ảnh.</param>
         public async Task<string> UploadImageFromUrlAsync(string imageUrl)
         {
             
@@ -43,6 +47,10 @@ namespace TripWiseAPI.Services.PartnerServices
             return result.SecureUrl.ToString(); // Trả về URL ảnh
         }
 
+        /// <summary>
+        /// Upload ảnh từ một file (IFormFile) lên Cloudinary.
+        /// </summary>
+        /// <param name="imageFile">File ảnh từ form upload.</param>
         public async Task<string> UploadImageFromFileAsync(IFormFile imageFile)
         {
             using var stream = imageFile.OpenReadStream();
@@ -58,6 +66,11 @@ namespace TripWiseAPI.Services.PartnerServices
             var result = await _cloudinary.UploadAsync(uploadParams);
             return result.SecureUrl.ToString(); // Trả về URL ảnh
         }
+
+        /// <summary>
+        /// Xoá ảnh khỏi Cloudinary bằng publicId.
+        /// </summary>
+        /// <param name="publicId">ID public của ảnh trên Cloudinary.</param>
         public async Task<bool> DeleteImageAsync(string publicId)
         {
             var deletionParams = new DeletionParams(publicId);
@@ -65,6 +78,11 @@ namespace TripWiseAPI.Services.PartnerServices
 
             return result.Result == "ok" || result.Result == "not found";
         }
+
+        /// <summary>
+        /// Trích xuất PublicId của ảnh từ URL Cloudinary.
+        /// </summary>
+        /// <param name="imageUrl">URL của ảnh trên Cloudinary.</param>
         public string GetPublicIdFromUrl(string imageUrl)
         {
             try

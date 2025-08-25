@@ -18,10 +18,17 @@ namespace TripWiseAPI.Services.AdminServices
             _imageUploadService = imageUploadService;
         }
 
-        #region Helpers
+        /// <summary>
+        /// Lấy cấu hình theo key (internal).
+        /// </summary>
         private async Task<AppSetting?> GetByKeyInternalAsync(string key) =>
             await _dbContext.AppSettings.FirstOrDefaultAsync(x => x.Key == key);
 
+        /// <summary>
+        /// Tạo mới hoặc cập nhật cấu hình theo key.
+        /// </summary>
+        /// <param name="key">Tên khóa cấu hình</param>
+        /// <param name="value">Giá trị cần lưu</param>
         private async Task<bool> SetOrUpdateValueAsync(string key, string value)
         {
             var setting = await GetByKeyInternalAsync(key);
@@ -33,28 +40,47 @@ namespace TripWiseAPI.Services.AdminServices
             await _dbContext.SaveChangesAsync();
             return true;
         }
-        #endregion
 
+        /// <summary>
+        /// Lấy tất cả AppSettings.
+        /// </summary>
         public async Task<List<AppSetting>> GetAllAsync() =>
             await _dbContext.AppSettings
                 .Select(x => new AppSetting { Id = x.Id, Key = x.Key, Value = x.Value })
                 .ToListAsync();
 
+        /// <summary>
+        /// Lấy cấu hình theo key.
+        /// </summary>
         public async Task<AppSetting?> GetByKeyAsync(string key) =>
             await GetByKeyInternalAsync(key);
 
+        /// <summary>
+        /// Cập nhật cấu hình từ DTO.
+        /// </summary>
         public async Task<bool> UpdateAsync(AppSetting dto) =>
             await SetOrUpdateValueAsync(dto.Key, dto.Value);
 
+        /// <summary>
+        /// Lấy giá trị cấu hình theo key (string).
+        /// </summary>
         public async Task<string?> GetValueAsync(string key) =>
             (await GetByKeyInternalAsync(key))?.Value;
 
+        /// <summary>
+        /// Lấy giá trị cấu hình dạng số nguyên.
+        /// </summary>
+        /// <param name="key">Tên khóa</param>
+        /// <param name="defaultValue">Giá trị mặc định nếu không tìm thấy hoặc sai định dạng</param>
         public async Task<int> GetIntValueAsync(string key, int defaultValue = 0)
         {
             var value = await GetValueAsync(key);
             return int.TryParse(value, out var val) ? val : defaultValue;
         }
 
+        /// <summary>
+        /// Cập nhật gói FreePlan mặc định.
+        /// </summary>
         public async Task<bool> SetFreePlanAsync(string planName)
         {
             var exists = await _dbContext.Plans
@@ -62,6 +88,9 @@ namespace TripWiseAPI.Services.AdminServices
             return exists && await SetOrUpdateValueAsync("FreePlan", planName);
         }
 
+        /// <summary>
+        /// Cập nhật gói TrialPlan mặc định.
+        /// </summary>
         public async Task<bool> SetTrialPlanAsync(string planName)
         {
             var exists = await _dbContext.Plans
@@ -69,24 +98,42 @@ namespace TripWiseAPI.Services.AdminServices
             return exists && await SetOrUpdateValueAsync("DefaultTrialPlanName", planName);
         }
 
+        /// <summary>
+        /// Lưu giá trị AppSetting.
+        /// </summary>
         public async Task<bool> SetValueAsync(string key, string value) =>
             await SetOrUpdateValueAsync(key, value);
 
+        /// <summary>
+        /// Lấy timeout session (phút).
+        /// </summary>
         public async Task<int> GetTimeoutAsync() =>
             await GetIntValueAsync("SessionTimeoutMinutes");
 
+        /// <summary>
+        /// Cập nhật timeout session.
+        /// </summary>
         public async Task UpdateTimeoutAsync(int minutes) =>
             await SetOrUpdateValueAsync("SessionTimeoutMinutes", minutes.ToString());
 
+        /// <summary>
+        /// Lấy thời gian timeout OTP (phút).
+        /// </summary>
         public async Task<int?> GetOtpTimeoutAsync()
         {
             var value = await GetValueAsync("OTP_TIMEOUT");
             return int.TryParse(value, out var minutes) ? minutes : null;
         }
 
+        /// <summary>
+        /// Cập nhật thời gian timeout OTP.
+        /// </summary>
         public async Task<bool> UpdateOtpTimeoutAsync(int timeoutMinutes) =>
             timeoutMinutes > 0 && await SetOrUpdateValueAsync("OTP_TIMEOUT", timeoutMinutes.ToString());
 
+        /// <summary>
+        /// Lấy danh sách HotNews.
+        /// </summary>
         public async Task<List<HotNewsDto>> GetAllHotNewAsync()
         {
             var data = await _dbContext.AppSettings
@@ -108,16 +155,17 @@ namespace TripWiseAPI.Services.AdminServices
             }).ToList();
         }
 
-
+        /// <summary>
+        /// Lấy HotNews theo Id.
+        /// </summary>
         public async Task<HotNewsDto?> GetByIdAsync(int id)
         {
             var setting = await _dbContext.AppSettings.FindAsync(id);
             if (setting == null) return null;
 
-            // Deserialize JSON chỉ lấy ImageUrl, RedirectUrl
             var dto = JsonSerializer.Deserialize<HotNewsDto>(setting.Value) ?? new HotNewsDto();
 
-            // Gán các thông tin từ DB
+
             dto.Id = setting.Id;
             dto.CreatedBy = setting.CreatedBy;
             dto.CreatedDate = setting.CreatedDate;
@@ -130,7 +178,12 @@ namespace TripWiseAPI.Services.AdminServices
             return dto;
         }
 
-
+        /// <summary>
+        /// Tạo mới HotNews.
+        /// </summary>
+        /// <param name="request">Request tạo HotNews</param>
+        /// <param name="createdBy">Người tạo</param>
+        /// <returns>Id của HotNews vừa tạo</returns>
         public async Task<int> CreateAsync(HotNewsRequest request, string createdBy)
         {
             var uploadedUrl = request.ImageFile != null
@@ -158,6 +211,12 @@ namespace TripWiseAPI.Services.AdminServices
             return setting.Id;
         }
 
+        /// <summary>
+        /// Cập nhật HotNews.
+        /// </summary>
+        /// <param name="id">Id HotNews</param>
+        /// <param name="request">Dữ liệu cập nhật</param>
+        /// <param name="modifiedBy">Người sửa</param>
         public async Task<bool> UpdateAsync(int id, HotNewsRequest request, string modifiedBy)
         {
             var setting = await _dbContext.AppSettings.FindAsync(id);
@@ -188,6 +247,10 @@ namespace TripWiseAPI.Services.AdminServices
             return true;
         }
 
+        /// <summary>
+        /// Xóa HotNews.
+        /// </summary>
+        /// <param name="id">Id HotNews</param>
         public async Task<bool> DeleteAsync(int id)
         {
             var setting = await _dbContext.AppSettings.FindAsync(id);

@@ -16,6 +16,10 @@ public class PartnerService : IPartnerService
         _db = db;
 		_logService = firebaseLog;
 	}
+
+    /// <summary>
+    /// Lấy danh sách tất cả đối tác đang hoạt động.
+    /// </summary>
     public async Task<List<PartnerDto>> GetAllAsync()
     {
         return await _db.Partners
@@ -36,6 +40,10 @@ public class PartnerService : IPartnerService
                 CreatedDate = p.CreatedDate
             }).ToListAsync();
     }
+
+    /// <summary>
+    /// Lấy danh sách đối tác đã bị vô hiệu hóa.
+    /// </summary>
     public async Task<List<PartnerDto>> GetAllUserNonActiveAsync()
     {
         return await _db.Partners
@@ -57,6 +65,12 @@ public class PartnerService : IPartnerService
                 RemovedDate = p.RemovedDate
             }).ToListAsync();
     }
+
+    /// <summary>
+    /// Tạo mới tài khoản đối tác.
+    /// </summary>
+    /// <param name="dto">Thông tin tài khoản đối tác cần tạo.</param>
+    /// <param name="createdBy">ID người tạo (Admin).</param>
     public async Task<bool> CreatePartnerAccountAsync(CreatePartnerAccountDto dto, int createdBy)
     {
         // Validate đầu vào
@@ -117,6 +131,13 @@ public class PartnerService : IPartnerService
 
         return true;
     }
+
+    /// <summary>
+    /// Cập nhật thông tin đối tác.
+    /// </summary>
+    /// <param name="partnerId">ID đối tác cần cập nhật.</param>
+    /// <param name="dto">Thông tin cập nhật.</param>
+    /// <param name="modifiedBy">ID người cập nhật.</param>
     public async Task<bool> UpdateAsync(int partnerId, PartnerUpdatelDto dto, int modifiedBy)
     {
         if (string.IsNullOrWhiteSpace(dto.Email))
@@ -173,6 +194,11 @@ public class PartnerService : IPartnerService
 		await _db.SaveChangesAsync();
         return true;
     }
+
+    /// <summary>
+    /// Lấy chi tiết thông tin đối tác.
+    /// </summary>
+    /// <param name="partnerId">ID đối tác.</param>
     public async Task<PartnerDetailDto?> GetPartnerDetailAsync(int partnerId)
     {
         var partner = await _db.Partners
@@ -220,6 +246,12 @@ public class PartnerService : IPartnerService
         return dto;
     }
 
+    /// <summary>
+    /// Vô hiệu hóa đối tác.
+    /// </summary>
+    /// <param name="partnerId">ID đối tác cần xóa.</param>
+    /// <param name="removedBy">ID người thực hiện xóa.</param>
+    /// <param name="removedReason">Lý do xóa.</param>
     public async Task<bool> DeleteAsync(int partnerId, int removedBy, string removedReason)
     {
         var partner = await _db.Partners
@@ -242,6 +274,12 @@ public class PartnerService : IPartnerService
 		await _db.SaveChangesAsync();
         return true;
     }
+
+    /// <summary>
+    /// Kích hoạt lại đối tác bị vô hiệu hóa.
+    /// </summary>
+    /// <param name="partnerId">ID đối tác.</param>
+    /// <param name="modifiedBy">ID người thực hiện.</param>
     public async Task<bool> SetActiveStatusAsync(int partnerId, int modifiedBy)
     {
         var partner = await _db.Partners
@@ -270,6 +308,11 @@ public class PartnerService : IPartnerService
 		await _db.SaveChangesAsync();
         return true;
     }
+
+    /// <summary>
+    /// Lấy danh sách review của các tour thường thuộc đối tác.
+    /// </summary>
+    /// <param name="partnerId">ID đối tác.</param>
     public async Task<List<ReviewTourDto>> GetTourReviewsByPartnerAsync(int partnerId)
     {
         // Lấy danh sách review của các tour thường thuộc đối tác cụ thể
@@ -320,6 +363,11 @@ public class PartnerService : IPartnerService
 
         return result;
     }
+
+    /// <summary>
+    /// Lấy điểm đánh giá trung bình của đối tác.
+    /// </summary>
+    /// <param name="partnerId">ID đối tác.</param>
     public async Task<double> GetAverageRatingByPartnerAsync(int partnerId)
     {
         var avg = await _db.Reviews

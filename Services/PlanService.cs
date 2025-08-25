@@ -18,7 +18,12 @@ namespace TripWiseAPI.Services
 			_logService = logService;
 			_appSettingsService = appSettingsService;
 		}
-          
+
+        /// <summary>
+        /// Kiểm tra và cập nhật gói dịch vụ của người dùng.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
+        /// <param name="isSuccess">Có thành công trong việc sử dụng lượt không.</param>
         public async Task<PlanValidationResult> ValidateAndUpdateUserPlanAsync(int userId, bool isSuccess)
         {
             var userPlan = await _dbContext.UserPlans
@@ -129,9 +134,11 @@ namespace TripWiseAPI.Services
 
         }
 
-
-
-
+        /// <summary>
+        /// Nâng cấp gói dịch vụ của người dùng.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
+        /// <param name="planId">ID gói dịch vụ muốn nâng cấp.</param>
         public async Task<ApiResponse<string>> UpgradePlanAsync(int userId, int planId)
         {
             var user = await _dbContext.Users.FindAsync(userId);
@@ -187,8 +194,10 @@ namespace TripWiseAPI.Services
 			await _logService.LogAsync(userId, "Update", $"Người dùng đã nâng cấp lên gói '{newPlan.PlanName}' với {newPlan.MaxRequests ?? 0} lượt. Cộng dồn {remainingRequests} lượt còn lại từ gói cũ.", 200, modifiedBy: userId, modifiedDate: TimeHelper.GetVietnamTime());
 			return new ApiResponse<string>(200, "Nâng cấp gói thành công.");
         }
-       
 
+        /// <summary>
+        /// Lấy danh sách gói dịch vụ khả dụng.
+        /// </summary>
         public async Task<List<PlanDto>> GetAvailablePlansAsync()
         {
             return await _dbContext.Plans
@@ -204,6 +213,11 @@ namespace TripWiseAPI.Services
                 })
                 .ToListAsync();
         }
+
+        /// <summary>
+        /// Lấy gói dịch vụ hiện tại của người dùng.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         public async Task<PlanUserDto?> GetCurrentPlanByUserIdAsync(int userId)
         {
             var userPlan = await _dbContext.UserPlans
@@ -226,6 +240,11 @@ namespace TripWiseAPI.Services
                 EndDate = userPlan.EndDate 
             };
         }
+
+        /// <summary>
+        /// Lấy danh sách gói dịch vụ đã mua (không tính Free và Trial).
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         public async Task<List<PlanUserDto>> GetPurchasedPlansAsync(int userId)
         {
             // Lấy danh sách tên gói Free và Trial từ AppSettings
@@ -255,6 +274,10 @@ namespace TripWiseAPI.Services
             return plans;
         }
 
+        /// <summary>
+        /// Lấy số lượt còn lại của gói dịch vụ hiện tại.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         public async Task<int> GetRemainingRequestsAsync(int userId)
         {
             var userPlan = await _dbContext.UserPlans
@@ -265,7 +288,11 @@ namespace TripWiseAPI.Services
 
             return userPlan.RequestInDays ?? 0;
         }
-        
+
+        /// <summary>
+        /// Lấy số ngày dùng thử còn lại.
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         public async Task<int> GetRemainingTrialDaysAsync(int userId)
         {
             var userPlan = await _dbContext.UserPlans
@@ -282,11 +309,21 @@ namespace TripWiseAPI.Services
             return (endDate < today) ? 0 : (endDate - today).Days;
         }
 
+        /// <summary>
+        /// Lấy số ngày dùng thử còn lại (dưới dạng ApiResponse).
+        /// </summary>
+        /// <param name="userId">ID người dùng.</param>
         public async Task<ApiResponse<int>> GetRemainingTrialDaysResponseAsync(int userId)
         {
             int daysLeft = await GetRemainingTrialDaysAsync(userId);
             return new ApiResponse<int>(200, "Số ngày dùng thử còn lại", daysLeft);
         }
+
+        /// <summary>
+        /// Tạo mới một gói dịch vụ (admin).
+        /// </summary>
+        /// <param name="dto">Thông tin tạo gói.</param>
+        /// <param name="createdBy">ID người tạo.</param>
         public async Task<PlanDto> CreateAsync(PlanCreateDto dto, int createdBy)
         {
             // --- VALIDATE ---
@@ -324,6 +361,12 @@ namespace TripWiseAPI.Services
             };
         }
 
+        /// <summary>
+        /// Cập nhật thông tin gói dịch vụ(admin).
+        /// </summary>
+        /// <param name="id">ID gói cần cập nhật.</param>
+        /// <param name="dto">Thông tin gói cập nhật.</param>
+        /// <param name="modifiedBy">ID người cập nhật.</param>
         public async Task<bool> UpdateAsync(int id, PlanUpdateDto dto, int modifiedBy)
         {
             var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
@@ -351,6 +394,10 @@ namespace TripWiseAPI.Services
             return true;
         }
 
+        /// <summary>
+        /// Xóa mềm gói dịch vụ(admin).
+        /// </summary>
+        /// <param name="id">ID gói cần xóa.</param>
         public async Task<bool> DeleteAsync(int id)
         {
             var plan = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
@@ -358,10 +405,15 @@ namespace TripWiseAPI.Services
 
             plan.RemovedDate = TimeHelper.GetVietnamTime();
             _dbContext.Plans.Update(plan);
-			await _logService.LogAsync(0, "Delete", $"Xóa mềm gói ID {id}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: plan.RemovedBy);
-			await _dbContext.SaveChangesAsync();
+            await _logService.LogAsync(0, "Delete", $"Xóa mềm gói ID {id}", 200, removedDate: TimeHelper.GetVietnamTime(), removedBy: plan.RemovedBy);
+            await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        /// <summary>
+        /// Lấy chi tiết gói dịch vụ theo ID.
+        /// </summary>
+        /// <param name="id">ID gói dịch vụ.</param>
         public async Task<PlanDto?> GetPlanDetailAsync(int id)
         {
             var p = await _dbContext.Plans.FirstOrDefaultAsync(x => x.PlanId == id && x.RemovedDate == null);
