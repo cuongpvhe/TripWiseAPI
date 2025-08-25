@@ -24,6 +24,11 @@ namespace TripWiseAPI.Services.PartnerServices
 
         public async Task<string> UploadImageFromUrlAsync(string imageUrl)
         {
+            
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            if (!allowedExtensions.Any(ext => imageUrl.Contains(ext, StringComparison.OrdinalIgnoreCase)))
+                throw new ArgumentException("URL ảnh không hợp lệ. Vui lòng nhập link trực tiếp tới file ảnh.");
+
             var uploadParams = new ImageUploadParams
             {
                 File = new FileDescription(imageUrl),
@@ -33,11 +38,20 @@ namespace TripWiseAPI.Services.PartnerServices
             };
 
             var result = await _cloudinary.UploadAsync(uploadParams);
+            if (result.StatusCode != System.Net.HttpStatusCode.OK || string.IsNullOrEmpty(result.SecureUrl?.ToString()))
+                throw new Exception("Không thể upload ảnh từ URL.");
             return result.SecureUrl.ToString(); // Trả về URL ảnh
         }
 
         public async Task<string> UploadImageFromFileAsync(IFormFile imageFile)
         {
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var extension = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
+
+            if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+            {
+                throw new InvalidOperationException("Chỉ cho phép upload ảnh định dạng .jpg, .jpeg, .png, .gif");
+            }
             using var stream = imageFile.OpenReadStream();
 
             var uploadParams = new ImageUploadParams

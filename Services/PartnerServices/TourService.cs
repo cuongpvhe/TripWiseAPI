@@ -103,6 +103,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 throw new ArgumentException("Thông tin tour không được để trống");
             if (!request.StartTime.HasValue)
                 throw new ArgumentException("Thời gian bắt đầu không được để trống");
+            var now = TimeHelper.GetVietnamTime();
+            if (request.StartTime.Value <= now)
+                throw new ArgumentException("Thời gian bắt đầu tour phải lớn hơn thời gian hiện tại.");
             var tour = new Tour
             {
                 StartTime = request.StartTime,

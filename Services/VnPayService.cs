@@ -175,47 +175,47 @@ namespace TripWiseAPI.Services
 
         public async Task<BookingDetailDto?> GetBookingDetailAsync(int bookingId)
         {
-            var booking = await (from b in _dbContext.Bookings
-                                 join u in _dbContext.Users on b.UserId equals u.UserId
-                                 join t in _dbContext.Tours on b.TourId equals t.TourId
-                                 // PaymentTransaction không nối bằng navigation property
-                                 join pt in _dbContext.PaymentTransactions
-                                     on b.OrderCode equals pt.OrderCode into ptJoin
-                                 from pt in ptJoin.DefaultIfEmpty()
-                                 where b.BookingId == bookingId
-                                 select new BookingDetailDto
-                                 {
-                                     BookingId = b.BookingId,
-                                     TourName = t.TourName,
-                                     OrderCode = b.OrderCode,
-                                     StartDate = t.StartTime,
-                                     PaymentStatus = pt != null ? pt.PaymentStatus : null,
-                                     BankCode = pt != null ? pt.BankCode : null,
-                                     VnpTransactionNo = pt != null ? pt.VnpTransactionNo : null,
+            var booking = await 
+                (from b in _dbContext.Bookings
+                 join u in _dbContext.Users on b.UserId equals u.UserId
+                 join t in _dbContext.Tours on b.TourId equals t.TourId
+                 // PaymentTransaction không nối bằng navigation property
+                 join pt in _dbContext.PaymentTransactions on b.OrderCode equals pt.OrderCode into ptJoin
+                 from pt in ptJoin.DefaultIfEmpty()
+                 where b.BookingId == bookingId
+                       select new BookingDetailDto
+                       {
+                              BookingId = b.BookingId,
+                              TourName = t.TourName,
+                              OrderCode = b.OrderCode,
+                              StartDate = t.StartTime,
+                              PaymentStatus = pt != null ? pt.PaymentStatus : null,
+                              BankCode = pt != null ? pt.BankCode : null,
+                              VnpTransactionNo = pt != null ? pt.VnpTransactionNo : null,
 
-                                     UserEmail = u.Email,
+                              UserEmail = u.Email,
                                      
-                                     PhoneNumber = u.PhoneNumber,
-                                     FirstName = u.FirstName,
-                                     LastName = u.LastName,
-                                     PriceAdult = t.PriceAdult,
-                                     PriceChild5To10 = t.PriceChild5To10,
-                                     PriceChildUnder5 = t.PriceChildUnder5,
-                                     NumAdults = b.NumAdults,
-                                     NumChildren5To10 = b.NumChildren5To10,
-                                     NumChildrenUnder5 = b.NumChildrenUnder5,
-                                     Amount = b.TotalAmount,
-                                     PaymentTime = pt != null ? pt.PaymentTime : null,
-                                     CreatedDate = b.CreatedDate,
+                              PhoneNumber = u.PhoneNumber,
+                              FirstName = u.FirstName,
+                              LastName = u.LastName,
+                              PriceAdult = t.PriceAdult,
+                              PriceChild5To10 = t.PriceChild5To10,
+                              PriceChildUnder5 = t.PriceChildUnder5,
+                              NumAdults = b.NumAdults,
+                              NumChildren5To10 = b.NumChildren5To10,
+                              NumChildrenUnder5 = b.NumChildrenUnder5,
+                              Amount = b.TotalAmount,
+                              PaymentTime = pt != null ? pt.PaymentTime : null,
+                              CreatedDate = b.CreatedDate,
 
-                                     RefundAmount = b.RefundAmount,
-                                     RefundMethod = b.RefundMethod,
-                                     RefundStatus = b.RefundStatus,
-                                     RefundDate = b.RefundDate,
-                                     CancelReason = b.CancelReason
+                              RefundAmount = b.RefundAmount,
+                              RefundMethod = b.RefundMethod,
+                              RefundStatus = b.RefundStatus,
+                              RefundDate = b.RefundDate,
+                              CancelReason = b.CancelReason
                                      
-                                 })
-                                 .FirstOrDefaultAsync();
+                       })
+                       .FirstOrDefaultAsync();
 
             return booking;
         }
@@ -235,18 +235,18 @@ namespace TripWiseAPI.Services
             if (tour == null)
                 throw new Exception("Tour không tồn tại.");
 
-            // 🔹 Kiểm tra ngày hiện tại có lớn hơn hoặc bằng ngày bắt đầu tour không
+            //Kiểm tra ngày hiện tại có lớn hơn hoặc bằng ngày bắt đầu tour không
             if (tour.StartTime.HasValue && TimeHelper.GetVietnamTime().Date >= tour.StartTime.Value.Date)
             {
                 throw new Exception("Tour đã khởi hành không thể đặt trước.");
             }
-            // 🔹 Tính tổng số người đã đặt thành công
+            //Tính tổng số người đã đặt thành công
             var bookedCount = await _dbContext.Bookings
                 .Where(b => b.TourId == request.TourId && (b.BookingStatus == BookingStatus.Success
                     || b.BookingStatus == BookingStatus.CancelPending))
                 .SumAsync(b => (int?)b.Quantity) ?? 0;
 
-            // 🔹 Đảm bảo availableSlots >= 0
+            //Đảm bảo availableSlots >= 0
             var availableSlots = Math.Max(0, (decimal)(tour.MaxGroupSize - bookedCount));
 
 
@@ -405,7 +405,7 @@ namespace TripWiseAPI.Services
             if (booking == null || booking.BookingStatus != "Draft")
                 throw new Exception("Không tìm thấy booking nháp để xác nhận.");
 
-            // ✅ Nếu hết hạn → xóa và báo lỗi
+            // Nếu hết hạn → xóa và báo lỗi
             if (booking.ExpiredDate.HasValue && booking.ExpiredDate < TimeHelper.GetVietnamTime())
             {
                 _dbContext.Bookings.Remove(booking);
