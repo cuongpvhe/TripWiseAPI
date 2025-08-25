@@ -291,9 +291,7 @@ namespace TripWiseAPI.Controllers.PartnerControllers
         [HttpPut("update-activity/{activityId}")]
         public async Task<IActionResult> UpdateActivity(
         int activityId,
-        [FromForm] UpdateActivityDto request,
-        [FromForm] List<IFormFile>? imageFiles,
-        [FromForm] List<string>? imageUrls)
+        [FromForm] UpdateActivityDto request)
         {
             var userId = GetUserId();
 
@@ -306,7 +304,7 @@ namespace TripWiseAPI.Controllers.PartnerControllers
                 return BadRequest("Không tìm thấy Partner tương ứng với tài khoản hiện tại.");
             }
 
-            var result = await _tourService.UpdateActivityAsync(activityId, partner.PartnerId, request, imageFiles, imageUrls);
+            var result = await _tourService.UpdateActivityAsync(activityId, partner.PartnerId, request);
             if (!result) return NotFound("Activity not found");
 
             return Ok(new { message = "Activity updated successfully" });

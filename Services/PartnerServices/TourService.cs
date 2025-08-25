@@ -577,7 +577,7 @@ namespace TripWiseAPI.Services.PartnerServices
             return true;
         }
 
-        public async Task<bool> UpdateActivityAsync(int activityId, int userId, UpdateActivityDto request, List<IFormFile>? imageFiles, List<string>? imageUrls)
+        public async Task<bool> UpdateActivityAsync(int activityId, int userId, UpdateActivityDto request)
         {
             var activity = await _dbContext.TourAttractions
                 .Include(a => a.TourAttractionImages)
@@ -596,33 +596,21 @@ namespace TripWiseAPI.Services.PartnerServices
             activity.ModifiedBy = userId;
             activity.ModifiedDate = TimeHelper.GetVietnamTime();
 
-            // Upload từ file
-            if (imageFiles?.Any() == true)
+            // Chỉ dùng 1 ảnh - Ưu tiên ảnh file nếu có
+            string? imageUrl = null;
+
+            if (request.ImageFile != null)
             {
-                foreach (var file in imageFiles)
-                {
-                    var url = await _imageUploadService.UploadImageFromFileAsync(file);
-                    if (!string.IsNullOrEmpty(url))
-                    {
-                        var image = new Image { ImageUrl = url };
-                        _dbContext.Images.Add(image);
-                        activity.TourAttractionImages.Add(new TourAttractionImage { Image = image });
-                    }
-                }
+                imageUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
+            }
+            else if (!string.IsNullOrEmpty(request.Image))
+            {
+                imageUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
             }
 
-            // Upload từ URL
-            if (imageUrls?.Any() == true)
+            if (!string.IsNullOrEmpty(imageUrl))
             {
-                foreach (var srcUrl in imageUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct())
-                {
-                    var uploadedUrl = await _imageUploadService.UploadImageFromUrlAsync(srcUrl);
-
-                    if (!string.IsNullOrEmpty(uploadedUrl))
-                    {
-                        await AddTourAttractionImageAsync(activity.TourAttractionsId, uploadedUrl, userId);
-                    }
-                }
+                await AddTourAttractionImageAsync(activity.TourAttractionsId, imageUrl, userId);
             }
 
             await _logService.LogAsync(userId, "Update", $"Updated activity ID {activityId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
