@@ -8,6 +8,7 @@
         public int Quantity { get; set; }
         public decimal TotalAmount { get; set; }
         public string? BookingStatus { get; set; }
+        public string? RefundStatus { get; set; }
         public DateTime? CreatedDate { get; set; }
     }
     public class CancelResultDto

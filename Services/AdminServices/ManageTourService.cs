@@ -603,6 +603,7 @@ namespace TripWiseAPI.Services.AdminServices
                     TotalAmount = b.TotalAmount,
                     BookingStatus = b.BookingStatus,
                     CancelType = b.CancelType,
+                    RefundStatus = b.RefundStatus,
                     CreatedDate = b.CreatedDate ?? TimeHelper.GetVietnamTime(),
                 })
                 .ToListAsync();
