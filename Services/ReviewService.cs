@@ -16,8 +16,7 @@ public class ReviewService : IReviewService
 	{
 		var tourExists = await _context.Tours
 			.AnyAsync(t => t.TourId == dto.TourId
-						   && t.TourTypesId == 1
-						   && t.Status == "Approved");
+						   && t.TourTypesId == 1 && t.CreatedBy==userId);
 		if (!tourExists)
 		{
 			return new ApiResponse<string>(200, "Tour không tồn tại.");
@@ -37,7 +36,7 @@ public class ReviewService : IReviewService
 			UserId = userId,
 			Rating = dto.Rating,
 			Comment = dto.Comment,
-			CreatedDate = DateTime.UtcNow,
+			CreatedDate = DateTime.Now,
 			CreatedBy = userId,
 		};
 
@@ -47,22 +46,43 @@ public class ReviewService : IReviewService
 		return new ApiResponse<string>(200, "Đánh giá Chatbot thành công.");
 	}
 
-	public async Task<IEnumerable<ReviewResponseDto>> GetReviewsForTourAIAsync()
+	public async Task<ApiResponse<List<ReviewChatbotResponseDto>>> GetAllReviewsAsync(int userId)
 	{
+		var user = await _context.Users.FindAsync(userId);
+		if (user == null || user.Role != "ADMIN")
+		{
+			return new ApiResponse<List<ReviewChatbotResponseDto>>(403, "Bạn không có quyền truy cập.", null);
+		}
+
 		var reviews = await _context.Reviews
-			.Where(a=>a.RemovedDate==null && a.Tour.TourTypesId==1)
+			.Where(r => r.RemovedDate == null)
+			.Include(r => r.User)
+			.Include(r => r.Tour)
+			.ThenInclude(t => t.Partner)
 			.OrderByDescending(r => r.CreatedDate)
 			.ToListAsync();
 
-		return reviews.Select(r => new ReviewResponseDto
+		if (!reviews.Any())
+		{
+			return new ApiResponse<List<ReviewChatbotResponseDto>>(200, "Không có đánh giá nào.", new List<ReviewChatbotResponseDto>());
+		}
+
+		var result = reviews.Select(r => new ReviewChatbotResponseDto
 		{
 			ReviewId = r.ReviewId,
-			UserName = r.User?.UserName ?? "Unknown",
+			TourId = r.TourId ?? 0,
+			TourName = r.Tour?.TourName ?? "Unknown",
 			Rating = r.Rating ?? 0,
 			Comment = r.Comment,
-			CreatedDate = r.CreatedDate
-		 }).ToList();
+			CreatedBy = r.CreatedBy,
+			CreatedAt = r.CreatedDate ?? DateTime.MinValue,
+			TourType = r.Tour != null ? (r.Tour.TourTypesId == 1 ? "Chatbot" : "Partner") : "Unknown",
+			PartnerName = r.Tour?.Partner?.CompanyName ?? "N/A"
+		}).ToList();
+		return new ApiResponse<List<ReviewChatbotResponseDto>>(200, "Lấy danh sách đánh giá thành công.", result);
 	}
+
+
 	public async Task<string> AVGRatingAI()
 	{
 		double? avgRating = await _context.Reviews
@@ -97,7 +117,7 @@ public class ReviewService : IReviewService
 			return new ApiResponse<string>(404, "Tour này không có đánh giá");
 		}
 
-		review.RemovedDate = DateTime.UtcNow;
+		review.RemovedDate = DateTime.Now;
 		review.RemovedBy = userId;
 		_context.Reviews.Update(review);
 		_context.SaveChanges();
@@ -133,12 +153,12 @@ public class ReviewService : IReviewService
 		// ❗ Kiểm tra tour đã kết thúc chưa
 		if (!int.TryParse(tour.Duration, out int durationDays))
 		{
-			return new ApiResponse<string>(400, "Thông tin tour không hợp lệ (Duration không phải số).");
+			return new ApiResponse<string>(400, "Thông tin tour không hợp lệ .");
 		}
 
 		var tourEndTime = tour.StartTime.Value.AddDays(durationDays);
 
-		if (tourEndTime > DateTime.UtcNow)
+		if (tourEndTime > DateTime.Now)
 		{
 			return new ApiResponse<string>(400, "Bạn chỉ có thể đánh giá sau khi tour đã kết thúc.");
 		}
@@ -157,7 +177,7 @@ public class ReviewService : IReviewService
 			TourId = dto.TourId,
 			Rating = dto.Rating,
 			Comment = dto.Comment,
-			CreatedDate = DateTime.UtcNow,
+			CreatedDate = DateTime.Now,
 			CreatedBy = userId,
 		};
 

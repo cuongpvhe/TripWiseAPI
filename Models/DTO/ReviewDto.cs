@@ -29,6 +29,19 @@
 		public string? Comment { get; set; }
 
 	}
+	public class ReviewChatbotResponseDto
+	{
+		public int ReviewId { get; set; }
+		public int TourId { get; set; }
+		public string TourName { get; set; }
+		public int Rating { get; set; }
+		public string Comment { get; set; }
+		public int? CreatedBy { get; set; }
+		public DateTime CreatedAt { get; set; }
+		public string TourType { get; set; }     // Tour AI / Tour thường
+		public string PartnerName { get; set; }  // Thuộc Partner nào
+	}
+
 	public class ReviewResponseDto
 	{
 		public int ReviewId { get; set; }

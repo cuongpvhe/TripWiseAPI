@@ -36,15 +36,17 @@ namespace TripWiseAPI.Controllers
 			return StatusCode(result.StatusCode, result);
 		}
 
-        /// <summary>
-        /// Lấy danh sách đánh giá cho tour AI.
-        /// </summary>
-        [HttpGet("Chatbot")]
+		/// <summary>
+		/// Lấy danh sách đánh giá cho tour AI.
+		/// </summary>
+		[Authorize]
+        [HttpGet("GetAllReview")]
 		public async Task<IActionResult> GetReviewsForChatbotAI()
 		{
-			var reviews = await _reviewService.GetReviewsForTourAIAsync();
-			if (reviews == null || !reviews.Any())
-				return NotFound("Không tìm thấy đánh giá cho tour AI này.");
+			var userIdClaim = User.FindFirst("UserId")?.Value;
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized("Không xác định được người dùng.");
+			var reviews = await _reviewService.GetAllReviewsAsync(userId);		
 			return Ok(reviews);
 		}
 
