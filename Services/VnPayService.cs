@@ -194,47 +194,44 @@ namespace TripWiseAPI.Services
         /// <param ="bookingId">ID booking</param>
         public async Task<BookingDetailDto?> GetBookingDetailAsync(int bookingId)
         {
-            var booking = await 
+            var booking = await
                 (from b in _dbContext.Bookings
-                 join u in _dbContext.Users on b.UserId equals u.UserId
-                 join t in _dbContext.Tours on b.TourId equals t.TourId
-                 // PaymentTransaction không nối bằng navigation property
+                     // PaymentTransaction không nối bằng navigation property
                  join pt in _dbContext.PaymentTransactions on b.OrderCode equals pt.OrderCode into ptJoin
                  from pt in ptJoin.DefaultIfEmpty()
                  where b.BookingId == bookingId
-                       select new BookingDetailDto
-                       {
-                              BookingId = b.BookingId,
-                              TourName = t.TourName,
-                              OrderCode = b.OrderCode,
-                              StartDate = t.StartTime,
-                              PaymentStatus = pt != null ? pt.PaymentStatus : null,
-                              BankCode = pt != null ? pt.BankCode : null,
-                              VnpTransactionNo = pt != null ? pt.VnpTransactionNo : null,
+                 select new BookingDetailDto
+                 {
+                     BookingId = b.BookingId,
+                     TourName = b.TourName,   // lấy từ Booking (snapshot)
+                     OrderCode = b.OrderCode,
+                     PaymentStatus = pt != null ? pt.PaymentStatus : null,
+                     BankCode = pt != null ? pt.BankCode : null,
+                     VnpTransactionNo = pt != null ? pt.VnpTransactionNo : null,
+                     StartDate = b.StartTime,
+                     UserEmail = b.UserEmail,   // snapshot từ Booking
+                     PhoneNumber = b.PhoneNumber,
+                     FirstName = b.FirstName,
+                     LastName = b.LastName,
 
-                              UserEmail = u.Email,
-                                     
-                              PhoneNumber = u.PhoneNumber,
-                              FirstName = u.FirstName,
-                              LastName = u.LastName,
-                              PriceAdult = t.PriceAdult,
-                              PriceChild5To10 = t.PriceChild5To10,
-                              PriceChildUnder5 = t.PriceChildUnder5,
-                              NumAdults = b.NumAdults,
-                              NumChildren5To10 = b.NumChildren5To10,
-                              NumChildrenUnder5 = b.NumChildrenUnder5,
-                              Amount = b.TotalAmount,
-                              PaymentTime = pt != null ? pt.PaymentTime : null,
-                              CreatedDate = b.CreatedDate,
+                     PriceAdult = b.PriceAdult,
+                     PriceChild5To10 = b.PriceChild5To10,
+                     PriceChildUnder5 = b.PriceChildUnder5,
 
-                              RefundAmount = b.RefundAmount,
-                              RefundMethod = b.RefundMethod,
-                              RefundStatus = b.RefundStatus,
-                              RefundDate = b.RefundDate,
-                              CancelReason = b.CancelReason
-                                     
-                       })
-                       .FirstOrDefaultAsync();
+                     NumAdults = b.NumAdults,
+                     NumChildren5To10 = b.NumChildren5To10,
+                     NumChildrenUnder5 = b.NumChildrenUnder5,
+                     Amount = b.TotalAmount,
+                     PaymentTime = pt != null ? pt.PaymentTime : null,
+                     CreatedDate = b.CreatedDate,
+
+                     RefundAmount = b.RefundAmount,
+                     RefundMethod = b.RefundMethod,
+                     RefundStatus = b.RefundStatus,
+                     RefundDate = b.RefundDate,
+                     CancelReason = b.CancelReason
+                 })
+                .FirstOrDefaultAsync();
 
             return booking;
         }
@@ -302,7 +299,18 @@ namespace TripWiseAPI.Services
                 CreatedDate = now,
                 CreatedBy = userId,
                 OrderCode = $"{Guid.NewGuid()}",
-                ExpiredDate = now.AddMinutes(5) 
+                ExpiredDate = now.AddMinutes(5),
+
+                // 🔹 Ghi cứng thông tin User và Tour vào bảng Booking
+                TourName = tour.TourName,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                UserEmail = user.Email,
+                StartTime = tour.StartTime,
+                PhoneNumber = user.PhoneNumber,
+                PriceAdult = tour.PriceAdult,
+                PriceChild5To10 = tour.PriceChild5To10,
+                PriceChildUnder5 = tour.PriceChildUnder5
             };
 
             _dbContext.Bookings.Add(booking);
@@ -311,16 +319,16 @@ namespace TripWiseAPI.Services
             return new BookingDetailDto
             {
                 BookingId = booking.BookingId,
-                TourName = tour.TourName,
+                TourName = booking.TourName,
                 OrderCode = booking.OrderCode,
-                StartDate = tour.StartTime,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                UserEmail = user.Email,
-                PhoneNumber = user.PhoneNumber,
-                PriceAdult = tour.PriceAdult,
-                PriceChild5To10 = tour.PriceChild5To10,
-                PriceChildUnder5 = tour.PriceChildUnder5,
+                StartDate = booking.StartTime,
+                FirstName = booking.FirstName,
+                LastName = booking.LastName,
+                UserEmail = booking.UserEmail,
+                PhoneNumber = booking.PhoneNumber,
+                PriceAdult = booking.PriceAdult,
+                PriceChild5To10 = booking.PriceChild5To10,
+                PriceChildUnder5 = booking.PriceChildUnder5,
                 NumAdults = booking.NumAdults,
                 NumChildren5To10 = booking.NumChildren5To10,
                 NumChildrenUnder5 = booking.NumChildrenUnder5,
@@ -380,38 +388,38 @@ namespace TripWiseAPI.Services
 
             // Tính lại Amount khi số lượng thay đổi
             booking.TotalAmount =
-                (decimal)((booking.NumAdults * (booking.Tour.PriceAdult ?? 0)) +
-                (booking.NumChildren5To10 * (booking.Tour.PriceChild5To10 ?? 0)) +
-                (booking.NumChildrenUnder5 * (booking.Tour.PriceChildUnder5 ?? 0)));
+                (decimal)((booking.NumAdults * (booking.PriceAdult ?? 0)) +
+                (booking.NumChildren5To10 * (booking.PriceChild5To10 ?? 0)) +
+                (booking.NumChildrenUnder5 * (booking.PriceChildUnder5 ?? 0)));
 
             booking.ModifiedDate = TimeHelper.GetVietnamTime();
             booking.ModifiedBy = userId;
 
             // Cập nhật thông tin User (nếu có truyền thì mới update, ngược lại giữ nguyên)
             if (!string.IsNullOrWhiteSpace(request.FirstName))
-                booking.User.FirstName = request.FirstName;
+                booking.FirstName = request.FirstName;
 
             if (!string.IsNullOrWhiteSpace(request.LastName))
-                booking.User.LastName = request.LastName;
+                booking.LastName = request.LastName;
 
             if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
-                booking.User.PhoneNumber = request.PhoneNumber;
+                booking.PhoneNumber = request.PhoneNumber;
 
             await _dbContext.SaveChangesAsync();
 
             return new BookingDetailDto
             {
                 BookingId = booking.BookingId,
-                TourName = booking.Tour.TourName,
+                TourName = booking.TourName,
                 OrderCode = booking.OrderCode,
-                StartDate = booking.Tour.StartTime,
-                FirstName = booking.User.FirstName,
-                LastName = booking.User.LastName,
-                UserEmail = booking.User.Email,
-                PhoneNumber = booking.User.PhoneNumber,
-                PriceAdult = booking.Tour.PriceAdult,
-                PriceChild5To10 = booking.Tour.PriceChild5To10,
-                PriceChildUnder5 = booking.Tour.PriceChildUnder5,
+                StartDate = booking.StartTime,
+                FirstName = booking.FirstName,
+                LastName = booking.LastName,
+                UserEmail = booking.UserEmail,
+                PhoneNumber = booking.PhoneNumber,
+                PriceAdult = booking.PriceAdult,
+                PriceChild5To10 = booking.PriceChild5To10,
+                PriceChildUnder5 = booking.PriceChildUnder5,
                 NumAdults = booking.NumAdults,
                 NumChildren5To10 = booking.NumChildren5To10,
                 NumChildrenUnder5 = booking.NumChildrenUnder5,
@@ -432,10 +440,7 @@ namespace TripWiseAPI.Services
         public async Task<string> ConfirmBookingAndPayAsync(int bookingId, int userId, HttpContext context)
         {
             var booking = await _dbContext.Bookings
-                .Include(b => b.Tour)
-                .Include(b => b.User) 
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.UserId == userId);
-
 
             if (booking == null || booking.BookingStatus != "Draft")
                 throw new Exception("Không tìm thấy booking nháp để xác nhận.");
@@ -447,27 +452,21 @@ namespace TripWiseAPI.Services
                 await _dbContext.SaveChangesAsync();
                 throw new Exception("Đặt tour đã hết thời gian chờ, vui lòng tạo lại.");
             }
-            // Kiểm tra các trường bắt buộc
+
+            // Kiểm tra các trường bắt buộc từ snapshot
             var missingFields = new List<string>();
 
-            if (booking.User == null)
-            {
-                missingFields.Add("Thông tin người dùng chưa tồn tại");
-            }
-            else
-            {
-                if (string.IsNullOrWhiteSpace(booking.User.FirstName))
-                    missingFields.Add("Họ");
+            if (string.IsNullOrWhiteSpace(booking.FirstName))
+                missingFields.Add("Họ");
 
-                if (string.IsNullOrWhiteSpace(booking.User.LastName))
-                    missingFields.Add("Tên");
+            if (string.IsNullOrWhiteSpace(booking.LastName))
+                missingFields.Add("Tên");
 
-                if (string.IsNullOrWhiteSpace(booking.User.PhoneNumber))
-                    missingFields.Add("Số điện thoại");
+            if (string.IsNullOrWhiteSpace(booking.PhoneNumber))
+                missingFields.Add("Số điện thoại");
 
-                if (string.IsNullOrWhiteSpace(booking.User.Email))
-                    missingFields.Add("Email");
-            }
+            if (string.IsNullOrWhiteSpace(booking.UserEmail))
+                missingFields.Add("Email");
 
             if (missingFields.Any())
                 throw new Exception($"Vui lòng điền đầy đủ thông tin: {string.Join(", ", missingFields)} trước khi thanh toán.");
@@ -482,14 +481,22 @@ namespace TripWiseAPI.Services
             {
                 UserId = userId,
                 Amount = booking.TotalAmount,
-                Name = $"Tour: {booking.Tour.TourName}",
-                OrderDescription = $"Thanh toán tour {booking.Tour.TourName} cho {booking.Quantity} người. Tổng: {booking.TotalAmount:N0} VND",
+                Name = $"Tour: {booking.TourName}",
+                OrderDescription = $"Thanh toán tour {booking.TourName} cho {booking.Quantity} người. Tổng: {booking.TotalAmount:N0} VND",
                 OrderType = "booking",
                 BookingId = booking.BookingId,
                 OrderCode = booking.OrderCode,
             };
-			await _logService.LogAsync(userId: userId, action: "Create", message: $"Người dùng {userId} đặt tour {booking.Tour.TourName} với mã đơn {booking.OrderCode} - Số tiền: {booking.TotalAmount:N0} VND", statusCode: 201, createdBy: userId);
-			return CreatePaymentUrl(paymentModel, context);
+
+            await _logService.LogAsync(
+                userId: userId,
+                action: "Create",
+                message: $"Người dùng {userId} đặt tour {booking.TourName} với mã đơn {booking.OrderCode} - Số tiền: {booking.TotalAmount:N0} VND",
+                statusCode: 201,
+                createdBy: userId
+            );
+
+            return CreatePaymentUrl(paymentModel, context);
         }
 
         /// <summary>

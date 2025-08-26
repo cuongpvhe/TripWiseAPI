@@ -34,6 +34,15 @@ namespace TripWiseAPI.Models
         public DateTime? RefundDate { get; set; }
         public string? RefundMethod { get; set; }
         public string? CancelReason { get; set; }
+        public string? TourName { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? UserEmail { get; set; }
+        public string? PhoneNumber { get; set; }
+        public decimal? PriceAdult { get; set; }
+        public decimal? PriceChild5To10 { get; set; }
+        public decimal? PriceChildUnder5 { get; set; }
+        public DateTime? StartTime { get; set; }
 
         public virtual Tour Tour { get; set; } = null!;
         public virtual User User { get; set; } = null!;

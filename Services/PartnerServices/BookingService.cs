@@ -31,9 +31,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 {
                     BookingId = b.BookingId,
                     TourId = b.TourId,
-                    TourName = b.Tour.TourName,
+                    TourName = b.TourName,
                     UserId = b.UserId,
-                    UserName = b.User.FirstName + " " + b.User.LastName,
+                    UserName = b.FirstName + " " + b.LastName,
                     TotalAmount = b.TotalAmount,
                     BookingStatus = b.BookingStatus,
                     RefundStatus = b.RefundStatus,
@@ -62,9 +62,9 @@ namespace TripWiseAPI.Services.PartnerServices
                 {
                     BookingId = b.BookingId,
                     TourId = b.TourId,
-                    TourName = b.Tour.TourName,
+                    TourName = b.TourName,
                     UserId = b.UserId,
-                    UserName = b.User.FirstName + " " + b.User.LastName,
+                    UserName = b.FirstName + " " + b.LastName,
                     TotalAmount = b.TotalAmount,
                     BookingStatus = b.BookingStatus,
                     CreatedDate = b.CreatedDate ?? DateTime.MinValue

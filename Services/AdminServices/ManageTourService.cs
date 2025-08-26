@@ -343,18 +343,17 @@ namespace TripWiseAPI.Services.AdminServices
             original.ModifiedDate = TimeHelper.GetVietnamTime();
 
             // ===============================
-            // Cập nhật hình ảnh
+            // Cập nhật hình ảnh - Reference existing images
             // ===============================
             _dbContext.TourImages.RemoveRange(original.TourImages);
 
-            foreach (var draftImage in draft.TourImages)
+            foreach (var draftImage in draft.TourImages.Where(ti => ti.Image != null && ti.Image.RemovedDate == null))
             {
-                var image = new Image { ImageUrl = draftImage.Image.ImageUrl };
-                _dbContext.Images.Add(image);
-
                 original.TourImages.Add(new TourImage
                 {
-                    Image = image
+                    ImageId = draftImage.ImageId, // ✅ Reference existing image
+                    CreatedDate = TimeHelper.GetVietnamTime(),
+                    CreatedBy = adminId
                 });
             }
 
@@ -392,17 +391,14 @@ namespace TripWiseAPI.Services.AdminServices
                         TourAttractionImages = new List<TourAttractionImage>()
                     };
 
-                    // ===============================
-                    // Đồng bộ ảnh cho Activity
-                    // ===============================
-                    foreach (var draftAttractionImage in draftAttraction.TourAttractionImages)
+                    // Reference existing activity images
+                    foreach (var draftAttractionImage in draftAttraction.TourAttractionImages.Where(ai => ai.Image != null && ai.Image.RemovedDate == null))
                     {
-                        var image = new Image { ImageUrl = draftAttractionImage.Image.ImageUrl };
-                        _dbContext.Images.Add(image);
-
                         newAttraction.TourAttractionImages.Add(new TourAttractionImage
                         {
-                            Image = image
+                            ImageId = draftAttractionImage.ImageId, // ✅ Reference existing image
+                            CreatedDate = TimeHelper.GetVietnamTime(),
+                            CreatedBy = adminId
                         });
                     }
 
@@ -413,21 +409,10 @@ namespace TripWiseAPI.Services.AdminServices
             }
 
             // ===============================
-            // Xoá bản nháp đúng cách
+            // Xoá bản nháp KHÔNG xóa images khỏi Cloudinary
             // ===============================
             foreach (var tourImage in draft.TourImages)
             {
-                if (tourImage.Image != null)
-                {
-                    var publicId = _imageUploadService.GetPublicIdFromUrl(tourImage.Image.ImageUrl);
-                    await _imageUploadService.DeleteImageAsync(publicId);
-
-                    tourImage.Image.RemovedDate = TimeHelper.GetVietnamTime();
-                    tourImage.Image.RemovedBy = adminId;
-
-                    _dbContext.Images.Remove(tourImage.Image);
-                }
-
                 _dbContext.TourImages.Remove(tourImage);
             }
 
@@ -437,27 +422,15 @@ namespace TripWiseAPI.Services.AdminServices
                 {
                     foreach (var image in attraction.TourAttractionImages)
                     {
-                        if (image.Image != null)
-                        {
-                            var publicId = _imageUploadService.GetPublicIdFromUrl(image.Image.ImageUrl);
-                            await _imageUploadService.DeleteImageAsync(publicId);
-
-                            image.Image.RemovedDate = TimeHelper.GetVietnamTime();
-                            image.Image.RemovedBy = adminId;
-
-                            _dbContext.Images.Remove(image.Image);
-                        }
-
                         _dbContext.TourAttractionImages.Remove(image);
                     }
-
                     _dbContext.TourAttractions.Remove(attraction);
                 }
-
                 _dbContext.TourItineraries.Remove(itinerary);
             }
-			await _logService.LogAsync(userId: adminId, action: "Update", message: $"Gửi bản nháp cập nhật tour {tourId}", statusCode: 200, modifiedBy: adminId, modifiedDate: TimeHelper.GetVietnamTime());
-			_dbContext.Tours.Remove(draft);
+
+            await _logService.LogAsync(userId: adminId, action: "Update", message: $"Gửi bản nháp cập nhật tour {tourId}", statusCode: 200, modifiedBy: adminId, modifiedDate: TimeHelper.GetVietnamTime());
+            _dbContext.Tours.Remove(draft);
 
             await _dbContext.SaveChangesAsync();
         }

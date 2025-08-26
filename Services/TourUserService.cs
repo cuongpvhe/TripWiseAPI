@@ -165,7 +165,7 @@ namespace TripWiseAPI.Services
                 {
                     BookingId = b.BookingId,
                     TourId = b.TourId,
-                    TourName = b.Tour.TourName,
+                    TourName = b.TourName,
                     Quantity = b.Quantity,
                     TotalAmount = b.TotalAmount,
                     BookingStatus = b.BookingStatus,

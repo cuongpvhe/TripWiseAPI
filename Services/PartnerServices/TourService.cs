@@ -667,27 +667,84 @@ namespace TripWiseAPI.Services.PartnerServices
             activity.ModifiedBy = userId;
             activity.ModifiedDate = TimeHelper.GetVietnamTime();
 
-            // Chỉ dùng 1 ảnh - Ưu tiên ảnh file nếu có
+            // Xử lý upload ảnh với error handling
             string? imageUrl = null;
 
-            if (request.ImageFile != null)
+            try
             {
-                imageUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
-            }
-            else if (!string.IsNullOrEmpty(request.Image))
-            {
-                imageUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
-            }
+                if (request.ImageFile != null)
+                {
+                    imageUrl = await _imageUploadService.UploadImageFromFileAsync(request.ImageFile);
+                }
+                else if (!string.IsNullOrEmpty(request.Image))
+                {
+                    // Validate URL trước khi upload
+                    if (IsValidImageUrl(request.Image))
+                    {
+                        imageUrl = await _imageUploadService.UploadImageFromUrlAsync(request.Image);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Invalid image URL: {request.Image}");
+                    }
+                }
 
-            if (!string.IsNullOrEmpty(imageUrl))
+                if (!string.IsNullOrEmpty(imageUrl))
+                {
+                    await AddTourAttractionImageAsync(activity.TourAttractionsId, imageUrl, userId);
+                }
+            }
+            catch (Exception ex)
             {
-                await AddTourAttractionImageAsync(activity.TourAttractionsId, imageUrl, userId);
+                // Log lỗi nhưng không fail toàn bộ update
+                Console.WriteLine($"Error uploading image for activity {activityId}: {ex.Message}");
+                await _logService.LogAsync(userId, "Warning", $"Failed to upload image for activity ID {activityId}: {ex.Message}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
             }
 
             await _logService.LogAsync(userId, "Update", $"Updated activity ID {activityId}", 200, modifiedDate: TimeHelper.GetVietnamTime(), modifiedBy: userId);
             await _dbContext.SaveChangesAsync();
 
             return true;
+        }
+
+        /// <summary>
+        /// Kiểm tra URL ảnh có hợp lệ không.
+        /// </summary>
+        private bool IsValidImageUrl(string imageUrl)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(imageUrl))
+                    return false;
+
+                if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri))
+                    return false;
+
+                if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+                    return false;
+
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp" };
+                var hasValidExtension = allowedExtensions.Any(ext =>
+                    imageUrl.Contains(ext, StringComparison.OrdinalIgnoreCase));
+
+                var trustedDomains = new[]
+                {
+            "cloudinary.com",
+            "imgur.com",
+            "drive.google.com",
+            "googleapis.com",
+            "unsplash.com"
+        };
+
+                var isTrustedDomain = trustedDomains.Any(domain =>
+                    uri.Host.Contains(domain, StringComparison.OrdinalIgnoreCase));
+
+                return hasValidExtension || isTrustedDomain;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -715,7 +772,7 @@ namespace TripWiseAPI.Services.PartnerServices
                 {
                     if (image.Image != null)
                     {
-                        // ✅ Xóa ảnh khỏi cloud
+                        // Xóa ảnh khỏi cloud
                         var publicId = _imageUploadService.GetPublicIdFromUrl(image.Image.ImageUrl);
                         await _imageUploadService.DeleteImageAsync(publicId); // Giả sử bạn lưu PublicId
 
@@ -759,11 +816,11 @@ namespace TripWiseAPI.Services.PartnerServices
                 var image = attractionImage.Image;
                 if (image != null)
                 {
-                    // ✅ Xóa ảnh khỏi cloud
+                    // Xóa ảnh khỏi cloud
                     var publicId = _imageUploadService.GetPublicIdFromUrl(attractionImage.Image.ImageUrl);
                     await _imageUploadService.DeleteImageAsync(publicId); 
 
-                    // ✅ Xóa khỏi DB
+                    //Xóa khỏi DB
                     image.RemovedDate = TimeHelper.GetVietnamTime();
                     image.RemovedBy = userId;
                     _dbContext.Images.Remove(image);
@@ -979,23 +1036,13 @@ namespace TripWiseAPI.Services.PartnerServices
                             TourAttractionImages = new List<TourAttractionImage>()
                         };
 
-                        // Copy ảnh (chỉ 1 ảnh duy nhất cho mỗi activity)
-                        var originalImageUrl = activity.TourAttractionImages.FirstOrDefault()?.Image?.ImageUrl;
-                        if (!string.IsNullOrEmpty(originalImageUrl))
+                        foreach (var attractionImage in activity.TourAttractionImages)
                         {
-                            var image = new Image
-                            {
-                                ImageUrl = originalImageUrl,
-                                CreatedDate = TimeHelper.GetVietnamTime(),
-                                CreatedBy = activity.CreatedBy
-                            };
-                            _dbContext.Images.Add(image);
-
                             draftActivity.TourAttractionImages.Add(new TourAttractionImage
                             {
-                                Image = image,
-                                CreatedDate = TimeHelper.GetVietnamTime(),
-                                CreatedBy = activity.CreatedBy
+                                ImageId = attractionImage.ImageId,   // tham chiếu ảnh gốc
+                                CreatedBy = activity.CreatedBy,
+                                CreatedDate = TimeHelper.GetVietnamTime()
                             });
                         }
 

@@ -54,7 +54,7 @@ namespace TripWiseAPI.Models
         {
             modelBuilder.Entity<AppSetting>(entity =>
             {
-                entity.HasIndex(e => e.Key, "UQ__AppSetti__C41E0289A74E9F47")
+                entity.HasIndex(e => e.Key, "UQ__AppSetti__C41E0289E06ACA3B")
                     .IsUnique();
 
                 entity.Property(e => e.CreatedBy).HasMaxLength(100);
@@ -122,7 +122,7 @@ namespace TripWiseAPI.Models
 
             modelBuilder.Entity<Booking>(entity =>
             {
-                entity.HasIndex(e => e.OrderCode, "UQ__Bookings__999B522941CF6868")
+                entity.HasIndex(e => e.OrderCode, "UQ__Bookings__999B5229A0153964")
                     .IsUnique();
 
                 entity.Property(e => e.BookingId).HasColumnName("BookingID");
@@ -141,9 +141,21 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.ExpiredDate).HasColumnType("datetime");
 
+                entity.Property(e => e.FirstName).HasMaxLength(100);
+
+                entity.Property(e => e.LastName).HasMaxLength(100);
+
                 entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 entity.Property(e => e.OrderCode).HasMaxLength(50);
+
+                entity.Property(e => e.PhoneNumber).HasMaxLength(50);
+
+                entity.Property(e => e.PriceAdult).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.PriceChild5To10).HasColumnType("decimal(18, 2)");
+
+                entity.Property(e => e.PriceChildUnder5).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.RefundAmount).HasColumnType("decimal(18, 2)");
 
@@ -157,9 +169,15 @@ namespace TripWiseAPI.Models
 
                 entity.Property(e => e.RemovedReason).HasMaxLength(255);
 
+                entity.Property(e => e.StartTime).HasColumnType("datetime");
+
                 entity.Property(e => e.TotalAmount).HasColumnType("decimal(18, 2)");
 
                 entity.Property(e => e.TourId).HasColumnName("TourID");
+
+                entity.Property(e => e.TourName).HasMaxLength(255);
+
+                entity.Property(e => e.UserEmail).HasMaxLength(255);
 
                 entity.Property(e => e.UserId).HasColumnName("UserID");
 
@@ -239,7 +257,7 @@ namespace TripWiseAPI.Models
 
             modelBuilder.Entity<Partner>(entity =>
             {
-                entity.HasIndex(e => e.UserId, "UQ__Partners__1788CCADE54E8A1E")
+                entity.HasIndex(e => e.UserId, "UQ__Partners__1788CCADADE0619A")
                     .IsUnique();
 
                 entity.Property(e => e.PartnerId).HasColumnName("PartnerID");
@@ -275,7 +293,7 @@ namespace TripWiseAPI.Models
             modelBuilder.Entity<PaymentTransaction>(entity =>
             {
                 entity.HasKey(e => e.TransactionId)
-                    .HasName("PK__PaymentT__55433A4B75A20251");
+                    .HasName("PK__PaymentT__55433A4B24572062");
 
                 entity.Property(e => e.TransactionId).HasColumnName("TransactionID");
 
@@ -686,7 +704,7 @@ namespace TripWiseAPI.Models
             modelBuilder.Entity<VnpayLog>(entity =>
             {
                 entity.HasKey(e => e.LogId)
-                    .HasName("PK__VnpayLog__5E5499A8A99B20CE");
+                    .HasName("PK__VnpayLog__5E5499A889BFAE55");
 
                 entity.ToTable("VnpayLog");
 
