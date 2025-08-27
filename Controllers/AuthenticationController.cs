@@ -121,7 +121,10 @@ namespace TripWiseAPI.Controllers
         {
             return await _authService.ResetPasswordAsync(req);
         }
+
+        /// <summary>
         // --- API gửi lại OTP đăng ký ---
+        /// </summary>
         [HttpPost("resend-signup-otp")]
         public async Task<IActionResult> ResendSignupOtp([FromBody] ResendSignupOtpRequest request)
         {
@@ -129,7 +132,9 @@ namespace TripWiseAPI.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        /// <summary>
         // --- API gửi lại OTP quên mật khẩu ---
+        /// </summary>
         [HttpPost("resend-forgot-password-otp")]
         public async Task<IActionResult> ResendForgotPasswordOtp([FromBody] ResendForgotPasswordOtpRequest request)
         {

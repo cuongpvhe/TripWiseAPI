@@ -18,7 +18,7 @@ namespace TripWiseAPI
 		public static void Main(string[] args)
 		{
 			var builder = WebApplication.CreateBuilder(args);
-			// ✅ Thêm cấu hình đọc secrets và env
+			// Thêm cấu hình đọc secrets và env
 			builder.Configuration
 				.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
 				.AddEnvironmentVariables()
@@ -125,7 +125,7 @@ namespace TripWiseAPI
 			{
 				c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "TripWise API", Version = "v1" });
 
-				// ⚠️ Cấu hình cho JWT Bearer
+				// Cấu hình cho JWT Bearer
 				c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
 				{
 					Description = "Nhập JWT vào đây với định dạng: Bearer {token}",
@@ -157,7 +157,7 @@ namespace TripWiseAPI
 
 
 			var app = builder.Build();
-			// ✅ Tạo tài khoản admin 
+			// Tạo tài khoản admin 
 			using (var scope = app.Services.CreateScope())
 			{
 				var db = scope.ServiceProvider.GetRequiredService<TripWiseDBContext>();
@@ -184,7 +184,7 @@ namespace TripWiseAPI
 
 						db.Users.Add(adminUser);
 						db.SaveChanges();
-						Console.WriteLine("✅ Admin user has been created.");
+						Console.WriteLine(" Admin user has been created.");
 					}
 					else
 					{
@@ -193,7 +193,7 @@ namespace TripWiseAPI
 						{
 							admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
 							db.SaveChanges();
-							Console.WriteLine("✅ Admin password updated.");
+							Console.WriteLine(" Admin password updated.");
 						}
 
 					}

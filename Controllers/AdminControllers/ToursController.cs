@@ -122,9 +122,9 @@ namespace TripWiseAPI.Controllers.AdminControllers
             return Ok("Đã từ chối bản nháp thành công");
         }
 
-        // ============================
+        /// <summary>
         // ADMIN CONFIRM REFUND
-        // ============================
+        /// </summary>
         [HttpPost("confirm-refund/{bookingId}")]
         public async Task<IActionResult> ConfirmRefundAsync(int bookingId)
         {
@@ -138,9 +138,9 @@ namespace TripWiseAPI.Controllers.AdminControllers
             return Ok(new { message = "Đã duyệt hoàn tiền và gửi email thông báo cho khách + đối tác." });
         }
 
-        // ============================
+        /// <summary>
         // ADMIN COMPLETE REFUND
-        // ============================
+        /// </summary>
         [HttpPost("complete-refund/{bookingId}")]
         public async Task<IActionResult> CompleteRefundAsync(int bookingId)
         {
@@ -154,9 +154,9 @@ namespace TripWiseAPI.Controllers.AdminControllers
             return Ok(new { message = "Hoàn tiền thành công và đã gửi email cho khách hàng." });
         }
 
-        // ============================
+        /// <summary>
         // ADMIN REJECT REFUND
-        // ============================
+        /// </summary>
         [HttpPost("reject-cancelbooking/{bookingId}")]
         public async Task<IActionResult> RejectRefundAsync(int bookingId, [FromBody] RejectRefundRequest request)
         {

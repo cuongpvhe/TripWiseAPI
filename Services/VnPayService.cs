@@ -55,7 +55,7 @@ namespace TripWiseAPI.Services
             pay.AddRequestData("vnp_ReturnUrl", _configuration["PaymentCallBack:ReturnUrl"]);
             pay.AddRequestData("vnp_TxnRef", orderCode);
 
-            // 💾 Kiểm tra PaymentTransaction đã tồn tại chưa
+            // Kiểm tra PaymentTransaction đã tồn tại chưa
             var existingTransaction = _dbContext.PaymentTransactions
                 .FirstOrDefault(t => t.OrderCode == orderCode);
 
@@ -516,7 +516,7 @@ namespace TripWiseAPI.Services
                 if (string.IsNullOrEmpty(orderCode))
                     throw new Exception("Thiếu mã đơn hàng (vnp_TxnRef).");
 
-                // 🔹 Lấy PaymentTransaction hiện có để update
+                // Lấy PaymentTransaction hiện có để update
                 var transaction = await _dbContext.PaymentTransactions
                     .FirstOrDefaultAsync(t => t.OrderCode == orderCode);
 
@@ -549,7 +549,7 @@ namespace TripWiseAPI.Services
                     transaction.PaymentStatus = PaymentStatus.Failed;
                 }
 
-                // 🔹 Nếu là plan và thanh toán thành công thì nâng cấp plan
+                // Nếu là plan và thanh toán thành công thì nâng cấp plan
                 if (transaction.PaymentStatus == PaymentStatus.Success && transaction.PlanId.HasValue)
                 {
                     await _planService.UpgradePlanAsync((int)transaction.UserId, transaction.PlanId.Value);

@@ -40,7 +40,7 @@ namespace TripWiseAPI.Services
             }
 
             var freePlanId = await _appSettingsService.GetIntValueAsync("FreePlanId", -1);
-            // ✅ Nếu đang trong thời gian Trial (EndDate còn hiệu lực), thì dùng không giới hạn
+            // Nếu đang trong thời gian Trial (EndDate còn hiệu lực), thì dùng không giới hạn
             if (userPlan.EndDate != null && userPlan.EndDate > TimeHelper.GetVietnamTime())
             {
                 if (isSuccess)
@@ -145,7 +145,7 @@ namespace TripWiseAPI.Services
             if (user == null)
                 return new ApiResponse<string>(404, "Người dùng không tồn tại.");
 
-            // 🔥 Tìm gói mới và gán vào biến newPlan (chính chỗ này phải có)
+            // Tìm gói mới và gán vào biến newPlan (chính chỗ này phải có)
             var newPlan = await _dbContext.Plans
                 .FirstOrDefaultAsync(p => p.PlanId == planId && p.RemovedDate == null);
 

@@ -36,9 +36,9 @@ namespace TripWiseAPI.Services
             var oldResponse = JsonSerializer.Deserialize<ItineraryResponse>(existingPlan.MessageResponse);
 
             if (oldRequest == null || oldResponse == null)
-                throw new InvalidOperationException("❌ Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
+                throw new InvalidOperationException(" Dữ liệu gốc bị lỗi, không thể phân tích JSON.");
 
-            // ✅ TẠO BẢNG SAO LƯU CỦA LỊCH TRÌNH GỐC
+            // TẠO BẢNG SAO LƯU CỦA LỊCH TRÌNH GỐC
             var originalResponseBackup = JsonSerializer.Deserialize<ItineraryResponse>(
                 JsonSerializer.Serialize(oldResponse, new JsonSerializerOptions
                 {
@@ -48,7 +48,7 @@ namespace TripWiseAPI.Services
             // Gọi AI với 4 tham số: truyền userMessage làm cả instruction và originalUserMessage
             var newItinerary = await _aiService.UpdateItineraryAsync(oldRequest, oldResponse, userMessage, userMessage);
 
-            // ✅ SO SÁNH LỊCH TRÌNH GỐC VÀ MỚI
+            // SO SÁNH LỊCH TRÌNH GỐC VÀ MỚI
             var comparisonResult = ItineraryComparer.AnalyzeChanges(originalResponseBackup, newItinerary, userMessage);
 
             // Thêm thông tin thời tiết cho mỗi ngày
@@ -76,13 +76,13 @@ namespace TripWiseAPI.Services
                 Itinerary = newItinerary.Itinerary,
                 SuggestedAccommodation = newItinerary.SuggestedAccommodation,
                 
-                // ✅ THÊM THÔNG TIN SO SÁNH VÀO RESPONSE
+                // THÊM THÔNG TIN SO SÁNH VÀO RESPONSE
                 UpdateMessage = comparisonResult.Message,
                 UpdateDetails = comparisonResult.DetailedMessage,
                 HasChanges = comparisonResult.HasChanges
             };
 
-            // ✅ CHỈ LƯU NẾU CÓ THAY ĐỔI THỰC SỰ
+            // CHỈ LƯU NẾU CÓ THAY ĐỔI THỰC SỰ
             if (comparisonResult.HasChanges)
             {
                 existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions
@@ -291,14 +291,14 @@ namespace TripWiseAPI.Services
                 int dayNumber = day.GetProperty("DayNumber").GetInt32();
                 string title = day.GetProperty("Title").GetString();
 
-                // ✅ Trích xuất thông tin thời tiết nếu có
+                // Trích xuất thông tin thời tiết nếu có
                 string weatherDescription = day.TryGetProperty("WeatherDescription", out var wd) ? wd.GetString() ?? "" : "";
                 double? temperatureCelsius = day.TryGetProperty("TemperatureCelsius", out var temp) && temp.ValueKind == JsonValueKind.Number
                     ? temp.GetDouble()
                     : (double?)null;
                 string weatherNote = day.TryGetProperty("WeatherNote", out var wn) ? wn.GetString() ?? "" : "";
 
-                // ✅ Tạo mô tả thời tiết nếu có
+                // Tạo mô tả thời tiết nếu có
                 string weatherInfo = "";
                 if (!string.IsNullOrEmpty(weatherDescription) || temperatureCelsius.HasValue || !string.IsNullOrEmpty(weatherNote))
                 {
@@ -309,7 +309,7 @@ namespace TripWiseAPI.Services
                         weatherInfo += $" - {weatherNote}";
                 }
 
-                // ✅ Tạo itinerary cho mỗi ngày
+                // Tạo itinerary cho mỗi ngày
                 var itinerary = new TourItinerary
                 {
                     TourId = tour.TourId,
@@ -666,7 +666,7 @@ namespace TripWiseAPI.Services
         throw new ArgumentException("Hoạt động được chọn không khớp với dữ liệu hiện tại. Vui lòng chọn lại.");
     }
 
-    // ✅ TẠO BẢNG SAO LƯU CỦA LỊCH TRÌNH GỐC
+    // TẠO BẢNG SAO LƯU CỦA LỊCH TRÌNH GỐC
     var originalResponseBackup = JsonSerializer.Deserialize<ItineraryResponse>(
         JsonSerializer.Serialize(oldResponse, new JsonSerializerOptions
         {
@@ -688,7 +688,7 @@ namespace TripWiseAPI.Services
         userMessage
     );
 
-    // ✅ SO SÁNH LỊCH TRÌNH GỐC VÀ MỚI
+    // SO SÁNH LỊCH TRÌNH GỐC VÀ MỚI
     var comparisonResult = ItineraryComparer.AnalyzeChanges(originalResponseBackup, newItinerary, userMessage);
 
     // Add weather information for each day
@@ -716,13 +716,13 @@ namespace TripWiseAPI.Services
         Itinerary = newItinerary.Itinerary,
         SuggestedAccommodation = newItinerary.SuggestedAccommodation,
         
-        // ✅ THÊM THÔNG TIN SO SÁNH VÀO RESPONSE
+        // THÊM THÔNG TIN SO SÁNH VÀO RESPONSE
         UpdateMessage = comparisonResult.Message,
         UpdateDetails = comparisonResult.DetailedMessage,
         HasChanges = comparisonResult.HasChanges
     };
 
-    // ✅ CHỈ LƯU NẾU CÓ THAY ĐỔI THỰC SỰ
+    // CHỈ LƯU NẾU CÓ THAY ĐỔI THỰC SỰ
     if (comparisonResult.HasChanges)
     {
         existingPlan.MessageResponse = JsonSerializer.Serialize(updatedResponse, new JsonSerializerOptions

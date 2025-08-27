@@ -125,7 +125,7 @@ public class ReviewService : IReviewService
 		return new ApiResponse<string>(200, "Xóa đánh giá thành công.");
 	}
 
-	// ✅ Đánh giá tour thường
+	// Đánh giá tour thường
 	public async Task<ApiResponse<string>> ReviewTourPartnerAsync(int userId, ReviewTourTourPartnerDto dto)
 	{
 		// Kiểm tra tour có tồn tại, loại Partner và được duyệt
@@ -150,7 +150,7 @@ public class ReviewService : IReviewService
 			return new ApiResponse<string>(400, "Bạn cần đặt tour này trước khi đánh giá.");
 		}
 
-		// ❗ Kiểm tra tour đã kết thúc chưa
+		// Kiểm tra tour đã kết thúc chưa
 		if (!int.TryParse(tour.Duration, out int durationDays))
 		{
 			return new ApiResponse<string>(400, "Thông tin tour không hợp lệ .");
