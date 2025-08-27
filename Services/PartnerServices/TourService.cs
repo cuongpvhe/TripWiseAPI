@@ -422,7 +422,7 @@ namespace TripWiseAPI.Services.PartnerServices
                         var firstImage = a.TourAttractionImages
                             .Where(ai => ai.Image != null && ai.Image.RemovedDate == null)
                             .Select(ai => ai.Image)
-                            .FirstOrDefault();
+                            .LastOrDefault();
 
                         return new ActivityDetailDto
                         {
@@ -611,12 +611,27 @@ namespace TripWiseAPI.Services.PartnerServices
                 attractionImage.RemovedDate = TimeHelper.GetVietnamTime();
                 attractionImage.RemovedBy = userId;
 
-                var publicId = _imageUploadService.GetPublicIdFromUrl(attractionImage.Image.ImageUrl);
+                // Lấy url trước khi xóa
+                var imageUrl = attractionImage.Image?.ImageUrl;
+                if (string.IsNullOrEmpty(imageUrl))
+                {
+                    throw new InvalidOperationException("Ảnh không có URL, không thể tìm publicId để xoá.");
+                }
+
+                var publicId = _imageUploadService.GetPublicIdFromUrl(imageUrl);
+                if (string.IsNullOrEmpty(publicId))
+                {
+                    throw new InvalidOperationException("Không tìm được publicId từ URL ảnh.");
+                }
+
+                // Xóa trên Cloudinary
                 await _imageUploadService.DeleteImageAsync(publicId);
 
+                // Sau khi xoá thành công trên Cloudinary mới xoá DB
                 _dbContext.Images.Remove(attractionImage.Image);
                 _dbContext.TourAttractionImages.Remove(attractionImage);
             }
+
 
             await _dbContext.SaveChangesAsync();
             return true;
